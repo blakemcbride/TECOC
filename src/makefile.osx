@@ -1,28 +1,42 @@
 #
-# This makefile builds TECOC on Linux
+# This makefile builds TECOC on Mac OS X
 # Before running it,  inspect the lines between here and the line containing
 # all #'s to select the way you want TECO-C built.
+
 # If you want to compile with built-in debugging support,  uncomment the
 # following line.  When debugging is compiled in,  the control-P command
 # can be used to turn on function tracing or get views of internal data
 # structures (see the DbgDsp function in tecoc.c). Compiling in this support
 # makes TECO-C larger and a little slower,  so you should only use this
 # when you're debugging TECO-C.
+
 #DEBG = -DDEBUGGING
+
 # If you're debugging TECO-C,  use this option to compile in a consistency
 # checking function called after each command executes.  The function checks
 # the sanity of TECO-C's internal variables.  This obviously slows things
 # down a little.
+
 #CCHEK = -DCONSISTENCY_CHECKING
+
 # If you want to use gcc,  uncomment the following lines,  which override the
 # COMPILE.c macro so it doesn't stick in the -target option, which gcc
 # doesn't understand.
+
 CC= gcc
-#CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O -Wall -Wshadow -Wpointer-arith -Wcast-qual -DLINUX
-CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O  -DOSX
-#TERMOBJS = -ltermcap
+
+# Uncomment the following line for non-video teco
+#CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O  -DOSX
+
+# Or, uncomment the following two lines for video teco
+CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O  -DOSX -DCURSES
+TERMOBJS = -lncurses
+
+
 COMPILE.c = $(CC) $(CFLAGS) $(CPPFLAGS) -c -g
+
 #############################################################################
+
 CFILES=	baksrc.c bldstr.c clenup.c cmatch.c docjr.c doeves.c doflag.c \
 	echoit.c err.c exea.c exeats.c exeb.c exebar.c exebsl.c exec.c \
 	execcc.c execln.c execom.c execrt.c execst.c execta.c exectc.c \
@@ -39,34 +53,46 @@ CFILES=	baksrc.c bldstr.c clenup.c cmatch.c docjr.c doeves.c doflag.c \
 	makdbf.c makrom.c popmac.c pshmac.c pushex.c rdline.c rdpage.c \
 	readcs.c replac.c search.c singlp.c skpcmd.c srclop.c sserch.c \
 	tabort.c typbuf.c typest.c uminus.c wrpage.c zfrsrc.c zosx.c
+
 OBJECTS= $(CFILES:.c=.o)
+
 tecoc: tecoc.o ${OBJECTS}
-	${LINK.c} -s -o $@ tecoc.o ${OBJECTS} ${TERMOBJS}
+	${LINK.c} -o $@ tecoc.o ${OBJECTS} ${TERMOBJS}
+
 tecoc.o: tecoc.c zport.h tecoc.h deferr.h dchars.h chmacs.h
+
 clpars.h: genclp clpars.tec
 	./genclp
+
 genclp: genclp.o
 	${LINK.c} -o $@ genclp.o
+
 genclp.o: genclp.c
+
 clean:
 	@for i in makedep? ${OBJECTS} ; do \
 		if [ -f $$i ] ; then rm $$i ; fi ; \
 	done
-	rm -f tecoc tecoc.o core
+	rm -f tecoc tecoc.o core genclp.o genclp clpars.h *.tmp *~ *.bak
+
 tags:
 	etags *.c *.h
+
 lint:
 # b = report unreachable break statements
 # c = complain about casts with questionable portability
 # h = apply heuristic tests
 # x = report unused externs
 	lint -bchx -DSUNOS4_0 tecoc.c ${CFILES}
+
+
 #
 #  Invoking this target (with "make depend") causes a new version of this
 #  file to be created.  This current version will be saved in a file named
 #  "makefile.bak".  In the new file, the lines following the special "DO NOT
 #  DELETE" line will be replaced with a new set of dependency rules.
 #
+
 depend: makedep
 	@echo '/^# DO NOT DELETE THIS LINE/+1,$$d' >makedep0
 	@echo '$$r makedep5' >>makedep0
@@ -75,6 +101,7 @@ depend: makedep
 	@ed - makefile < makedep0
 	@rm makedep?
 	@echo "new version of makefile generated, old version in makefile.bak"
+
 makedep: FRC
 	@cat /dev/null >makedep5
 	@echo "generating include file dependency list..."
@@ -100,6 +127,8 @@ makedep: FRC
 	@cat makedepe
 	@(if [ -s makedepe ]; then false; fi)
 FRC:
+
+
 # DO NOT DELETE THIS LINE -- make depend uses it
 baksrc.o: baksrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
 bldstr.o: bldstr.c zport.h tecoc.h defext.h deferr.h dchars.h chmacs.h

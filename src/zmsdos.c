@@ -17,6 +17,7 @@
 #include <string.h>             /* prototypes for strlen(), strcat(), ... */
 #include <utime.h>              /* prototype for utime() */
 #include <sys/stat.h>           /* prototype for stat() */
+#include <malloc.h>
 
 #include "zport.h"              /* define portability identifiers */
 #include "tecoc.h"              /* define general identifiers */

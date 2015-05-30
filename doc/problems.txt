@@ -1,0 +1,292 @@
+	This file contains informal notes about TECO-C.  It includes bugs
+and ideas for improvements.
+	[Unfortunately, it isn't as up to date as possible, some problems
+in here are fixed, some aren't strictly "problems"...Manfred]
+. Mark made ~ and F~ commands which aren't documented.
+. Mark aded Curses support,  which works for split screen scrolling but
+  doesn't support vtedit.  It also needs to completely enter or leave
+  split screen mode when the 7:W command is executed,  because I/O is
+  lousy to the screen if curses is active,  even when all it should do
+  is simple output to  the screen.
+. n,m:w commands should return a value, but don't
+. Steve Freyder's bug: <-^N-1;a> on a large file loops infinitely under
+  MS-DOS and/or Unix?
+. if you set eightbit (4096,0et) with TECOC and exit,  it stays set.  If you
+  do it with TECO32,  it doesn't.  Why?  Changing the screen height/width
+  works as expected. (VMS)
+. do a 0,1:w to TECO32,  it just returns.  Do it to TECOC,  it dies with
+  bad parameter value.  TECOC should be the same.
+. I do a getdvi on the output channel and then do a sensemode in
+  open_output_terminal.  They're redundant.  The sensemode should be it.
+. EW causes a backup file to be created.
+Problems reported by Richard Graham:
+	. EI$ doesn't seem to work.  EIfilename$ does. (unsure about this)
+	. :]p= returns -1 10 times, then 0 if executed when TECO first starts
+	   up on a PC.
+	. Try ":stext$ .ue :s$" and get ISA error,  and then (on PC) the ?
+	  command doesn't work.  Generalized problem: TECO-C doesn't
+	  "overwrite" a numeric value that's on the stack with a new one.
+	. How to search for a control-E?  ED flag # 1, ^Eq and ^Eu don't
+	  seem to let Richard do it.  He says TECO-11 will take FS^E$^E$.
+Problems running under Unix:
+	. ^C doesn't work.
+	. look at "man 3 time" and "man localtime" to implement date/time
+	. Is there a way to sensibly set ET_EIGHTBIT under Unix?
+	. ZUNIX.C's ZChIn doesn't handle the NoWait argument
+Problems running on PC:
+	1. editing .EXE files doesn't work. should it?
+	2. ZChIn doesn't handle PC-extended characters from the keyboard
+	3. After the work to make ^C's work better, doing a ^C in the
+	   middle of a macro like detab.tec now works; but, ".=" displays
+	   0.  shouldn't . be in the middle of the file wherever the
+	   ^C happened?
+There's a test case in TSTQR.TEC that causes TECO-11 to give the
+UTC error.  TECOC does too,  but from then on it's screwed up.  Why?
+To support eight-bit characters, there are several places where casts
+to "unsigned char" are used.  The better solution is to go through the
+code and declare everything to be unsigned char, then delete the
+casts.  Some of the casts are in CHMACS.H.
+If you search for a string using a match control construct and the
+search fails, the "?SRH Search failure "xxx"" error message shows the
+match control construct with a <> surrounding it.  TECO-11/32 does
+not.
+BldStr is used by commands other than search commands, yet it reports
+the "illegal search string" error sometimes.  It looks like the error
+messages from TECO-11/32 aren't really correct.  Need an error message
+like "illegal string build construct" or something.
+The error message "illegal ^E command in search string" would be
+better if it were "illegal ^E construct in search string"
+In ERR.C, the routines ErrMsg, ErrStr and ErrPSt all share code.  Fix
+it.  make verbose messages for system errors.  flesh out error
+handling in z files Make a test case that checks the cases:
+	1. call to ErrMsg
+	2. call to ErrChr
+	3. call to ErrStr
+	4. call to ErrPSt
+	5. call to ZVrbos on VAX and non-VAX machines
+re-indent the code (automatically) to use 4-space indenting.  This
+will solve the problem that some lines are now too long.  use clean
+indenting scheme
+A command like n+^T$$ won't get parsed right.  Is this a general
+problem?
+merge zfrsrc and baksrc
+convert pushex to pshnbr and pshopr
+terminal modes aren't right on Sun
+use standard Isdigit, etc. macros/functions?
+The non-VMS ZPrscl's concatenate argv's and spaces to re-construct the
+command line.  There are better ways that are operating-system
+dependent.
+The construct: <0a"ad>' is not well-formed in TECOC, but it is in
+TECO-11/32 The loop exits when the "end loop" command is skipped.  In
+TECOC, this means the loop nesting control variable isn't decremented,
+so we "think" we're still in a loop even though we're not.  This isn't
+a problem in TECO-11/32.  A more common programming construct is:
+<0a"ad|1;'> which works without problems in TECOC.
+The @-modified form of the ! "command" is supported in TECO-11/32, not
+in TECOC.
+In BOTH tecos, output of a long string to SYS$OUTPUT doesn't work if
+the string is long enough.  TECOC gets a signal, TECO-11/32 gets a
+"OPCODE reserved to Digital" error.  To fix, must make the "terminal
+output buffer" dynamic.
+All system calls must correctly handle being interrupted by control-C.
+Page 228 of "Unix Programmer's Manual, Volume 1" talks about this a
+little.  Each system call should check for errors, but should not
+treat control-Cs as an error.
+If type ^C while it's executing a macro, get "Operation completed
+under control-C" and a dollar sign!
+If you type a control-C while help is being displayed, you get two
+prompts
+Control-C works fine at command splits.  Checks need to be inserted
+everywhere commands do loops on command arguments. For instance, 23p
+needs a check in the loop that calls SinglP.
+Does ExeCtT do the right thing when it's read with no wait and the
+user types control-C?
+The following weird thing happens (I forget which TECO):
+	1. compile a file/DEBUG/NOOPT in one terminal session
+	2. open the file with TECO in another session
+	3. debug the application in the first session. Can't find file.
+	4. do ^Z^Z to leave TECO in the second session
+	5. file is deleted!!!
+The ^EUq string build construct behaves differently than the
+TECO-11/32 algorithm for a special case: if the character in the
+q-register is a ^E.  The command "5uas^EUA$" will search for ^E in
+TECO-11/32 and will fail in TECO-C.
+ZFrSrc exists only because I was playing with SCANC on a VAX.  Delete
+the VAX-specific code and then merge what's left with BakSrc, using
+SIncrm in the loops.  This is much cleaner.
+Local q-registers need to be tested further.
+CBf, SBf, TBf, ZBf do not expand?
+Finish creation of TSTPW.TEC, a test case that demonstrates that
+ZWRITE mimics TECO-11/32 for all cases of the edit buffer/gap and all
+cases of line termination: FF, VT, CR/LF, $/CR/LF, and GapBeg and
+GapEnd.
+Open SOFDEV.RNO for reading, do _glossary$v$$ and see junk. Also, do
+rt -r notes.rno and then y$$y$$ and see an extra blank line at the
+bottom of the buffer.
+Use TRNLNM instead of TRNLOG in ZINIT and ZEXEEI.  Make a
+general-purpose logical name translation procedure to be used by both?
+File COMMANDS.TXT has several "not implemented" lines that aren't
+right
+Add help text for E%q and EQq to hlp file.
+In TECO-11/32, the EG command uses the BldStr-like routine to build
+its string.  Teco-c should call BldStr from ZExeEG.
+The macro system needs to be carefully checked.
+If do 8192ET, then a null command string with just two escapes won't
+"work".  Need to hit three, and then get an error.
+Scan Appendix C of TECO-11/32 manual for goodies.
+In ZExeEI:
+		1. status != RMS$_NORMAL in ZRedEI does not error
+		   gracefully.
+		2. If find $$ in the middle of the read buffer,  can't
+		   continue after executing the string.
+		3. EI buffer won't expand.
+		4. File closure on error on ^C ?
+ExeCSt was changed to do CBfPtr < CStEnd instead of CBfPtr <= CStEnd.
+Track and check.
+Why clear q-register stack in MemIni if it's been statically
+initialized in TECOC?
+Page 5 of TECO.LST shows ET and ED encodings.  Compare/contrast
+In ExeFGt, if we're not in a loop, should behave as if we're
+<ESC><ESC>.  We're not doing that now.  Put in
+		If (MstTop)
+			{
+			CBfPtr = CStEnd;
+			return(SUCCESS);
+			}
+into the code before the first return(FAILURE).
+On the VAX, deal with disk quota overflow. Larry Kilgallen described
+the handling of this: when you get a disk quota exceeded, just issue
+the identical $PUT call again to exploit overdraft.  This doesn't work
+for creating files.
+Date and time (^B and ^H) commands work under VAX/VMS.  They will work
+differently under other systems.  Make a standard?
+Say jz10v instead of zj10v and the two TECO's behave differently
+Normal TECO handles two numbers in a row differently than TECO-C does.
+TECO-C dies with a debugging message!!!
+use register variables
+use declaration of variables within blocks
+see if type casts are superfluous in places.  C already does it?
+The September 1984 issue of Scientific American has an article by
+Niklaus Wirth that describes a fast searching algorithm.  Use it?
+The entire ", ', <, >, O system should be checked.
+CmdMod should be checked.
+Is MovGap right?
+The W command is stubbed out now.  For debugging, ExeW exists, SkpE
+skips over EG, EM, EN and EZ as if they were valid commands.  A
+problem with this is that the command to turn on SEEALL mode
+"-1,3:W^[" returns ERR_NCA error, "negative argument to comma".
+The code for INCCBP and the other places where ++CBfPtr happens needs
+the MStTop test to be changed. Now, if a UTC should be reported, it's
+not. It returns SUCCESS!
+ExeO needs it's handling of CBfPtr to be fixed.  There aren't checks
+against CStEnd, and the last "--CBfPtr" may be wrong.
+Shouldn't CBfPtr be renamed CStPtr?  It would relate better to CStBeg,
+CStEnd, etc.
+help subsystem works on VAX,  won't on another machine
+Get rid of ??? which marks unfinished or questionable stuff.  Get rid
+of calls to ExeNYI.
+DoEvEs doesn't implement the ES flag exactly like the manual says
+DoEvEs has a system-dependent structure (UDummy)
+the free function is an int on the VAX, void on the SAGE
+Standard input and standard output are not used to communicate with
+the terminal.  UNIX people may expect that they are.  This rules out
+using TECO-C in a pipe-oriented manner.
+Use DbgDCh instead of ZDspCh in ErrMsg for passed string displaying
+difference between TypChr, EchoIt, CharOut?
+COLON sounds like a character identifier. So does ATSIGN.
+ChrFuncs requires DefChars
+memory overflow
+skipping commands is NOT finished.
+In help, for errors, trace down the possible ways the code can print
+each error message.  Some of them are unobvious.  Give an explanation
+of all the ways an error can be generated to help a user figure out
+his error.
+Page 92 of the manual lists two informational messages.  The 16 bit of
+the ET mode control flag suppresses informational messages.  These
+messages are neither generated nor suppressed by TECO-C.
+Doing an "ERfilename$" puts the expanded filespec in the filespec
+buffer.  Under TECO-11/32, doing a subsequent "ER$" to change I/O
+streams does not wipe out the filespec buffer.  It does in TECO-C.
+For all the xxxBeg,  xxxEnd,  xxxPtr things,  change all the comments to
+	xxxBeg;		/* first char of xxx buffer */
+	xxxEnd;		/* last char of xxx buffer */
+	xxxPtr;		/* last char of xxx, plus 1 */
+check the MOBY MUNGER.  It mentions lots of bugs in other TECOs.  Some
+of the bugs are esoteric and quite possibly exist in TECO-C
+nulls are not stripped from input.
+VAX TPU is able to read a file that is currently locked by another
+user, which is useful for looking at BATCH log files while a BATCH job
+is running.  TECO-C can't.  I looked at the microfiche code to see how
+TPU does it.  It seems to try to open the file, and if it gets
+RMS$_FLK, then it tries to open the file again after setting the UPI
+bit in FAB$SHR.  This means that it is supposed to do block I/O to the
+file.  I couldn't find the place where actual file reading is done
+(it's in $fileio, which is in TPU$CAL_MODULE, which I couldn't find.)
+Does TPU do block I/O (section mapping?)
+The following commands are not yet implemented in TECO-C
+		W       video scope control
+		^Y      equivalent to ".+^S,."
+		EL      open log file
+		^F      return value in console switch register
+		nEC     control memory management
+The following commands are not implemented in TECO-C, and probably
+never will be, as they require operating system features that cannot
+be assumed by a portable TECO.
+		EZ      zero output tape
+		EM      position magnetic tape
+    In addition, most of the commands defined in Appendix C of
+    the manual (Incompatible, Obsolete and System-Specific Commands)
+    are not implemented.
+  The ^R command (set or return radix) supports the 8, 10 and 16
+radices.  TECO-C parses command-line numeric arguments using the
+current radix.  This can make command execution confusing for radix
+16.  Consider the command string "14A=$$", which returns the ascii
+value of the 14th character after the character pointer.  If the radix
+is 16, the "A" is parsed as part of the number, and the ascii value of
+a completely different character will be returned.
+  This is a trade-off.  TECO-11/32 always parses command-line arguments
+using radix 10.  This destroys TECO's utility as a calculator for
+hexadecimal.  I believe access to a base 16 calculator is more
+important than possible user confusion. Thus, be careful if you want
+to change TECO's radix.  Remember to change it back.  Also note that
+if you use TECO-C as a hexadecimal calculator, you must precede
+hexadecimal numbers which start with one of the letters A-F with a 0
+in order to make TECO-C parse the number correctly.
+You won't get "%Superseding file" messages.
+Differences between TECO-C and TECO-11 or TECO32 under VMS:
+	. video only under Unix,  commands somewhat different,  see VIDEO.TXT
+	. Command line syntax different under Unix.
+	. EO returns 100+
+	. 2048 bit of ET flag reverses meaning of DELETE and BACKSPACE keys
+	. -1EJ command returns additional operating system types
+	. 0:W returns additional terminal types
+	. s^n$ gives "invalid search argument", TECO-11/32 does nothing
+	. on ^Z^Z^Z, third ^Z is echoed
+	. default directory is TECO$MACROS for EI command
+	. TECO-C won't allow HP or HPW when edit buffer is empty
+	. TECO-C supports q-register I/O commands E% and EQ,  TECO-11
+	  doesn't
+	. TECO-C supports ^EQ* and ^EQ_ as string build contructs, TECO-11
+	  doesn't
+	. TECO-C does case sensitivity correctly,  not with bit checking,
+	  so TECO-C does not consider "`","{","|","}" and "~" to be
+	  equivalent to "@","[","\","]" and "^", respectively.
+	. The -P, -Y, and -N commands, which are implemented in TECO-11
+	  version 39,  are not yet implemented in TECO-C.
+	. TECO-11 supports switches on file name arguments to commands like
+	  ER, EB, etc.  TECO-C does not.
+	. TECO-11/32 supports files with nonstandard record formats (like
+	  FORTRAN carriage control).  TECO-C does not.
+	. TECO-11/32 does funny stuff with lines ending in <ESC><CR><LF>.
+	  TECO-C doesn't (it can't under MS-DOS, which uses <CR><LF> as
+	  line terminators in files.)
+	. Escape-sequence handling not in TECOC yet.
+	. <DELIM> can be anything in TECO-11/32, not in TECOC
+	. :EGcmd args' is in TECO-11/32
+	. ^T on/off handling in TECO-11/32 is better than in TECOC
+	. values returned by initialization macro are used by TECO-11/32
+	. ^E can be set by the user in TECO-11/32
+	. :^T command exists in TECO-11/32
+	. nOtag0,tag1,tag2$ with an "n" that's out-of-range is supposed to
+	. cause no branch at all.  Under TECO-32,  a negative "n" causes a
+	  branch to tag0.  TECO-C correctly does no branch.

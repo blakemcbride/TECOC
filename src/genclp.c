@@ -36,7 +36,11 @@ open_clpars_tec(ifile)
 FILE **ifile;
 #endif
 {
+#ifdef MSDOS
+	*ifile = fopen("clpars.tec","rb");
+#else
 	*ifile = fopen("clpars.tec","r");
+#endif
 	if (*ifile == NULL)
 		{
 		puts("genclp: Unable to open file CLPARS.TEC for reading");
@@ -52,7 +56,11 @@ open_clpars_h(ofile)
 FILE **ofile;
 #endif
 {
+#ifdef MSDOS
+	*ofile = fopen("clpars.h","wt");
+#else
 	*ofile = fopen("clpars.h","w");
+#endif
 	if (*ofile == NULL)
 		{
 		puts("genclp: Unable to open file CLPARS.C for writing");
@@ -206,7 +214,7 @@ main()
 	open_clpars_tec(&ifile);
 	write_header(ofile);
 	write_line("#if USE_ANSI_CLPARS\n", ofile);
-	write_line("unsigned const char clpars[] = {\n", ofile);
+	write_line("unsigned char clpars[] = {\n", ofile);
 	cnvrt(ifile, ofile, TRUE);
 	close_clpars_tec(ifile);
 /*

@@ -25,6 +25,9 @@
 #include <unistd.h>
 #include <termios.h>
 #include <glob.h>		/* Rewritten 05/04 by TAA to use glob function */
+#if CURSES
+#include <curses.h>		/* has to come before zport.h */
+#endif
 #include "zport.h"		/* define portability identifiers */
 #include "tecoc.h"		/* define general identifiers */
 #include "chmacs.h"		/* define character processing macros */
@@ -33,8 +36,64 @@
 #include "deferr.h"		/* define identifiers for error messages */
 #include "defext.h"		/* define external global variables */
 #include "dscren.h"		/* define identifiers for screen i/o */
+#if CURSES
+/*
+ * The ACS_xxx symbols are defined in the SunOS version of curses, but not
+ * in either the BSD or X/OPEN Ultrix versions.  Who knows where else they
+ * are defined?  Isn't portability wonderful?
+ *
+ * Note that this code implicitly assumes a VT100-compatible terminal.
+ * Tough.  (Jerry Leichter, June 1991)
+ */
+#ifndef ACS_PLMINUS
+#define ACS_PLMINUS	(A_ALTCHARSET | 0x67)
+#define ACS_LLCORNER	(A_ALTCHARSET | 0x60)
+#define ACS_LRCORNER	(A_ALTCHARSET | 0x6A)
+#define ACS_LARROW	(A_ALTCHARSET | 0x7C)	/* Really not-equal	*/
+#define ACS_HLINE	(A_ALTCHARSET | 0x71)
+#define ACS_BTEE	(A_ALTCHARSET | 0x76)
+#define ACS_DIAMOND	(A_ALTCHARSET | 0x60)
+#define ACS_RTEE	(A_ALTCHARSET | 0x75)
+#endif
+WINDOW *curwin;
+int ScopeFlg = 0;		/* for ZDspCh and ZDspBuf */
+int olddot;
+#define DOT (GapBeg - EBfBeg)
+#define ISSCW (ScopeFlg)
+unsigned char *p_scope_start;
+int scope_start;
+int winline;
+int cursoratbottomline;
+int cursorattopline;
+static int colsave;
+int dotx,doty;			/* position of cursor in scope */
+int dotx1, doty1;		/* pos. after printing character in scope */
+int skiprefresh = 0;
+int cmdx,cmdy;			/* position of cursor in command buffer */
+int scope_start, scope_end;
+unsigned char *pscope_start;
+#define CT ((EzFlag & EZ_VT100GRAPHICS) ? ACS_PLMINUS : '^')
+#define LB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LLCORNER : '[')
+#define RB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LRCORNER : ']')
+#else				/* else (not CURSES) ----------------------*/
+#ifdef LINUX
 static BOOLEAN tty_set = FALSE;	/* Has the terminal been set? */
 static struct termios  out, cur;	/* terminal characteristics buffers */
+#else
+#include <sgtty.h>		/* define CBREAK, ECHO, TIOCGETP, etc. */
+static BOOLEAN tty_set = FALSE;	/* Has the terminal been set? */
+static struct sgttyb out, cur;	/* terminal characteristics buffers */
+#endif
+static char tbuf[1024];		/* store TERMCAP entry here */
+static char tarea[1024];	/* store decoded TERMCAP stuff here */
+static char *ce;		/* TERMCAP sequence: clear to end-of-line */
+static char *up;		/* TERMCAP sequence: cursor up */
+static char *so;		/* TERMCAP sequence: reverse video on */
+static char *se;		/* TERMCAP sequence: reverse video off */
+int	tputs();		/* send termcap string to a given function */
+int	tgetent();		/* load a terminal capability buffer */
+char 	*tgetstr();		/* get str value of a terminal capability */
+#endif
 static char tbuf[1024];		/* store TERMCAP entry here */
 // static char tarea[1024];	/* store decoded TERMCAP stuff here */
 // static char *ce;		/* TERMCAP sequence: clear to end-of-line */
@@ -45,7 +104,6 @@ int	tputs();		/* send termcap string to a given function */
 int	tgetent();		/* load a terminal capability buffer */
 char 	*tgetstr();		/* get str value of a terminal capability */
 static int vernum();		/* see bottom of this file */
-extern	int sys_nerr;		/* number of system error messages */
 static	int SupGotCtC = 0;
 static glob_t pglob;
 static int globindex = 0;
@@ -82,8 +140,7 @@ system and imbedded in a TECO-style message with the SYS mnemonic.
 *****************************************************************************/
 static VVOID ZErMsg()
 {
-	if (errno < sys_nerr)
-		ErrStr(ERR_SYS, sys_errlist[errno]);
+	ErrStr(ERR_SYS, strerror(errno));
 }
 /*****************************************************************************
 	ZAlloc()
@@ -105,7 +162,14 @@ this function controls the signal generator directly.
 *****************************************************************************/
 VVOID ZBell(VVOID)
 {
+#if CURSES
+	if (EzFlag & EZ_AUDIO_BEEP)
+		beep();				/* audio beep */
+	else
+		flash();			/* visible flash */
+#else
 	ZDspCh('\7');
+#endif
 }
 /*****************************************************************************
 	ZChIn()
@@ -133,7 +197,11 @@ BOOLEAN NoWait;				/* return immediately? */
 		LastLF = FALSE;
 		return (DEFAULT)LINEFD;
 	}
+#if CURSES
+	if ((Charac = getch()) == ERR) {
+#else
 	if (read(fileno(stdin), &Charac, 1) != 1) {
+#endif
 		if (GotCtC || SupGotCtC)
 			return (DEFAULT)CTRL_C;
 		if (!GotCtC) {
@@ -270,8 +338,14 @@ voidptr cp;
 VVOID ZClnUp(VVOID)			/* cleanup for TECO-C abort */
 {
 	DBGFEN(3,"ZClnUp","closing terminal channels and exiting");
+#if !CURSES
 	if (tty_set == TRUE)
+#ifdef LINUX
 		tcsetattr(0, TCSANOW, &out);
+#else
+		ioctl(0, TIOCSETP, &out);
+#endif
+#endif
 }
 /*****************************************************************************
 	ZDoCmd()
@@ -315,14 +389,267 @@ character.  If such improvements do not apply to the system this program
 is running on,  then this function can simply call ZDspCh for every character
 in the buffer.
 *****************************************************************************/
+#if CURSES
+static void
+zaddch(c,wecho)
+char c;
+int wecho;					/* if set - also do refresh */
+{
+    static int retflag = 0;
+    int needrefresh = 1;
+    int y,x;
+    if (c=='\n') {
+	if (!retflag)				/* previous char was not \r */
+	    waddch(curwin,c);
+	else {			/* this LF is part of a CRLF sequence */
+	    waddch(curwin,'\n');		/* this may force a scroll */
+	    waddch(curwin,'\r');
+	}
+    } else if (c=='\b') {			/* backspace */
+	getyx(stdscr,y,x);
+	if (x==0 && y>0)
+	    move(y-1,HtSize - 1);
+	else if (x>0)
+	    move(y,x-1);
+	else					/* x==0 and y==0 */
+	    ;
+    } else {			/* c is neither a newline nor a backspace */
+	if (retflag)
+	    waddch(curwin,'\r');
+	if (c!='\r') {
+	    if (ISSCW) {
+		getyx(stdscr,y,x);
+		if (x < HtSize -1)
+		    waddch(curwin,c);
+	    } else
+		if (wecho) {
+#ifdef ULTRIX
+		    waddch(curwin,c);
+#else
+		    wechochar(curwin,c);
+		    needrefresh = 0;
+#endif
+		} else
+		    waddch(curwin,c);
+	}
+    }
+    retflag = (c=='\r');
+    if (wecho && needrefresh)
+	refresh();
+}
+static void
+specon()
+{
+    if (SpcMrk)
+	wattron(stdscr,0400000L * (long) SpcMrk);
+}
+static void
+specoff()
+{
+    if (SpcMrk)
+	wattroff(stdscr,0400000L * (long) SpcMrk);
+}
+static void
+gr_on()
+{
+    wattron(stdscr,A_ALTCHARSET);
+}
+static void
+gr_off()
+{
+    wattroff(stdscr,A_ALTCHARSET);
+}
+static int
+intabs(t)
+int t;
+{
+    return (t<0) ? -t : t;
+}
+static void
+zaddch2(c)
+char c;
+{
+    static int retflag = 0;
+    if (SeeAll) {
+	if (c=='\n') {
+	    if (EzFlag & EZ_VT100GRAPHICS) {
+		gr_on();
+		waddch(curwin, 'e');
+		gr_off();
+	    } else {
+		waddch(curwin,CT);
+		waddch(curwin,'J');
+	    }
+	    if (!retflag) {		/* previous character was not \r */
+		waddch(curwin,c);
+	      } else {			/* this LF is in a CRLF sequence */
+		waddch(curwin,'\n');
+		waddch(curwin,'\r');
+	    }
+	} else {			/* c is not a newline */
+	    if (c=='\r') {
+		if (EzFlag & EZ_VT100GRAPHICS) {
+		    gr_on();
+		    waddch(curwin,'d'); gr_off();
+		} else {
+		    waddch(curwin,CT);
+		    waddch(curwin,'M');
+		}
+	    } else if (c=='\t') {
+		if (EzFlag & EZ_VT100GRAPHICS) {
+		    int y,x,y1,x1,cntr;
+		    getyx(curwin,y,x);
+		    waddch(curwin,'\t');
+		    getyx(curwin,y1,x1);
+		    move(y,x);
+		    gr_on();
+		    cntr = 0;
+		    waddch(curwin,'b');
+		    getyx(curwin,y,x);
+		    while ((cntr < 8) && (y!=y1 || x!=x1) &&
+					(y<VtSize - winline - ScroLn)) {
+			waddch(curwin,'~');
+			cntr++;
+			getyx(curwin,y,x);
+		    }
+		    gr_off();
+		} else {
+		    waddch(curwin,CT); waddch(curwin,'I');
+		}
+	    } else if (c=='\f') {
+		if (EzFlag & EZ_VT100GRAPHICS) {
+		    gr_on();
+		    waddch(curwin,'c');
+		    gr_off();
+		} else {
+		    waddch(curwin,CT);
+		    waddch(curwin,'L');
+		}
+		waddch(curwin,'\n');
+		waddch(curwin,'\r');
+	    } else if (c==27) {
+		if (EzFlag & EZ_VT100GRAPHICS) {
+		    gr_on();
+		    waddch(curwin,'{');
+		    gr_off();
+		} else {
+		    waddch(curwin,CT);
+		    waddch(curwin,'[');
+		}
+	    } else if (c==VRTTAB) {		/* Vertical tab */
+		if (EzFlag & EZ_VT100GRAPHICS) {
+		    gr_on();
+		    waddch(curwin,'i');
+		    gr_off();
+		} else {
+		    waddch(curwin,CT);
+		    waddch(curwin,'K');
+		}
+		waddch(curwin,'\n');
+		waddch(curwin,'\r');
+	    } else if (c=='\b') {
+		waddch(curwin,CT);
+		waddch(curwin,'H');
+	    } else if (c & 0200) {
+		int i;
+		char a,b;
+		waddch(curwin,LB);
+		c = c & 0177;
+		i = c/16;
+		if (i==0)
+		    a='8';
+		else if (i==1)
+		    a='9';
+		else
+		    a = i - 2  + 'A';
+		i = (c % 16);
+		b = (i > 9) ? (i - 10 + 'A') : (i + '0');
+		waddch(curwin,a);
+		waddch(curwin,b);
+		waddch(curwin,RB);
+	    } else if (c < 32) {
+		waddch(curwin, CT);
+		waddch(curwin, c | 64);
+	    } else
+		waddch(curwin,c);
+	}
+	retflag = (c==CRETRN);
+    } else {					/* not in SEEALL mode */
+	c = c & 0177;				/* dump 8th bit */
+	if (c=='\n') {
+	    waddch(curwin,'\n');
+	    waddch(curwin,'\r');
+	} else if (c=='\b') {
+	    waddch(curwin,'^');
+	    waddch(curwin,'H');
+	} else {		/* c is neither a newline nor a backspace */
+	    switch (c) {
+	        case CRETRN:
+	            if (EzFlag & EZ_INVCR) {
+			waddch(curwin, ' ');
+		    } else if (EzFlag & EZ_VT100GRAPHICS) {
+			gr_on();
+			waddch(curwin, 'd');
+			gr_off();
+		    } else if (EzFlag & EZ_ARROW) {
+			specon();
+			waddch(curwin, ACS_LARROW);
+			specoff();
+		    } else {
+			specon();
+			waddch(curwin,'`');
+			specoff();
+		    }
+		    break;
+	        case ESCAPE:
+		    specon();
+		    waddch(curwin,'$');
+		    specoff();
+		    break;
+		case VRTTAB:
+		case FORMFD:
+		    if (EzFlag & EZ_VT100GRAPHICS) {
+			gr_on();
+			waddch(curwin,c);
+			gr_off();
+		    } else {
+			waddch(curwin, c);
+		    }
+		    waddch(curwin, '\n');
+		    waddch(curwin, '\r');
+		default:
+		    waddch(curwin,c);
+	    }
+	}
+	retflag = (c=='\r');
+    }
+}
+#endif
 VVOID ZDspBf(buffer, length)		/* output a buffer to terminal */
 charptr buffer;
 SIZE_T length;
 {
+#if CURSES
+	int i;
+	int y,x;
+	for (i=0;i<length;i++) {
+		if (ISSCW) {
+			getyx(stdscr,y,x);
+			if (x>=(HtSize-1))
+				break;
+		}
+		if (!GotCtC)
+			zaddch(*(buffer+i),0);
+		else
+			break;
+	}
+	wrefresh(curwin);
+#else
 	if (write(fileno(stdout), buffer, length) == -1) {
 		puts("Unable to write to terminal in function ZDspBf");
 		TAbort(EXIT_FAILURE);
 	}
+#endif
 }
 /*****************************************************************************
 	ZDspCh()
@@ -331,10 +658,14 @@ SIZE_T length;
 VVOID ZDspCh(Charac)		/* output a character to terminal */
 char Charac;
 {
+#if CURSES
+	zaddch(Charac,1);
+#else
 	if (write(fileno(stdout), &Charac, 1) == -1) {
 		puts("Unable to write to terminal in function ZDspCh");
 		TAbort(EXIT_FAILURE);
 	}
+#endif
 }
 /*****************************************************************************
 	ZExCtB()
@@ -421,6 +752,11 @@ DEFAULT ZExeEJ()			/* execute an EJ command */
 VVOID ZExit(estat)		/* terminate TECO-C */
 DEFAULT estat;
 {
+#if CURSES
+	nodelay(stdscr,FALSE);	/* to avoid a bug in some System V.2 */
+                                /* releases of curses */
+	endwin();
+#endif
 	ZClnUp();
 	exit(estat);
 }
@@ -671,7 +1007,8 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	charptr dummyp = NULL;
 	char TmpBfr[FILENAME_MAX];
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
-	if (strchr(FBfBeg,'.') == NULL) {		/* if no dot */
+	BOOLEAN noDot;
+	if (noDot = strchr(FBfBeg,'.') == NULL) {	/* if no dot */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
@@ -692,7 +1029,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    IFisCR[IfIndx] = 0;
 	    return SUCCESS;
 	}
-	if (strchr(FBfBeg,'.') == NULL) {		/* if no dot */
+	if (noDot) {					/* if no dot */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
@@ -1045,19 +1382,35 @@ DEFAULT *retlen;		/* returned length of string */
 VVOID ZScrOp(OpCode)		/* do a screen operation */
 int OpCode;			/* code for operation */
 {
-// 	if (CrType == UNTERM || tbuf[0] == 0) {/* if unknown terminal type */
-// 		return;			/* can't do screen operations */
-// 	}
-// 
-// 	switch (OpCode) {
-// 		case SCR_CUP:	tputs(up, 1, ZDspCh);
-// 				break;
-// 		case SCR_EEL:	tputs(ce, 1, ZDspCh);
-// 				break;
-// 		case SCR_ROF:	tputs(se, 1, ZDspCh);
-// 				break;
-// 		case SCR_RON:	tputs(so, 1, ZDspCh);
-// 	}
+#if CURSES
+	int x,y;
+	switch (OpCode) {
+		case SCR_EEL:	clrtoeol();
+				break;
+		case SCR_CUP:	getyx(stdscr,y,x);
+				if (y-1)
+					move(y-1,x);
+				break;
+		case SCR_ROF:	standend(); break;
+		case SCR_RON:	standout(); break;
+	}
+	refresh();
+#else
+#ifndef LINUX // BAD for now, but do we really want this??
+	if (CrType == UNTERM || tbuf[0] == 0) {/* if unknown terminal type */
+		return;			/* can't do screen operations */
+	}
+	switch (OpCode) {
+		case SCR_CUP:	tputs(up, 1, ZDspCh);
+				break;
+		case SCR_EEL:	tputs(ce, 1, ZDspCh);
+				break;
+		case SCR_ROF:	tputs(se, 1, ZDspCh);
+				break;
+		case SCR_RON:	tputs(so, 1, ZDspCh);
+	}
+#endif
+#endif
 }
 /*****************************************************************************
 	ZSetTT()
@@ -1148,63 +1501,143 @@ static void sighup()
 {
 	TAbort(EXIT_FAILURE);
 }
+#if !CURSES
 /*
  * sigstop - what to do if we get a ^Z
  */
 static void sigstop()
 {
+#ifdef LINUX
 	tcsetattr(0, TCSANOW, &out);
 	puts("[Suspending...]\r\n");
 	kill(getpid(), SIGSTOP);
 	puts("[Resuming...]\r\n");
 	tcsetattr(0, TCSANOW, &cur);
+#else
+  ioctl(0, TIOCSETP, &out);
+  puts("[Suspending...]\r\n");
+  kill(getpid(), SIGSTOP);
+  puts("[Resuming...]\r\n");
+  ioctl(0, TIOCSETP, &cur);
+#endif
 }
+#ifndef LINUX
+/*
+ * xtgetstr() - just like tgetstr() except it returns "" instead of
+ * NULL if the tgetstr() fails.   As in tcsh 5.18.
+ */
+char *xtgetstr(c, a)
+char *c;
+char **a;
+{
+  char *r;
+  if ((r = tgetstr(c, a)) == NULL)
+	return "";
+  return r;
+}
+#endif
+#endif
 /*
  * ZTrmnl - set up terminal modes
  */
 VVOID ZTrmnl()			/* set up I/O to the terminal */
 {
+#if !CURSES
+	char *ta;
+#endif
 	EtFlag = ET_READ_LOWER |	/* guess: term has lowercase and */
+#if CURSES
+		 ET_WAT_SCOPE |		/* "WATCH" support exists */
+#endif
 		 ET_EIGHTBIT |          /* terminal uses 8-bit characters */
-     		 ET_SCOPE;		/* it's a scope, not hardcopy */
+		 ET_SCOPE;		/* it's a scope, not hardcopy */
 	EzFlag = EZ_NO_VER |		/* don't do VMS-style file versions */
+#if CURSES
+/*		 EZ_UNIXNL |		* don't add CRs to newlines */
+#endif
 	         EZ_INVCR;		/* don't show little c/r characters */
 /*
  * get terminal characteristics and set some signals
  */
+#if !CURSES
+#ifdef LINUX
 	if (tcgetattr(0,  &out) != -1)
 		tty_set = TRUE;		/* tell ZClnUp to clean up */
 	tcgetattr(0, &cur);
+#else
+	if (ioctl(0, TIOCGETP, &out) != -1)
+		tty_set = TRUE;		/* tell ZClnUp to clean up */
+	ioctl(0, TIOCGETP, &cur);
+#endif
 #ifdef SIGTSTP
 	signal(SIGTSTP, sigstop);	/* call sigstop on stop (control-Z) */
+#endif
 #endif
 /*
  * set CBREAK/noECHO/noCRMOD
  */
+#if CURSES
+	initscr();			/* initialize screens */
+#ifdef ULTRIX
+	setupterm(0,1,0);		/* Enable termcap compatibility */
+#endif
+	scrollok(stdscr,TRUE);		/* scroll if cursor moves too hi/lo */
+	idlok(stdscr,TRUE);		/* use hardware insert/delete line */
+	cbreak();			/* don't wait for CRs (CBREAK) */
+	noecho();			/* don't echo characters (ECHO) */
+	nonl();				/* don't add CRs to NEWLINEs (CRMOD) */
+	curwin = stdscr;
+	ScopeFlg = 0;			/* not writing in scope */
+#else  /* NOT CURSES */
+#ifdef LINUX
 	cur.c_lflag &= ~ICANON;
 	cur.c_lflag &= ~ECHO;
 	cur.c_oflag &= ~ONLCR;
 	cur.c_iflag &= ~(ICRNL | INLCR);
 	tcsetattr(0, TCSANOW, &cur);
+#else
+	cur.sg_flags |= CBREAK;		/* don't wait for CRs (CBREAK) */
+	cur.sg_flags &= ~ECHO;		/* don't echo characters (ECHO) */
+	cur.sg_flags &= ~CRMOD;		/* don't add CRs to NEWLINEs (CRMOD) */
+	ioctl(0, TIOCSETP, &cur);	/* set the new modes */
+#endif
+#endif
 	signal(SIGINT, CntrlC);		/* call CntrlC on interrupt */
 	signal(SIGHUP, sighup);		/* call sighup on hang up */
 	siginterrupt(SIGINT, 1);
 /*
  * set up termcap stuff
  */
+#if !CURSES
 	tbuf[0] = 0;
-// 	if ((ta = getenv("TERM")) == NULL) {	/* get terminal type */
-// 		ta = "dumb";
-// 	}
-// 	tgetent(tbuf, ta);		/* tbuf gets terminal description */
-// 	ta = tarea;
-// 	ce = xtgetstr("ce",&ta);	/* clear to end of line */
-// 	se = xtgetstr("se",&ta);	/* end standout mode (rev. video) */
-// 	so = xtgetstr("so",&ta);	/* begin standout mode */
-// 	up = xtgetstr("up",&ta);	/* cursor up */
+#ifdef LINUX // BAD for now but do we really want this??
+#else
+	if ((ta = getenv("TERM")) == NULL) {	/* get terminal type */
+		ta = "dumb";
+	}
+	tgetent(tbuf, ta);		/* tbuf gets terminal description */
+	ta = tarea;
+	ce = xtgetstr("ce",&ta);	/* clear to end of line */
+	se = xtgetstr("se",&ta);	/* end standout mode (rev. video) */
+	so = xtgetstr("so",&ta);	/* begin standout mode */
+	up = xtgetstr("up",&ta);	/* cursor up */
+#endif
+#endif
 	CrType = VT102;			/* Let's pretend we are a VT102
 					   even though we are really using
 					   termcap! */
+#if VIDEO
+#if CURSES
+#ifdef ULTRIX
+	VtSize = LINES;
+	HtSize = COLS;
+#else
+	getmaxyx(stdscr, VtSize, HtSize);
+#endif
+#else
+	VtSize = HtSize = 0;
+#endif
+#endif
 }
 /*****************************************************************************
 	ZVrbos()
@@ -1263,7 +1696,7 @@ charptr BfrEnd;			/* address of output buffer end */
 			BfrPtr--;
 		    }
 		}
-		if (fputc(*BfrPtr, OFiles[OfIndx].OStrem) == EOF) {
+		if (putc(*BfrPtr, OFiles[OfIndx].OStrem) == EOF) {
 		    ZErMsg();
 		    ErrMsg(ERR_UWL);
 		    DBGFEX(2,DbgFNm,"FAILURE");
@@ -1354,3 +1787,384 @@ char *target;
 	closedir(dirp);
 	return (found) ? maxver : -2;
 }
+#if CURSES
+static void movedot(HowFar)
+LONG HowFar;			/* positive or negative displacement */
+{
+    if (HowFar > 0) {
+	if ((GapEnd+HowFar) > EBfEnd) {
+	    HowFar = EBfEnd - GapEnd;
+	}
+	MEMMOVE(GapBeg, GapEnd+1, HowFar);
+	GapBeg += HowFar;
+	GapEnd += HowFar;
+    } else {
+	if ((GapBeg+HowFar) < EBfBeg) {
+	    HowFar = EBfBeg - GapBeg;
+	}
+	GapBeg += HowFar;
+	GapEnd += HowFar;
+	MEMMOVE(GapEnd+1, GapBeg, -(HowFar));
+    }
+}
+static void
+drawline()
+{
+    int i;
+    if (winline) {
+	move(VtSize - ScroLn - 1, 0);
+	for (i=0;i<HtSize; i++)
+	    addch(ACS_HLINE);
+    }
+}
+static void
+initialize_scope()
+{
+/*
+ * not dotx, doty will be character and line offsets from 0,0
+ * wrap will not effect these
+ */
+    dotx = doty = 0;
+    olddot = 0;
+    getyx(stdscr,cmdy,cmdx);
+    move(0,0);
+    clear();
+    p_scope_start=GapBeg;
+    scope_start = DOT;
+    if (winline)
+	drawline();
+    move(cmdy,cmdx);
+    refresh();
+}
+static void
+finish()
+{
+    int x;
+    int y;
+    getyx(stdscr,y,x);
+    if (y >= VtSize - winline - ScroLn)
+	return;
+    clrtoeol();
+    for (x=y+1;x<VtSize - winline - ScroLn; x++) {
+	move(x,0);
+	clrtoeol();
+    }
+}
+void
+redraw()
+{
+	int cccmdx;
+	int cccmdy;
+	int flag = 0;
+	int x;
+	int y;
+	int charcounter;
+	unsigned char *curptr;
+	if (ScroLn == 0)
+		return;
+	getyx(stdscr,cccmdy,cccmdx);
+draw_all:
+	if (EBfBeg == GapBeg && EBfEnd==GapEnd) {
+		int i;
+		move(0,0);
+		scope_start = 0;
+		p_scope_start = EBfBeg;
+		standout();
+		specon();
+		getyx(stdscr, doty, dotx);
+		addch((EzFlag & EZ_BTEE) ? ACS_BTEE : ACS_DIAMOND);
+		specoff();
+		standend();
+		getyx(stdscr, doty1, dotx1);
+		clrtoeol();
+		for (i=1; i<=VtSize - ScroLn - 1 - winline;i++) {
+			move(i,0);
+			clrtoeol();
+		}
+		drawline();
+		move(cccmdy,cccmdx);
+		olddot = 0;
+		return;
+	}
+	if ((intabs(olddot - DOT) > HtSize * (VtSize - ScroLn))
+		|| HldFlg) {
+		/* admittedly a heuristic ! */
+		int linedisp, disp;
+		int siz = VtSize - ScroLn - 1 - winline;
+		linedisp = siz/2-2;
+		if (linedisp > 0) {
+			disp = Ln2Chr(-linedisp);
+			p_scope_start = GapBeg + disp;
+			scope_start = DOT + disp;
+			goto l1; /* no need to do stuff to get to beginning
+				  of line */
+		}
+	}
+	if (p_scope_start > EBfBeg) {
+	/* set p_scope_start to beginning of line */
+	if (scope_start > DOT) { /* move */
+		p_scope_start = GapBeg;
+		scope_start = DOT;
+	}
+	flag = 0;
+	while ((p_scope_start > EBfBeg) && !flag) {
+		--p_scope_start;
+		if (IsEOL(*p_scope_start))
+			flag++;
+	}
+	if (p_scope_start != EBfBeg || IsEOL(*p_scope_start))
+		++p_scope_start;
+	}
+/*
+ * note here p_scope_start may still be at GapBeg after all this number of
+ * characters we "backed up" is GapBeg - p_scope_start
+ */
+l1:	olddot = DOT; move(0,0);
+	charcounter = GapBeg - p_scope_start;
+	if (p_scope_start < GapBeg) {
+		for (curptr=p_scope_start; curptr < GapBeg; curptr++) {
+			int redrawflag;
+			zaddch2(*curptr);
+			getyx(stdscr,y,x);
+			if (y>VtSize - ScroLn - 1 - winline) {
+				int lines = 0;
+				unsigned char *charpointer;
+/*
+ * we didn't get to print dot - try moving p_scope_start one line forward or
+ * if lots of lines in between DOT and p_scope_start then just redraw
+ */
+				move(y-1,0);
+				clrtoeol();
+				redrawflag = 0;
+				if (p_scope_start >= EBfEnd) {
+					finish();
+					drawline();
+					move(cccmdy,cccmdx);
+					return; /* blew it */
+				}
+				/* about how many lines ? */
+				for (charpointer = p_scope_start;
+				charpointer < GapBeg; charpointer++) {
+					if (IsEOL(*charpointer))
+						lines++;
+					if (lines > 2*(VtSize - ScroLn))
+						break;
+				}
+				if (lines > 2*(VtSize-ScroLn)) {
+					/* just redraw everything */
+					p_scope_start = GapBeg;
+					scope_start = DOT;
+					move(0,0);
+					/* clear(); */
+					p_scope_start = GapBeg;
+					scope_start = DOT;
+					goto draw_all;
+				}
+				/* move forward a line */
+				while (p_scope_start < GapBeg && !IsEOL(*p_scope_start)) {
+					++p_scope_start;
+					++scope_start;
+				}
+				if (IsEOL(*p_scope_start)) {
+					p_scope_start++; scope_start++;
+				}
+				if (p_scope_start >= GapBeg) {
+					p_scope_start = GapBeg;
+					scope_start = DOT;
+				}
+				goto l1;
+			}
+		}
+	}
+	curptr = GapEnd+1;
+	standout();
+	getyx(stdscr, doty, dotx);
+	if (curptr > EBfEnd) {
+		getyx(stdscr,y,x);
+		if (y <= VtSize - ScroLn - 1 - winline) {
+			specon();
+			addch((EzFlag & EZ_BTEE) ? ACS_BTEE : ACS_DIAMOND);
+			specoff();
+			standend();
+			getyx(stdscr, doty1, dotx1);
+		}
+		finish();
+		drawline();
+		move(cccmdy,cccmdx);
+		clrtoeol();
+		return;
+	} else {
+		if (*curptr=='\n') {
+		if (!(SeeAll) && (y <= VtSize - ScroLn - 1 - winline)) {
+			if (EzFlag & EZ_VT100GRAPHICS) {
+				gr_on(); waddch(curwin,'e'); gr_off();
+			} else
+				addch(ACS_RTEE);
+		}
+		}
+		zaddch2(*curptr);
+	}
+	standend();
+	getyx(stdscr, doty1, dotx1);
+	curptr++;
+	getyx(stdscr,y,x);
+	if (y>VtSize - ScroLn - 1 - winline) {
+		drawline();
+		move(cccmdy,cccmdx);
+		return;
+	}
+	while ((curptr <= EBfEnd)) {
+		zaddch2(*curptr);
+		getyx(stdscr,y,x);
+		if (y>=VtSize - ScroLn - winline)
+			break;
+		++curptr;
+	}
+	if (y < VtSize - ScroLn - winline && curptr > EBfEnd) {
+		specon();
+		addch((EzFlag & EZ_BTEE) ? ACS_BTEE : ACS_DIAMOND);
+		specoff();
+	}
+	finish();
+	drawline();
+	move(cccmdy,cccmdx);
+}
+void
+centre()
+{
+	int linedisp, disp;
+	int siz = VtSize - ScroLn - 1 - winline;
+	linedisp = siz/2-2;
+	if (linedisp > 0) {
+		disp = Ln2Chr(-linedisp);	/* disp <= 0 */
+		p_scope_start = GapBeg + disp;
+		scope_start = DOT + disp;
+	} else {
+		p_scope_start = GapBeg;
+		scope_start = DOT;
+	}
+	redraw();
+}
+void
+dolf()
+{
+    if (!skiprefresh)
+	redraw();
+}
+void
+dobs()
+{
+    if (!skiprefresh)
+	redraw();
+}
+void
+ccs()
+{
+    colsave = (-1);
+}
+void
+do_right()
+{
+    colsave = (-1);
+    CmdMod &= ~COLON;
+    if (GapEnd < EBfEnd) {
+	DoCJR(1);
+	redraw();
+	refresh();
+    }
+}
+void
+do_left()
+{
+    colsave = (-1);
+    CmdMod &= ~COLON;
+    if (EBfBeg < GapBeg) {
+	DoCJR(-1);
+	redraw();
+	refresh();
+    }
+}
+void
+do_sf()
+{
+}
+void
+do_sr()
+{
+}
+void
+do_up()
+{
+    int disp = Ln2Chr(-1); int ll; int dist;
+    if (colsave < 0) {
+	colsave = -Ln2Chr(0);
+    }
+    CmdMod &= ~COLON;
+/*
+ * find length of prev line in characters
+ */
+    ll = Ln2Chr(0) - Ln2Chr(-1) - 1;
+    if (ll==(-1))
+	return;
+    dist = disp + ((colsave >= ll) ? ll : colsave);
+    movedot(dist);
+    redraw();
+    refresh();
+}
+void
+do_down()
+{
+    int disp = Ln2Chr(1);
+    int ll, dist;
+    if (colsave < 0) {
+	colsave = -Ln2Chr(0);
+    }
+    CmdMod &= ~COLON;
+    ll = Ln2Chr(2) - Ln2Chr(1) - 1;
+    if (ll==(-1)) {
+	movedot(EBfEnd - GapEnd);
+    } else {
+	dist = disp + ((colsave >= ll) ? ll : colsave);
+	movedot(dist);
+    }
+    redraw();
+    refresh();
+}
+void
+do_seetog()		/* toggle SeeAll mode */
+{
+    SeeAll = (SeeAll > 0) ? 0 : 1;
+    redraw();
+    refresh();
+}
+void
+keypad_on()
+{
+    keypad(stdscr, (KeyPad & 1));
+    keypad(stdscr, (KeyPad & 2));
+}
+void
+keypad_off()
+{
+#ifndef ULTRIX
+    notimeout(stdscr, FALSE);
+#endif
+    keypad(stdscr, FALSE);
+}
+void
+Scope(bot)	/* first crack */
+int bot;
+{
+	if (bot <0)
+		return;
+	if (bot == 0) {
+		setscrreg(0, VtSize -1);
+	} else {
+		winline = (EzFlag & EZ_WIN_LINE) ? 1 : 0;
+		setscrreg(VtSize - bot, VtSize - 1);
+		move(VtSize - bot, 0);
+		curwin = stdscr;
+		initialize_scope();
+	}
+}
+#endif

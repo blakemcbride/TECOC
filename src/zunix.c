@@ -34,6 +34,12 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <pwd.h>
+#ifdef LINUX
+#include <time.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <termios.h>
+#endif
 #if CURSES
 #include <curses.h>		/* has to come before zport.h */
 #endif
@@ -85,9 +91,14 @@ unsigned char *pscope_start;
 #define LB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LLCORNER : '[')
 #define RB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LRCORNER : ']')
 #else				/* else (not CURSES) ----------------------*/
+#ifdef LINUX
+static BOOLEAN tty_set = FALSE;	/* Has the terminal been set? */
+static struct termios  out, cur;	/* terminal characteristics buffers */
+#else
 #include <sgtty.h>		/* define CBREAK, ECHO, TIOCGETP, etc. */
 static BOOLEAN tty_set = FALSE;	/* Has the terminal been set? */
 static struct sgttyb out, cur;	/* terminal characteristics buffers */
+#endif
 static char tbuf[1024];		/* store TERMCAP entry here */
 static char tarea[1024];	/* store decoded TERMCAP stuff here */
 static char *ce;		/* TERMCAP sequence: clear to end-of-line */
@@ -98,6 +109,8 @@ int	tputs();		/* send termcap string to a given function */
 int	tgetent();		/* load a terminal capability buffer */
 char 	*tgetstr();		/* get str value of a terminal capability */
 #endif
+#ifdef LINUX
+#else
 int	access();		/* determine accessibility of a file */
 int	atoi();			/* convert ASCII digits to inary integer */
 int	execlp();		/* terminate and execute a system command */
@@ -122,6 +135,7 @@ int	stat();			/* get information about a file */
 int	time();			/* get current time */
 int	unlink();		/* remove link to file (delete the file) */
 int	write();		/* write to a file */
+#endif
 /*
  * The SunOS 4.0 system include files don't have declarations for some
  * functions, so add them here to keep gcc from complaining about implicit
@@ -144,7 +158,9 @@ static char **glob();		/* see bottom of this file */
 static int vernum();		/* see bottom of this file */
 static int movefile();		/* see bottom of this file */
 extern	int sys_nerr;		/* number of system error messages */
+#ifndef LINUX
 extern	char *sys_errlist[];	/* error message text */
+#endif
 static	int SupGotCtC = 0;
 static	char **wild_list = (char **)0;	/* wild-card file name list */
 /*****************************************************************************
@@ -298,6 +314,47 @@ So I partially implemented :EG for Unix.  :EG can read the "INI", "LIB" and
 using a file (ugh) to save the name of the last-file-edited.  The file is
 stored in /tmp so it gets deleted when the system boots.
 *****************************************************************************/
+#ifdef LINUX
+	LONG ZClnEG(                    /* execute special :EG command */
+				DEFAULT EGWhat,         /* what to get/set/clear: MEM, LIB, etc. */
+				DEFAULT EGOper,         /* operation: get, set or clear */
+				charptr TxtPtr)         /* if setting,  value to set */
+	{
+		char    *cp=NULL;       /* environment variable name */
+		char    buf[100];       /* enough for envname + 80 char filename */
+		LONG    retval;         /* -1L on success, 0L on failure */
+		DBGFEN(2,"ZClnEG",NULL);
+		DBGFEX(2,DbgFNm,"0");
+		switch (EGWhat) {
+			case EG_INI: cp = "TEC_INIT";    break;
+			case EG_LIB: cp = "TEC_LIBRARY"; break;
+			case EG_MEM: cp = "TEC_MEMORY";  break;
+#if VIDEO
+			case EG_VTE: cp = "TEC_VTEDIT";  break;
+#endif
+			default: return 0L;
+		}
+		if (EGOper == GET_VAL) {
+			if ((cp = getenv(cp)) == NULL) {
+				retval = 0L;            /* return failure */
+			} else {
+				retval = -1L;           /* success, copy to FBf */
+				strcpy((char*)FBfBeg, cp);
+				FBfPtr = FBfBeg + strlen(cp);
+			}
+		} else {
+			strcpy(buf, cp);                /* build NAME= */
+			strcat(buf, "=");
+			if (EGOper == SET_VAL) {        /* concatenate new value */
+				strcat(buf, (char *)TxtPtr);
+			}
+			retval = (putenv(buf) != 0)     /* if putenv() failed */
+					 ? 0L            /*   then return failure */
+					 : -1L;          /*   else return success */
+		}
+		return retval;
+	}
+#else /* Not LINUX */
 static LONG do_egmem(EGOper,TxtPtr)
 DEFAULT EGOper;			/* operation: get, set or clear */
 charptr TxtPtr;			/* if setting,  value to set */
@@ -379,6 +436,7 @@ charptr TxtPtr;			/* if setting,  value to set */
     DBGFEX(1,DbgFNm,"-1 (success)");
     return -1;					/* return "success" */
 }
+#endif
 /*****************************************************************************
   See the definition of MEMMOVE in ZPORT.H for a description of this
   function.
@@ -418,7 +476,11 @@ VVOID ZClnUp(VVOID)			/* cleanup for TECO-C abort */
 	DBGFEN(3,"ZClnUp","closing terminal channels and exiting");
 #if !CURSES
 	if (tty_set == TRUE)
+#ifdef LINUX
+		tcsetattr(0, TCSANOW, &out);
+#else
 		ioctl(0, TIOCSETP, &out);
+#endif
 #endif
 }
 /*****************************************************************************
@@ -749,12 +811,12 @@ current date encoded in the following way:
 *****************************************************************************/
 DEFAULT ZExCtB()			/* return current date */
 {
-	time_t clock;
+	time_t clockt;
 	struct tm *time_of_day;
 	int tecodate;
 	DBGFEN(1,"ZExCtB","");
-	clock=time(NULL);
-	time_of_day=localtime(&clock);
+	clockt=time(NULL);
+	time_of_day=localtime(&clockt);
 	tecodate = ((time_of_day->tm_year)*16+time_of_day->tm_mon+1)*32
 		+ time_of_day->tm_mday ;
 	DBGFEX(1,DbgFNm,"PushEx()");
@@ -768,12 +830,12 @@ current time encoded in the following way:
 *****************************************************************************/
 DEFAULT ZExCtH()			/* return current time */
 {
-	time_t clock;
+	time_t clockt;
 	struct tm *time_of_day;
 	int tecotime;
 	DBGFEN(1,"ZExCtH","");
-	clock=time(NULL);
-	time_of_day=localtime(&clock);
+	clockt=time(NULL);
+	time_of_day=localtime(&clockt);
 	tecotime = time_of_day->tm_hour * 60	/* hours * 60 */;
 	tecotime += time_of_day->tm_min;	/* minutes */
 	tecotime *= 30;
@@ -1071,7 +1133,8 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	charptr dummyp = NULL;
 	char TmpBfr[FILENAME_MAX];
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
-	if (strchr(FBfBeg,'.') == NULL) {		/* if no dot */
+	BOOLEAN noDot;
+	if (noDot = strchr(FBfBeg,'.') == NULL) {	/* if no dot */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
@@ -1090,7 +1153,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    DBGFEX(1,DbgFNm,"SUCCESS");
 	    return SUCCESS;
 	}
-	if (strchr(FBfBeg,'.') == NULL) {		/* if no dot */
+	if (noDot) {					/* if no dot */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
@@ -1239,7 +1302,8 @@ char *argv[];
 /*
  * execute imbedded command line-parsing macro directly from clpars[]
  */
-	CStBeg = CBfPtr = clpars;		/* command string start */
+	CStBeg = clpars;		/* command string start */
+	CBfPtr = clpars;		/* command string start */
 	CStEnd = clpars + CLPARS_LEN;		/* command string end */
 	EStTop = EStBot;			/* clear expression stack */
 	ExeCSt();				/* execute command string */
@@ -1421,6 +1485,7 @@ int OpCode;			/* code for operation */
 	}
 	refresh();
 #else
+#ifndef LINUX // BAD for now, but do we really want this??
 	if (CrType == UNTERM || tbuf[0] == 0) {/* if unknown terminal type */
 		return;			/* can't do screen operations */
 	}
@@ -1433,6 +1498,7 @@ int OpCode;			/* code for operation */
 				break;
 		case SCR_RON:	tputs(so, 1, ZDspCh);
 	}
+#endif
 #endif
 }
 /*****************************************************************************
@@ -1527,12 +1593,21 @@ static void sighup()
  */
 static void sigstop()
 {
+#ifdef LINUX
+	tcsetattr(0, TCSANOW, &out);
+	puts("[Suspending...]\r\n");
+	kill(getpid(), SIGSTOP);
+	puts("[Resuming...]\r\n");
+	tcsetattr(0, TCSANOW, &cur);
+#else
   ioctl(0, TIOCSETP, &out);
   puts("[Suspending...]\r\n");
   kill(getpid(), SIGSTOP);
   puts("[Resuming...]\r\n");
   ioctl(0, TIOCSETP, &cur);
+#endif
 }
+#ifndef LINUX
 /*
  * xtgetstr() - just like tgetstr() except it returns "" instead of
  * NULL if the tgetstr() fails.   As in tcsh 5.18.
@@ -1546,6 +1621,7 @@ char **a;
 	return "";
   return r;
 }
+#endif
 #endif
 /*
  * ZTrmnl - set up terminal modes
@@ -1569,9 +1645,15 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
  * get terminal characteristics and set some signals
  */
 #if !CURSES
+#ifdef LINUX
+	if (tcgetattr(0,  &out) != -1)
+		tty_set = TRUE;		/* tell ZClnUp to clean up */
+	tcgetattr(0, &cur);
+#else
 	if (ioctl(0, TIOCGETP, &out) != -1)
 		tty_set = TRUE;		/* tell ZClnUp to clean up */
 	ioctl(0, TIOCGETP, &cur);
+#endif
 #ifdef SIGTSTP
 	signal(SIGTSTP, sigstop);	/* call sigstop on stop (control-Z) */
 #endif
@@ -1591,11 +1673,19 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	nonl();				/* don't add CRs to NEWLINEs (CRMOD) */
 	curwin = stdscr;
 	ScopeFlg = 0;			/* not writing in scope */
+#else  /* NOT CURSES */
+#ifdef LINUX
+	cur.c_lflag &= ~ICANON;
+	cur.c_lflag &= ~ECHO;
+	cur.c_oflag &= ~ONLCR;
+	cur.c_iflag &= ~(ICRNL | INLCR);
+	tcsetattr(0, TCSANOW, &cur);
 #else
 	cur.sg_flags |= CBREAK;		/* don't wait for CRs (CBREAK) */
 	cur.sg_flags &= ~ECHO;		/* don't echo characters (ECHO) */
 	cur.sg_flags &= ~CRMOD;		/* don't add CRs to NEWLINEs (CRMOD) */
 	ioctl(0, TIOCSETP, &cur);	/* set the new modes */
+#endif
 #endif
 	signal(SIGINT, CntrlC);		/* call CntrlC on interrupt */
 	signal(SIGHUP, sighup);		/* call sighup on hang up */
@@ -1605,6 +1695,8 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
  */
 #if !CURSES
 	tbuf[0] = 0;
+#ifdef LINUX // BAD for now but do we really want this??
+#else
 	if ((ta = getenv("TERM")) == NULL) {	/* get terminal type */
 		ta = "dumb";
 	}
@@ -1614,6 +1706,7 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	se = xtgetstr("se",&ta);	/* end standout mode (rev. video) */
 	so = xtgetstr("so",&ta);	/* begin standout mode */
 	up = xtgetstr("up",&ta);	/* cursor up */
+#endif
 #endif
 	CrType = VT102;			/* Let's pretend we are a VT102
 					   even though we are really using
@@ -1688,7 +1781,7 @@ charptr BfrEnd;			/* address of output buffer end */
 			BfrPtr--;
 		    }
 		}
-		if (fputc(*BfrPtr, OFiles[OfIndx].OStrem) == EOF) {
+		if (putc(*BfrPtr, OFiles[OfIndx].OStrem) == EOF) {
 		    ZErMsg();
 		    ErrMsg(ERR_UWL);
 		    DBGFEX(2,DbgFNm,"FAILURE");
@@ -1986,7 +2079,7 @@ register char *s, *p;
 		case '[':
 			ok = 0;
 			lc = 077777;
-			while (cc = *p++) {
+			while ((cc = *p++) != 0) {
 				if (cc == ']') {
 					if (ok)
 						break;
@@ -2076,12 +2169,21 @@ char *pattern;
 			return;
 		goto p_err2;
 	}
+#ifdef LINUX
+	if (fstat(dirfd(dirp), &stb) < 0)
+		goto p_err1;
+	if (!isdir(stb)) {
+		errno = ENOTDIR;
+		goto p_err1;
+	}
+#else
 	if (fstat(dirp->dd_fd, &stb) < 0)
 		goto p_err1;
 	if (!isdir(stb)) {
 		errno = ENOTDIR;
 		goto p_err1;
 	}
+#endif
 	while ((dp = readdir(dirp)) != NULL) {
 		if (dp->d_ino == 0)
 			continue;

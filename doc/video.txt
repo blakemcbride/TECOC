@@ -1,0 +1,85 @@
+
+Notes from Blake McBride (blake@mcbride.name)
+Video support under Linux & Mac OS/X has been restored.  Getting it to
+work under Windows would probably be easy (given ncurses support).
+See the makefile's for instructions on enabling or disabling video
+support.
+When a file is being edited, you can execute: 5,7:w$$ to enter video
+mode (the $ is the escape key).  The "5" means 5 scroll lines at the
+bottom of the screen.  The remaining screen space is for the video
+display.
+Video mode can be exited with:  0,7:w$$
+As shown below, you can also startup in video mode using:
+      teco -scroll:5  myfile.txt
+----------------------------------------------------------------------
+Original notes
+Command line 
+------- ----
+-NOPAGE	
+	Don't separate input into pages.  Instead, treat form feeds
+	as normal characters.
++nnn 
+	where nnn is any number of digits. Go to line number nnn and
+	set NOPAGE. Note this uses the UNIX end of line convention
+	for use with cc output &c. The non-unix line termination will
+	still be used for nL and other intrinsic TECO commands, this just
+	controls the starting line AT INVOCATION.
+-SCROLL:nnn	
+	do nnn,7:w
+-SCROLL:nnn:SEEALL
+	do nnn,7:W and 1,3:W
+-INSPECT
+	Same as /INSPECT
+-NOMEMORY
+	Same as /NOMEMORY
+Video
+-----
+^W	Immediate mode command - try to place line containing dot in
+	centre of scope window
+-4W	Complete redraw of screen
+-1W	Stop refreshing scope before each prompt
+1W	Start refreshing scope before each prompt
+0W	refresh scope
+3:w	Seeall Mode (set to 1 if SeeAll is on, 0 otherwise)
+	seeall is more unix style then you might expect
+5:w	Hold mode is not properly implemented. I don't like it anyway.
+7:W	Number of lines in command window. The size of the scope window
+	will be (Rows - 7:W (- 1 if ET&256))
+8:w	Attribute for special characters. This is highly implementation
+	dependent (curses implementation dependent). Under SUN OS 4.1
+		0	- no marking
+		1	- underline
+		2	- reverse
+		4	- blink
+		8	- dim
+		16	- bold
+		128 	- ALT_CHARSET
+	currently controls marking of 	<CR> 			`
+				      	END OF PAGE  		(BTEE/+)
+9:W	Bit 0 - keypad support on
+	Bit 1 - do not do timeout escape sequence detection
+ET&1	image mode - doesn't really do much with curses version
+ET&2	use scope for delete and control-U
+ET&4	accept lowercase input
+ET&32	read with no wait on control-T (unimplemented - easy though)
+ET&2048	reverse roles of BS and DEL (good if you use stty erase ^H,
+	in particular the key placement of BS is sometimes much easier
+	to get at then DEL). Should I have it detect the kill character
+	and automatically set this?
+ET&8192	accept ` as escape (for VT220 terminals)
+ET&16384 special VT200 mode
+ET&32768 trap control-C
+EZ&1	if false VMS style versioning for backup files (multiple backups)
+	if true  only one backup level (foo, foo.bak)
+EZ&8	if TRUE use LARROW (<) for CR, if false use `
+EZ&16	if set then prefer audio beep else visual flash
+EZ&32	winline divider for scope
+EZ&128	if set DO NOT stop read on FF otherwise make pages as usual
+EZ&256	UNIX NL-convert LF to <CR><LF> on input and invert on output
+ED&512	controls scope display. If set will use VT100 line drawing
+	characters for CR and LF (in non-scope mode). May degrade
+	performance.
+EZ&2048 if set use BTEE for end of buffer, else use DIAMOND
+	(desirable for pathological terminal types)
+EZ&8192	don't show CR in scope - closer to TECO-11,  but really
+	not as good in my opinion (Mark Henderson)

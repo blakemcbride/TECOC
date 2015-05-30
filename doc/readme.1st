@@ -39,6 +39,6 @@ mung		link to tecoc
 teco		link to tecoc
 Inspect		link to tecoc
 lib:
-*.tes *.tec	TECO macros
-src:
-Full source files for Linux version
+*.tes           TECO command files for various things
+*.tec           Compressed TECO command files
+src:		Full source files 
