@@ -126,7 +126,7 @@ unsigned char *ELine;		/* error message text */
 	WORD HlpLvl;
 	ptrdiff_t lenn;
 	HlpLvl = (EhFlag & 3) ? (EhFlag & 3) : 2;
-	lenn = (HlpLvl < 2) ? 4 : strlen(ELine);
+	lenn = (HlpLvl < 2) ? 4 : strlen((char *)ELine);
 	ZDspBf(ELine, lenn);
 	if (HlpLvl == 3) {			/* if paragraph */
 		ErrVrb(ErrNum);			/* display paragraph */

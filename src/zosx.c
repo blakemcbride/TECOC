@@ -369,7 +369,7 @@ VVOID ZDoCmd(charptr GBfBeg, charptr GBfPtr)	/* die and pass command to OS */
  * 6. we shouldn't be here, exit
  */
 	buf[128] = *GBfPtr = '\0';
-	(void)strncpy(buf, GBfBeg, 128);
+	(void)strncpy(buf, (char *)GBfBeg, 128);
 	if ((space_p = strchr(buf,' ')) != NULL) {
 		*space_p++ = '\0';
 	}
@@ -912,7 +912,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				ver++;
 				strcat(TmpFsp, ";");
 				MakDBf((LONG)ver, 10);
-				strncat(TmpFsp, DBfBeg, DBfPtr-DBfBeg);
+				strncat(TmpFsp, (char *)DBfBeg, DBfPtr-DBfBeg);
 				*(TmpFsp+ln+(1+DBfPtr-DBfBeg)+1) = '\0';
 			}
 		}
@@ -923,7 +923,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 #endif
 		if (rename(OFiles[OfIndx].OTNam, TmpFsp)) { /* TAA changed to use rename */
 			ZErMsg();
-			ZDspBf("Edit saved in ", 14);
+			ZDspBf((unsigned char *)"Edit saved in ", 14);
 			ZDspBf(OFiles[OfIndx].OFNam,
 				   strlen(OFiles[OfIndx].OFNam));
 			ErrMsg(ERR_UCO);
@@ -999,7 +999,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
     DbgFEn(2,DbgFNm,DbgSBf);
 #endif
     *FBfPtr = '\0';			/* terminate the file name */
-    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+    if ((IFiles[IfIndx] = fopen((char *)FBfBeg, "r")) != NULL) {
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	IFisCR[IfIndx] = 0;
 	return SUCCESS;
@@ -1009,7 +1009,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	char TmpBfr[FILENAME_MAX];
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
 	BOOLEAN noDot;
-	if (noDot = strchr(FBfBeg,'.') == NULL) {	/* if no dot */
+	if (noDot = strchr((char *)FBfBeg,'.') == NULL) {	/* if no dot */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {

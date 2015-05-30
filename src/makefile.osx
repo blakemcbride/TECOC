@@ -32,6 +32,7 @@ CC= gcc
 CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O  -DOSX -DCURSES
 TERMOBJS = -lncurses
 
+CFLAGS += -Wno-dangling-else 
 
 COMPILE.c = $(CC) $(CFLAGS) $(CPPFLAGS) -c -g
 
@@ -68,6 +69,9 @@ genclp: genclp.o
 	${LINK.c} -o $@ genclp.o
 
 genclp.o: genclp.c
+
+zosx.o : zosx.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Wno-parentheses -Wno-pointer-sign -Wno-deprecated-declarations -c $<
 
 clean:
 	@for i in makedep? ${OBJECTS} ; do \

@@ -123,17 +123,9 @@ functions which need the standard library are in the Z*.C system-specific
 code files which explicitly #include these header files.
 *****************************************************************************/
 
-#if (CHECKSUM_CODE || CONSISTENCY_CHECKING || DEBUGGING)
-#if defined(unix)
-extern int printf();
-/*extern int sprintf();*/
-extern int puts();
-#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#endif
-#endif
 
 /*****************************************************************************
 	Define VIDEO,  which compiles in some kind of video code,  even if
