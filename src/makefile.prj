@@ -1,0 +1,149 @@
+#
+# Mix Power C v1.3.0 make (project) file for Teco-C
+# Last updated: 14 November 1989
+#
+# compile with:
+#
+#	PC /1 /2 /f- /idir /j /ml /r- /s /t /w /y makefile.prj
+#
+#	/1	(80186+ only) 80186 instructions
+#	/2	(80286+ only) 80286 instructions
+#	/f-	no floating point
+#	/idir	Power C's include file directory list
+#	/j	default to signed char's
+#	/ml	large memory model (1MB code, 1MB data)
+#	/r-	(debugging only) disable register variables
+#	/s	(debugging only) check for stack overflow
+#	/t	(debugging only) prepare information for CTrace
+#	/w	enable all warnings
+#	/y	show names of functions on screen while compiling
+#
+# Note:  Teco-C doesn't seem to work under Power C v1.3.0.  I called
+# MIX and they said the 'huge' keyword doesn't work yet (they wanted to
+# make it work by Christmas 1989).  Teco-C needs 'huge'
+# pointers since 'far' pointer addition, subtraction, and comparison
+# (which are done all over the place in Teco-C) isn't guaranteed to work
+# correctly all the time, whereas, for 'huge' pointers it is.
+#
+#				- Manfred Siemsen
+#
+tecoc.mix  tecoc.c  zport.h tecoc.h defext.h deferr.h dscren.h ctype.h dchars.h
+baksrc.mix baksrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+bldstr.mix bldstr.c zport.h tecoc.h defext.h deferr.h dchars.h chmacs.h
+cmatch.mix cmatch.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+docjr.mix  docjr.c  zport.h tecoc.h defext.h deferr.h
+doeves.mix doeves.c zport.h tecoc.h defext.h dchars.h
+doflag.mix doflag.c zport.h tecoc.h defext.h
+echoit.mix echoit.c zport.h tecoc.h defext.h dchars.h
+err.mix    err.c    zport.h tecoc.h defext.h chmacs.h deferr.h dchars.h
+exea.mix   exea.c   zport.h tecoc.h defext.h deferr.h
+exeats.mix exeats.c zport.h tecoc.h defext.h
+exeb.mix   exeb.c   zport.h tecoc.h defext.h
+exebar.mix exebar.c zport.h tecoc.h defext.h deferr.h
+exebsl.mix exebsl.c zport.h tecoc.h defext.h chmacs.h
+exec.mix   exec.c   zport.h tecoc.h defext.h
+execcc.mix execcc.c zport.h tecoc.h defext.h deferr.h
+execln.mix execln.c zport.h tecoc.h defext.h
+execom.mix execom.c zport.h tecoc.h defext.h deferr.h
+execrt.mix execrt.c zport.h tecoc.h defext.h chmacs.h deferr.h
+execst.mix execst.c zport.h tecoc.h defext.h deferr.h
+execta.mix execta.c zport.h tecoc.h defext.h dchars.h
+exectc.mix exectc.c zport.h tecoc.h defext.h dchars.h
+exectd.mix exectd.c zport.h tecoc.h defext.h
+execte.mix execte.c zport.h tecoc.h defext.h
+execti.mix execti.c zport.h tecoc.h defext.h dchars.h
+exectl.mix exectl.c zport.h tecoc.h defext.h dchars.h
+exectn.mix exectn.c zport.h tecoc.h defext.h
+execto.mix execto.c zport.h tecoc.h defext.h
+exectp.mix exectp.c zport.h tecoc.h defext.h
+exectq.mix exectq.c zport.h tecoc.h defext.h
+exectr.mix exectr.c zport.h tecoc.h defext.h deferr.h
+exects.mix exects.c zport.h tecoc.h defext.h
+exectt.mix exectt.c zport.h tecoc.h defext.h deferr.h
+exectu.mix exectu.c zport.h tecoc.h defext.h deferr.h dchars.h
+exectv.mix exectv.c zport.h tecoc.h defext.h deferr.h
+exectw.mix exectw.c zport.h tecoc.h defext.h deferr.h
+exectx.mix exectx.c zport.h tecoc.h defext.h
+execty.mix execty.c zport.h tecoc.h defext.h
+exectz.mix exectz.c zport.h tecoc.h defext.h
+exed.mix   exed.c   zport.h tecoc.h defext.h deferr.h
+exedgt.mix exedgt.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exedot.mix exedot.c zport.h tecoc.h defext.h
+exedqu.mix exedqu.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exee.mix   exee.c   zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+exeequ.mix exeequ.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeesc.mix exeesc.c zport.h tecoc.h defext.h dchars.h
+exeexc.mix exeexc.c zport.h tecoc.h defext.h
+exeey.mix  exeey.c  zport.h tecoc.h defext.h
+exef.mix   exef.c   zport.h tecoc.h defext.h chmacs.h deferr.h
+exefb.mix  exefb.c  zport.h tecoc.h defext.h deferr.h
+exeg.mix   exeg.c   zport.h tecoc.h defext.h deferr.h
+exegtr.mix exegtr.c zport.h tecoc.h defext.h deferr.h
+exeh.mix   exeh.c   zport.h tecoc.h defext.h
+exei.mix   exei.c   zport.h tecoc.h defext.h dchars.h deferr.h
+exeill.mix exeill.c zport.h tecoc.h defext.h deferr.h
+exej.mix   exej.c   zport.h tecoc.h defext.h
+exek.mix   exek.c   zport.h tecoc.h defext.h
+exel.mix   exel.c   zport.h tecoc.h defext.h
+exelbr.mix exelbr.c zport.h tecoc.h defext.h deferr.h
+exelst.mix exelst.c zport.h tecoc.h defext.h deferr.h
+exem.mix   exem.c   zport.h tecoc.h defext.h deferr.h
+exen.mix   exen.c   zport.h tecoc.h defext.h deferr.h
+exenul.mix exenul.c zport.h tecoc.h defext.h
+exenyi.mix exenyi.c zport.h tecoc.h defext.h deferr.h
+exeo.mix   exeo.c   zport.h tecoc.h defext.h dchars.h deferr.h
+exeopr.mix exeopr.c zport.h tecoc.h defext.h
+exep.mix   exep.c   zport.h tecoc.h defext.h deferr.h
+exeprc.mix exeprc.c zport.h tecoc.h defext.h deferr.h
+exepw.mix  exepw.c  zport.h tecoc.h defext.h
+exeq.mix   exeq.c   zport.h tecoc.h defext.h deferr.h
+exeqes.mix exeqes.c zport.h tecoc.h defext.h
+exer.mix   exer.c   zport.h tecoc.h defext.h
+exerbr.mix exerbr.c zport.h tecoc.h defext.h deferr.h
+exertp.mix exertp.c zport.h tecoc.h defext.h deferr.h
+exes.mix   exes.c   zport.h tecoc.h defext.h dchars.h deferr.h
+exescl.mix exescl.c zport.h tecoc.h defext.h deferr.h
+exet.mix   exet.c   zport.h tecoc.h defext.h dchars.h
+exeu.mix   exeu.c   zport.h tecoc.h defext.h deferr.h
+exeund.mix exeund.c zport.h tecoc.h defext.h deferr.h
+exeusc.mix exeusc.c zport.h tecoc.h defext.h dchars.h
+exev.mix   exev.c   zport.h tecoc.h defext.h
+exew.mix   exew.c   zport.h tecoc.h defext.h dscren.h
+exex.mix   exex.c   zport.h tecoc.h defext.h deferr.h
+exey.mix   exey.c   zport.h tecoc.h defext.h deferr.h
+exez.mix   exez.c   zport.h tecoc.h defext.h
+findes.mix findes.c zport.h tecoc.h defext.h deferr.h
+findqr.mix findqr.c zport.h tecoc.h defext.h deferr.h chmacs.h
+flowec.mix flowec.c zport.h tecoc.h defext.h deferr.h
+flowee.mix flowee.c zport.h tecoc.h defext.h deferr.h
+flowel.mix flowel.c zport.h tecoc.h defext.h deferr.h
+getara.mix getara.c zport.h tecoc.h defext.h deferr.h
+getnma.mix getnma.c zport.h tecoc.h defext.h deferr.h
+inccbp.mix inccbp.c zport.h tecoc.h defext.h deferr.h
+init.mix   init.c   zport.h tecoc.h defext.h deferr.h
+insstr.mix insstr.c zport.h tecoc.h defext.h deferr.h
+isradx.mix isradx.c zport.h tecoc.h defext.h chmacs.h
+ln2chr.mix ln2chr.c zport.h tecoc.h defext.h dchars.h chmacs.h
+makdbf.mix makdbf.c zport.h tecoc.h defext.h
+makrom.mix makrom.c zport.h tecoc.h defext.h deferr.h
+popmac.mix popmac.c zport.h tecoc.h defext.h
+pshmac.mix pshmac.c zport.h tecoc.h defext.h deferr.h
+pushex.mix pushex.c zport.h tecoc.h defext.h dchars.h deferr.h
+rdline.mix rdline.c zport.h tecoc.h defext.h deferr.h dchars.h
+rdpage.mix rdpage.c zport.h tecoc.h defext.h deferr.h
+readcs.mix readcs.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h \
+             dscren.h
+replac.mix replac.c zport.h tecoc.h defext.h dchars.h
+search.mix search.c zport.h tecoc.h defext.h deferr.h dchars.h
+singlp.mix singlp.c zport.h tecoc.h defext.h dchars.h
+skpcmd.mix skpcmd.c zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+srclop.mix srclop.c zport.h tecoc.h defext.h deferr.h
+sserch.mix sserch.c zport.h tecoc.h defext.h
+typbuf.mix typbuf.c zport.h tecoc.h defext.h dchars.h chmacs.h
+typest.mix typest.c zport.h tecoc.h defext.h dchars.h
+uminus.mix uminus.c zport.h tecoc.h defext.h
+wrpage.mix wrpage.c zport.h tecoc.h defext.h dchars.h deferr.h
+zfrsrc.mix zfrsrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+zmsdos.mix zmsdos.c zport.h tecoc.h defext.h chmacs.h clpars.h deferr.h \
+             dchars.h dscren.h vrbmsg.h
+tecoc.exe

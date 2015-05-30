@@ -1,0 +1,92 @@
+
+        Test the backslash command
+
+
+!       test 1:  \ to get a number that's terminated by end-of-edit-buffer
+        test 2:  \ to get a number that's terminated by characters
+        test 3:  \ to get a number that's preceded by a unary plus
+        test 4:  \ to get a number that's preceded by a unary minus
+        test 5:  \ to write a digit string into the edit buffer
+!
+
+i1234
+
+js1j                      ! set ^S to 1,  to be sure the backslash sets it !
+\-1234"e
+    .-4"e
+        ^s+4"e
+            test 1 passed13^T10^T
+        |
+            test 1 failed, ^s is wrong13^T10^T
+        '
+    |
+        test 1 failed, dot is wrong13^T10^T
+    '
+|
+    test 1 failed, should be 123413^T10^T
+'
+
+hki1234xyz
+
+js1j                      ! set ^S to 1,  to be sure the backslash sets it !
+\-1234"e
+    .-4"e
+        ^s+4"e
+            test 2 passed13^T10^T
+        |
+            test 2 failed, ^s is wrong13^T10^T
+        '
+    |
+        test 2 failed, dot is wrong13^T10^T
+    '
+|
+    test 2 failed, should be 123413^T10^T
+'
+
+hki+1234xyz
+
+js1j                      ! set ^S to 1,  to be sure the backslash sets it !
+\-1234"e
+    .-5"e
+        ^s+5"e
+            test 3 passed13^T10^T
+        |
+            test 3 failed, ^s is wrong13^T10^T
+        '
+    |
+        test 3 failed, dot is wrong13^T10^T
+    '
+|
+    test 3 failed, should be 123413^T10^T
+'
+
+hki-1234xyz
+
+js1j                      ! set ^S to 1,  to be sure the backslash sets it !
+\+1234"e
+    .-5"e
+        ^s+5"e
+            test 4 passed13^T10^T
+        |
+            test 4 failed, ^s is wrong13^T10^T
+        '
+    |
+        test 4 failed, dot is wrong13^T10^T
+    '
+|
+    test 4 failed, should be 123413^T10^T
+'
+
+hk
+i1js1jhk                ! set ^S to 1,  to be sure the backslash sets it !
+1234\j::s1234"s
+    ^s+4"e
+        test 5 passed13^T10^T
+    |
+        test 5 failed, ^s is wrong13^T10^T
+    '
+|
+    test 5 failed.13^T10^T
+'
+
+hkex

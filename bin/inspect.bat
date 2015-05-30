@@ -1,0 +1,1 @@
+tecoc teco/inspect %$

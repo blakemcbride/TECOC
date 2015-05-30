@@ -1,0 +1,4 @@
+alias teco tecoc teco/norename
+alias inspect tecoc/inspect
+alias mung tecoc mung
+alias tmake tecoc make

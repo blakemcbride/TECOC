@@ -1,0 +1,96 @@
+!DATE.TEC!
+! display the current date and time:                    !
+!   ^B == ((year-1900)*16+month)*32+day                 !
+!   ^H == (seconds since midnight)/2                    !
+
+ei
+
+[M[D[Y[W[H[M[S[0[1    ! save used Q-reg's               !
+
+                      ! Get MM/DD/YYYY in Q-reg's M,D,Y !
+^B U0                 ! 0.num = encoded date            !
+(Q0/32) & 15  UM      ! M.num = month                   !
+(Q0)    & 31  UD      ! D.num = day                     !
+(Q0/512)      UY      ! Y.num = year                    !
+
+                      ! Get day of week in Q-reg W      !
+QD UW                 ! W.num = days this month         !
+QM-2  "=  31%W |      ! add days before this month      !
+QM-3  "=  59%W |
+QM-4  "=  90%W |
+QM-5  "= 120%W |
+QM-6  "= 151%W |
+QM-7  "= 181%W |
+QM-8  "= 212%W |
+QM-9  "= 243%W |
+QM-10 "= 273%W |
+QM-11 "= 304%W |
+QM-12 "= 334%W '''''''''''
+QY & 3 "=             ! correct for leap years          !
+  QW-59 ">
+    1%W
+  '
+'
+QY+QW+(QY-1/4) U1
+Q1-(Q1/7*7) U1
+Q1-0"= @^UW%Sunday%    |
+Q1-1"= @^UW%Monday%    |
+Q1-2"= @^UW%Tuesday%   |
+Q1-3"= @^UW%Wednesday% |
+Q1-4"= @^UW%Thursday%  |
+Q1-5"= @^UW%Friday%    |
+Q1-6"= @^UW%Saturday%  '''''''
+
+
+QM-1"=  @^UM%January%   |  ! get name of month in Q-reg M !
+QM-2"=  @^UM%February%  |
+QM-3"=  @^UM%March%     |
+QM-4"=  @^UM%April%     |
+QM-5"=  @^UM%May%       |
+QM-6"=  @^UM%June%      |
+QM-7"=  @^UM%July%      |
+QM-8"=  @^UM%August%    |
+QM-9"=  @^UM%September% |
+QM-10"= @^UM%October%   |
+QM-11"= @^UM%November%  |
+QM-12"= @^UM%December%  ''''''''''''
+
+                      ! Get HH:MM:SS in Q-reg's H,N,S   !
+^H*2 U0               ! 0.num = second's since midnight !
+Q0/3600         UH    ! H.num = hours                   !
+QH*3600         U1    ! 1.num = hours (in seconds)      !
+(Q0-Q1)/60      UN    ! N.num = minutes                 !
+(Q0-Q1)-(QN*60) US    ! S.num = seconds                 !
+
+                      ! Display DAY MM/DD/YYYY          !
+:GW                   ! display DAY                     !
+32                  ! display <SP>                    !
+
+:GM                   ! display MONTH                   !
+32                  ! display <SP>                    !
+
+! QM-10"< 48^T '        display leading zero?           !
+! QM:=                  display MM                      !
+! 47^T                  display /                       !
+
+QD-10"< 48^T '        ! display leading zero?           !
+QD:=                  ! display DD                      !
+! 47^T                  display /                       !
+44                  ! display ,                       !
+32                  ! display <SP>                    !
+
+1900+QY :=            ! display YYYY                    !
+32                  ! display <SP>                    !
+
+                      ! Display HH:MM:DD                !
+QH-10"< 48^T '        ! display leading zero?           !
+QH:=                  ! display HH                      !
+58^T                  ! display :                       !
+QN-10"< 48^T '        ! display leading zero?           !
+QN:=                  ! display MM                      !
+58^T                  ! display :                       !
+QS-10"< 48^T '        ! display leading zero?           !
+QS=                   ! display SS<CR><LF>              !
+
+]1]0]S]M]H]W]Y]D]M    ! restore used Q-reg's            !
+

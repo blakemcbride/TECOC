@@ -1,0 +1,102 @@
+
+	This file tests the =, ==, ===, :=, :== and :=== commands.
+	It is dependent on the size in bytes of the variables used to
+	hold TECO numbers.  This test gives the results to be expected
+	for a 16-bit implementation like TECO-11 and a 32-bit implementation
+	like TECO-C on a VAX.
+
+	Please strike any key to continue,  or ^A to exit
+
+-1"eex'
+
+
+	Test of = command.  You should see
+
+	(16-bit implementation)		(32-bit implementation)
+
+	-31072				100000
+	2				2
+	1				1
+	0				0
+	-1				-1
+	-2				-2
+	31072				-100000
+
+
+100000=2=1=0=-1=-2=-100000=
+
+	Please strike any key to continue,  or ^A to exit
+
+-1"eex'
+
+	Test of == command.  You should see
+
+	(16-bit implementation)		(32-bit implementation)
+
+	72460				72460
+	2				2
+	1				1
+	0				0
+	177777				37777777777
+	177776				37777777776
+	105320				37777705320
+
+
+30000==2==1==0==-1==-2==-30000==
+
+	Please strike any key to continue,  or ^A to exit
+
+-1"eex'
+
+	Test of === command.  You should see
+
+	(16-bit implementation)		(32-bit implementation)
+
+	7530				7530
+	2				2
+	1				1
+	0				0
+	FFFF				FFFFFFFF
+	FFFE				FFFFFFFE
+	8AD0				FFFF8AD0
+
+
+30000===2===1===0===-1===-2===-30000===
+
+	Please strike any key to continue,  or ^A to exit
+
+-1"eex'
+
+	Test of := command.  You should see
+
+30000,2,1,0,-1,-2,-30000			(16 or 32 bit implementation)
+
+
+30000:=,2:=,1:=,0:=,-1:=,-2:=,-30000:=
+
+
+	Please strike any key to continue,  or ^A to exit
+
+-1"eex'
+
+	Test of :== command.  You should see
+
+72460,2,1,0,177777,177776,105320		(16 bit implementation)
+72460,2,1,0,37777777777,37777777776,37777705320	(32 bit implementation)
+
+
+30000:==,2:==,1:==,0:==,-1:==,-2:==,-30000:==
+
+
+	Please strike any key to continue,  or ^A to exit
+
+-1"eex'
+
+	Test of :=== command.  You should see
+
+7530,2,1,0,FFFF,FFFE,8AD0			(16 bit implementation)
+7350,2,1,0,FFFFFFFF,FFFFFFFE,FFFF8AD0		(32 bit implementation)
+
+
+30000:===,2:===,1:===,0:===,-1:===,-2:===,-30000:===
+ex

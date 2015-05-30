@@ -1,0 +1,8 @@
+
+********************************************************
+   This macro will read the file and transform all <TAB>
+characters into the appropriate number of <SPACE> chars.
+Note that tab stops are assumed to be at every 8 spaces.
+********************************************************
+FEBH:XF27:FHKMFY<:N	"U1;'.UB0L.UAQB-QAUC<QC-9"L1;'-8%C>9-QCUD
+S	-DQD<I >>EX

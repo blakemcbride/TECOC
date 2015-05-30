@@ -1,0 +1,32 @@
+!dir.tes-display directory!
+[0 [1 [2                ! save Q-regs 0-2                  !
+.u0                     ! remember where we are            !
+zj                      ! jump to end of buffer            !
+.u1                     ! remember old end of buffer       !
+0u2                     ! zero column count                !
+@^u1%*.*%               ! default is get dir of everything !
+q1"n                    ! is buffer not empty?             !
+  80-q1"g               !   is buffer length < maxpath?    !
+    0,q1x1              !     assume edit buf = filespec   !
+  '                     !   endif                          !
+'                       ! endif                            !
+en^eq1                ! preset wildcard lookup           !
+q1j                     ! jump to end of buffer            !
+<                       ! <build filename display          !
+  :en;                !   return filename, break if none !
+  g*                    !   put filename into edit buffer  !
+  (1%2)-5"e             !   is fifth and final column?     !
+    13@i%%              !     insert <CR>                  !
+    10@i%%              !     insert <LF>                  !
+    0u2                 !     reset column count           !
+  |                     !   else                           !
+    15+^S<              !     <do column mod 15 times      !
+      32@i%%            !       insert <SPACE>             !
+    >                   !     >                            !
+  '                     !   endif                          !
+>                       ! >                                !
+q1,zt                   ! display what we built            !
+q1,zk                   ! kill what we built               !
+q0j                     ! jump to where we were            !
+]2 ]1 ]0                ! restore Q-regs 0-2               !
+

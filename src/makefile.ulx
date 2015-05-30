@@ -1,0 +1,245 @@
+#
+# This makefile builds TECOC on a Sun running the SunOS operating system.
+# Before running it,  inspect the lines between here and the line containing
+# all #'s to select the way you want TECO-C built.
+# If you want to compile with built-in debugging support,  uncomment the
+# following line.  When debugging is compiled in,  the control-P command
+# can be used to turn on function tracing or get views of internal data
+# structures (see the DbgDsp function in tecoc.c). Compiling in this support
+# makes TECO-C larger and a little slower,  so you should only use this
+# when you're debugging TECO-C.
+#DEBG = -DDEBUGGING
+# If you're debugging TECO-C,  use this option to compile in a consistency
+# checking function called after each command executes.  The function checks
+# the sanity of TECO-C's internal variables.  This obviously slows things
+# down a little.
+#CCHEK = -DCONSISTENCY_CHECKING
+# Include files for SunOS 4.0 are different than for 4.1 (4.1's are closer
+# to the ANSI Standard).  Define OSVERS as -DSUNOS4_0 if you're running
+# 4.0,  so functions get properly declared (and to keep gcc from bitching).
+#OSVERS = -DSUNOS4_0
+# To choose the compiler you want to use,  uncomment one of the following
+# sets of lines (between here and the line containing all "#" characters).
+# If you want to compile with video support,  uncomment the following lines,
+# which use the System V compiler and compile/link using System V include
+# files and libraries.  I've found that I get "undefined symbol" errors if I
+# don't unsetenv the LD_LIBRARY_PATH environment variable before linking
+# with this set of lines.
+#
+# Note that compiling in video support is a mixed blessing.  If you use
+# TECO-C exclusively in video mode,  there are no problems.  If you turn
+# video off (using a 0,7:w command) you'll notice that typeout is very slow.
+# This is an artifact of curses.  To get fast typeout,  build TECO-C without
+# video (use one of the other sets of lines below).
+#CC = /usr/5bin/cc
+#CFLAGS = ${OSVERS}${DEBG}${CCHEK} -DCURSES -O -pipe
+TERMOBJS = /usr/lib/termcap.o -lcursesX
+# If you want to the standard compiler,  uncomment the following line.
+CFLAGS = $(OSVERS) ${DEBG} ${CCHEK} -O -pipe
+TERMOBJS = -ltermcap
+# If you want to use gcc,  uncomment the following lines,  which override the
+# COMPILE.c macro so it doesn't stick in the -target option, which gcc
+# doesn't understand.
+#CC= gcc
+#CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O -Wall -Wshadow -Wpointer-arith -Wcast-qual
+#TERMOBJS = -ltermcap
+#COMPILE.c = $(CC) $(CFLAGS) $(CPPFLAGS) -c -g
+#############################################################################
+CFILES=	baksrc.c bldstr.c clenup.c cmatch.c docjr.c doeves.c doflag.c \
+	echoit.c err.c exea.c exeats.c exeb.c exebar.c exebsl.c exec.c \
+	execcc.c execln.c execom.c execrt.c execst.c execta.c exectc.c \
+	exectd.c execte.c execti.c exectl.c exectn.c execto.c exectp.c \
+	exectq.c exectr.c exects.c exectt.c exectu.c exectv.c exectw.c \
+	exectx.c execty.c exectz.c exed.c exedgt.c exedot.c exedqu.c \
+	exee.c exeequ.c exeesc.c exeexc.c exeey.c exef.c exefb.c exeg.c \
+	exegtr.c exeh.c exei.c exeill.c exej.c exek.c exel.c exelbr.c \
+	exelst.c exem.c exen.c exenul.c exenyi.c exeo.c exeopr.c exep.c \
+	exeprc.c exepw.c exeq.c exeqes.c exer.c exerbr.c exertp.c exes.c \
+	exescl.c exet.c exetil.c exeu.c exeund.c exeusc.c exev.c exew.c \
+	exex.c exey.c exez.c findes.c findqr.c flowec.c flowee.c flowel.c \
+	getara.c getnma.c inccbp.c init.c insstr.c isradx.c ln2chr.c \
+	makdbf.c makrom.c popmac.c pshmac.c pushex.c rdline.c rdpage.c \
+	readcs.c replac.c search.c singlp.c skpcmd.c srclop.c sserch.c \
+	tabort.c typbuf.c typest.c uminus.c wrpage.c zfrsrc.c zunix.c
+OBJECTS= $(CFILES:.c=.o)
+tecoc: tecoc.o ${OBJECTS}
+	${LINK.c} -s -o $@ tecoc.o ${OBJECTS} ${TERMOBJS}
+tecoc.o: tecoc.c zport.h tecoc.h deferr.h dchars.h chmacs.h
+clpars.h: genclp clpars.tec
+	genclp
+genclp: genclp.o
+	${LINK.c} -o $@ genclp.o
+genclp.o: genclp.c
+clean:
+	@for i in makedep? ${OBJECTS} ; do \
+		if [ -f $$i ] ; then rm $$i ; fi ; \
+	done
+	rm -f tecoc tecoc.o core
+tags:
+	etags *.c *.h
+lint:
+# b = report unreachable break statements
+# c = complain about casts with questionable portability
+# h = apply heuristic tests
+# x = report unused externs
+	lint -bchx -DSUNOS4_0 tecoc.c ${CFILES}
+#
+#  Invoking this target (with "make depend") causes a new version of this
+#  file to be created.  This current version will be saved in a file named
+#  "makefile.bak".  In the new file, the lines following the special "DO NOT
+#  DELETE" line will be replaced with a new set of dependency rules.
+#
+depend: makedep
+	@echo '/^# DO NOT DELETE THIS LINE/+1,$$d' >makedep0
+	@echo '$$r makedep5' >>makedep0
+	@echo 'w' >>makedep0
+	@cp makefile makefile.bak
+	@ed - makefile < makedep0
+	@rm makedep?
+	@echo "new version of makefile generated, old version in makefile.bak"
+makedep: FRC
+	@cat /dev/null >makedep5
+	@echo "generating include file dependency list..."
+	@-(for i in ${CFILES} ; do \
+		${CPP} -M $$i >> makedep1; done) 2>makedepe
+	@echo "generating new version of makefile..."
+	@sed -e 's|: ./|: |' makedep1 > makedep2
+	@awk ' { if ($$1 != prev)                              \
+			{ print rec; rec = $$0; prev = $$1; }  \
+		   else                                        \
+			{ if (length(rec $$2) > 70)            \
+				{ print rec; rec = $$0; }      \
+			  else                                 \
+				rec = rec " " $$2              \
+			}                                      \
+	       }                                               \
+	       END { print rec }                               \
+	     '                                                 \
+	     makedep2 >makedep3
+	@awk '/:/ {printf "%s\n", $$0}' \
+	     makedep3 >makedep4
+	@sed -e 's|:|:|' makedep4 > makedep5
+	@cat makedepe
+	@(if [ -s makedepe ]; then false; fi)
+FRC:
+# DO NOT DELETE THIS LINE -- make depend uses it
+baksrc.o: baksrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+bldstr.o: bldstr.c zport.h tecoc.h defext.h deferr.h dchars.h chmacs.h
+clenup.o: clenup.c zport.h tecoc.h defext.h
+cmatch.o: cmatch.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+docjr.o: docjr.c zport.h tecoc.h defext.h deferr.h
+doeves.o: doeves.c zport.h tecoc.h defext.h dchars.h
+doflag.o: doflag.c zport.h tecoc.h defext.h
+echoit.o: echoit.c zport.h tecoc.h defext.h dchars.h
+err.o: err.c zport.h tecoc.h defext.h deferr.h dchars.h
+exea.o: exea.c zport.h tecoc.h defext.h deferr.h
+exeats.o: exeats.c zport.h tecoc.h defext.h
+exeb.o: exeb.c zport.h tecoc.h defext.h
+exebar.o: exebar.c zport.h tecoc.h defext.h deferr.h
+exebsl.o: exebsl.c zport.h tecoc.h defext.h chmacs.h
+exec.o: exec.c zport.h tecoc.h defext.h
+execcc.o: execcc.c zport.h tecoc.h defext.h deferr.h
+execln.o: execln.c zport.h tecoc.h defext.h
+execom.o: execom.c zport.h tecoc.h defext.h deferr.h
+execrt.o: execrt.c zport.h tecoc.h defext.h chmacs.h deferr.h
+execst.o: execst.c zport.h tecoc.h defext.h deferr.h
+execta.o: execta.c zport.h tecoc.h defext.h dchars.h
+exectc.o: exectc.c zport.h tecoc.h defext.h dchars.h
+exectd.o: exectd.c zport.h tecoc.h defext.h
+execte.o: execte.c zport.h tecoc.h defext.h
+execti.o: execti.c zport.h tecoc.h defext.h dchars.h
+exectl.o: exectl.c zport.h tecoc.h defext.h dchars.h
+exectn.o: exectn.c zport.h tecoc.h defext.h
+execto.o: execto.c zport.h tecoc.h defext.h
+exectp.o: exectp.c zport.h tecoc.h defext.h
+exectq.o: exectq.c zport.h tecoc.h defext.h
+exectr.o: exectr.c zport.h tecoc.h defext.h deferr.h
+exects.o: exects.c zport.h tecoc.h defext.h
+exectt.o: exectt.c zport.h tecoc.h defext.h deferr.h
+exectu.o: exectu.c zport.h tecoc.h defext.h deferr.h dchars.h
+exectv.o: exectv.c zport.h tecoc.h defext.h deferr.h
+exectw.o: exectw.c zport.h tecoc.h defext.h deferr.h
+exectx.o: exectx.c zport.h tecoc.h defext.h
+execty.o: execty.c zport.h tecoc.h defext.h
+exectz.o: exectz.c zport.h tecoc.h defext.h
+exed.o: exed.c zport.h tecoc.h defext.h deferr.h
+exedgt.o: exedgt.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exedot.o: exedot.c zport.h tecoc.h defext.h
+exedqu.o: exedqu.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exee.o: exee.c zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+exeequ.o: exeequ.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeesc.o: exeesc.c zport.h tecoc.h defext.h dchars.h
+exeexc.o: exeexc.c zport.h tecoc.h defext.h
+exeey.o: exeey.c zport.h tecoc.h defext.h
+exef.o: exef.c zport.h tecoc.h defext.h chmacs.h deferr.h
+exefb.o: exefb.c zport.h tecoc.h defext.h deferr.h
+exeg.o: exeg.c zport.h tecoc.h defext.h deferr.h
+exegtr.o: exegtr.c zport.h tecoc.h defext.h deferr.h
+exeh.o: exeh.c zport.h tecoc.h defext.h
+exei.o: exei.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeill.o: exeill.c zport.h tecoc.h defext.h deferr.h
+exej.o: exej.c zport.h tecoc.h defext.h
+exek.o: exek.c zport.h tecoc.h defext.h
+exel.o: exel.c zport.h tecoc.h defext.h
+exelbr.o: exelbr.c zport.h tecoc.h defext.h deferr.h
+exelst.o: exelst.c zport.h tecoc.h defext.h deferr.h
+exem.o: exem.c zport.h tecoc.h defext.h deferr.h
+exen.o: exen.c zport.h tecoc.h defext.h deferr.h
+exenul.o: exenul.c zport.h tecoc.h defext.h
+exenyi.o: exenyi.c zport.h tecoc.h defext.h deferr.h
+exeo.o: exeo.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeopr.o: exeopr.c zport.h tecoc.h defext.h
+exep.o: exep.c zport.h tecoc.h defext.h deferr.h
+exeprc.o: exeprc.c zport.h tecoc.h defext.h deferr.h
+exepw.o: exepw.c zport.h tecoc.h defext.h
+exeq.o: exeq.c zport.h tecoc.h defext.h deferr.h
+exeqes.o: exeqes.c zport.h tecoc.h defext.h
+exer.o: exer.c zport.h tecoc.h defext.h
+exerbr.o: exerbr.c zport.h tecoc.h defext.h deferr.h
+exertp.o: exertp.c zport.h tecoc.h defext.h deferr.h
+exes.o: exes.c zport.h tecoc.h defext.h dchars.h deferr.h
+exescl.o: exescl.c zport.h tecoc.h defext.h deferr.h
+exet.o: exet.c zport.h tecoc.h defext.h dchars.h
+exeu.o: exeu.c zport.h tecoc.h defext.h deferr.h
+exeund.o: exeund.c zport.h tecoc.h defext.h deferr.h
+exeusc.o: exeusc.c zport.h tecoc.h defext.h dchars.h
+exev.o: exev.c zport.h tecoc.h defext.h
+exew.o: exew.c zport.h tecoc.h defext.h deferr.h
+exex.o: exex.c zport.h tecoc.h defext.h deferr.h
+exey.o: exey.c zport.h tecoc.h defext.h deferr.h
+exez.o: exez.c zport.h tecoc.h defext.h
+findes.o: findes.c zport.h tecoc.h defext.h deferr.h
+findqr.o: findqr.c zport.h tecoc.h defext.h deferr.h chmacs.h
+flowec.o: flowec.c zport.h tecoc.h defext.h deferr.h
+flowee.o: flowee.c zport.h tecoc.h defext.h deferr.h
+flowel.o: flowel.c zport.h tecoc.h defext.h deferr.h
+getara.o: getara.c zport.h tecoc.h defext.h deferr.h
+getnma.o: getnma.c zport.h tecoc.h defext.h deferr.h
+inccbp.o: inccbp.c zport.h tecoc.h defext.h deferr.h
+init.o: init.c zport.h tecoc.h defext.h deferr.h
+insstr.o: insstr.c zport.h tecoc.h defext.h deferr.h
+isradx.o: isradx.c zport.h tecoc.h defext.h chmacs.h
+ln2chr.o: ln2chr.c zport.h tecoc.h defext.h dchars.h chmacs.h
+makdbf.o: makdbf.c zport.h tecoc.h defext.h
+makrom.o: makrom.c zport.h tecoc.h defext.h deferr.h
+popmac.o: popmac.c zport.h tecoc.h defext.h
+pshmac.o: pshmac.c zport.h tecoc.h defext.h deferr.h
+pushex.o: pushex.c zport.h tecoc.h defext.h dchars.h deferr.h
+rdline.o: rdline.c zport.h tecoc.h defext.h deferr.h dchars.h
+rdpage.o: rdpage.c zport.h tecoc.h defext.h deferr.h
+readcs.o: readcs.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+readcs.o: dscren.h
+replac.o: replac.c zport.h tecoc.h defext.h dchars.h
+search.o: search.c zport.h tecoc.h defext.h deferr.h dchars.h
+singlp.o: singlp.c zport.h tecoc.h defext.h dchars.h
+skpcmd.o: skpcmd.c zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+srclop.o: srclop.c zport.h tecoc.h defext.h deferr.h
+sserch.o: sserch.c zport.h tecoc.h defext.h
+tabort.o: tabort.c zport.h tecoc.h
+typbuf.o: typbuf.c zport.h tecoc.h defext.h dchars.h chmacs.h
+typest.o: typest.c zport.h tecoc.h defext.h dchars.h
+uminus.o: uminus.c zport.h tecoc.h defext.h
+wrpage.o: wrpage.c zport.h tecoc.h defext.h dchars.h deferr.h
+zfrsrc.o: zfrsrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+zunix.o: zunix.c tecoc.h clpars.h dchars.h deferr.h
+zunix.o: defext.h dscren.h vrbmsg.h

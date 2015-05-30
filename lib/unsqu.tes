@@ -1,0 +1,187 @@
+! This TECO macro indents TECO code to help make it readable
+
+It does NOT handle @-modified commands correctly or caret-preceeded commands.
+
+Q-REGISTERS USED:
+
+       q-register      usage
+
+          .a           true if @-sign modified
+          .c  (text)   insert carriage return/line feed
+          .d           true if numeric argument
+          .i  (text)   insert indenting spaces
+          i            indenting level
+!
+
+[i
+
+@^U.c/i
+/27:^U.c
+
+@^U.i/qi<i    >/27:^U.i
+
+27u.e
+0ui
+<
+    z-."e1;'
+    0u.a
+    0u.d
+    0u.s
+!c!
+    0a"ecf<'
+    0a-^^^A"ecs^Am.cm.if<'
+    0a-^^^B"ec-1u.doc'
+    0a-^^^C"ecm.cm.if<'
+    0a-^^^D"ecm.cm.if<'
+    0a-^^^E"ec-1u.doc'
+    0a-^^^G"e2cm.cm.if<'
+    0a-8"ec-1u.doc'
+    0a-9"es^Eu.em.cm.if<'
+    0a-^^^N"ec-1u.doc'
+    0a-^^^O"ecm.cm.if<'
+    0a-^^^Q"ec-1u.doc'
+    0a-^^^R"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^^S"ec-1u.doc'
+    0a-^^^T"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^^U"es^Eu.em.cm.if<'
+    0a-^^^V"ecm.cm.if<'
+    0a-^^^W"ecm.cm.if<'
+    0a-^^^X"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^^Z"ec-1u.doc'
+    0a-27"ecm.cm.if<'
+    0a-^^!"ecs!m.cm.if<'
+    0a-^^""e2cm.c%im.if<'
+    0a-^^%"e2c-1u.doc'
+    0a-^^'"e-4dc-1%im.cm.if<'
+    0a-^^@"ec-1q.aoc'
+    0a-^^|"e-4dcm.cm.if<'
+    0a-^^."ec-1u.doc'
+    0a-^^;"ecm.cm.if<'
+    0a-^^<"e2cm.c%im.if<'
+    0a-^^>"ec-1%im.cm.if<'
+    0a-^^["e2cm.cm.if<'
+    0a-^^]"e2cm.cm.if<'
+    0a-47"g0a-58"lc-1u.doc'
+    0a-^^a"ecm.cm.if<'
+    0a-^^A"ecm.cm.if<'
+    0a-^^b"ec-1u.doc'
+    0a-^^B"ec-1u.doc'
+    0a-^^c"ecm.cm.if<'
+    0a-^^C"ecm.cm.if<'
+    0a-^^d"ecm.cm.if<'
+    0a-^^D"ecm.cm.if<'
+    0a-^^e"eoe'
+    0a-^^E"eoe'
+    0a-^^f"eof'
+    0a-^^F"eof'
+    0a-^^g"e2cm.cm.if<'
+    0a-^^G"e2cm.cm.if<'
+    0a-^^h"ecf<'
+    0a-^^H"ecf<'
+    0a-^^i"es^Eu.em.cm.if<'
+    0a-^^I"es^Eu.em.cm.if<'
+    0a-^^j"ecm.cm.if<'
+    0a-^^J"ecm.cm.if<'
+    0a-^^k"ecm.cm.if<'
+    0a-^^K"ecm.cm.if<'
+    0a-^^l"ecm.cm.if<'
+    0a-^^L"ecm.cm.if<'
+    0a-^^m"e2cm.cm.if<'
+    0a-^^M"e2cm.cm.if<'
+    0a-^^n"es^Eu.em.cm.if<'
+    0a-^^N"es^Eu.em.cm.if<'
+    0a-^^o"es^Eu.em.cm.if<'
+    0a-^^O"es^Eu.em.cm.if<'
+    0a-^^q"e2c-1u.doc'
+    0a-^^Q"e2c-1u.doc'
+    0a-^^r"ecm.cm.if<'
+    0a-^^R"ecm.cm.if<'
+    0a-^^s"es^Eu.em.cm.if<'
+    0a-^^S"es^Eu.em.cm.if<'
+    0a-^^t"ecm.cm.if<'
+    0a-^^T"ecm.cm.if<'
+    0a-^^u"e2cm.cm.if<'
+    0a-^^U"e2cm.cm.if<'
+    0a-^^v"ecm.cm.if<'
+    0a-^^V"ecm.cm.if<'
+    0a-^^w"ecm.cm.if<'
+    0a-^^W"ecm.cm.if<'
+    0a-^^x"e2cm.cm.if<'
+    0a-^^X"e2cm.cm.if<'
+    0a-^^y"ecm.cm.if<'
+    0a-^^Y"ecm.cm.if<'
+    0a-^^z"ec-1u.doc'
+    0a-^^Z"ec-1u.doc'
+    c
+    f<
+!e!
+    c
+    0a-^^a"ecm.cm.if<'
+    0A-^^a"ecm.cm.if<'
+    0a-^^b"es^Eu.em.cm.if<'
+    0a-^^B"es^Eu.em.cm.if<'
+    0a-^^c"ecm.cm.if<'
+    0a-^^C"ecm.cm.if<'
+    0a-^^d"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^D"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^f"ecm.cm.if<'
+    0a-^^F"ecm.cm.if<'
+    0a-^^g"es^Eu.em.cm.if<'
+    0a-^^G"es^Eu.em.cm.if<'
+    0a-^^h"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^H"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^i"es^Eu.em.cm.if<'
+    0a-^^I"es^Eu.em.cm.if<'
+    0a-^^j"ec-1u.doc''
+    0a-^^J"ec-1u.doc''
+    0a-^^k"ecm.cm.if<'
+    0a-^^K"ecm.cm.if<'
+    0a-^^n"es^Eu.em.cm.if<'
+    0a-^^N"es^Eu.em.cm.if<'
+    0a-^^o"ec-1u.doc''
+    0a-^^O"ec-1u.doc''
+    0a-^^p"ecm.cm.if<'
+    0a-^^P"ecm.cm.if<'
+    0a-^^q"ecm.cm.if<'
+    0a-^^Q"ecm.cm.if<'
+    0a-^^r"es^Eu.em.cm.if<'
+    0a-^^R"es^Eu.em.cm.if<'
+    0a-^^s"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^S"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^t"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^T"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^u"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^U"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^v"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^V"ecq.d"tm.cm.if<|-1u.doc''
+    0a-^^w"es^Eu.em.cm.if<'
+    0a-^^W"es^Eu.em.cm.if<'
+    0a-^^x"ecm.cm.if<'
+    0a-^^X"ecm.cm.if<'
+    c
+    f<
+!f!
+    c
+    0a-^^'"ecm.cm.if<'
+    0a-^^<"ecm.cm.if<'
+    0a-^^>"ecm.cm.if<'
+    0a-^^|"ecm.cm.if<'
+    0a-^^b"es^Eu.em.cm.if<'
+    0a-^^B"es^Eu.em.cm.if<'
+    0a-^^c"es^Eu.es^Eu.em.cm.if<'
+    0a-^^C"es^Eu.es^Eu.em.cm.if<'
+    0a-^^d"es^Eu.em.cm.if<'
+    0a-^^D"es^Eu.em.cm.if<'
+    0a-^^n"es^Eu.es^Eu.em.cm.if<'
+    0a-^^N"es^Eu.es^Eu.em.cm.if<'
+    0a-^^r"es^Eu.em.cm.if<'
+    0a-^^R"es^Eu.em.cm.if<'
+    0a-^^s"es^Eu.es^Eu.em.cm.if<'
+    0a-^^S"es^Eu.es^Eu.em.cm.if<'
+    0a-^^_"es^Eu.es^Eu.em.cm.if<'
+    c
+>
+
+[i
+
+

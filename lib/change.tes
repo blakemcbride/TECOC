@@ -1,0 +1,237 @@
+! This TECO macro written by Pete Siemsen of Midcom (Orange, Ca.) to         !
+! run under VAX/VMS V2.3 running TECO V36, 9-Mar-1982			     !
+!									     !
+! This TECO macro changes one string to another in a set of files. It prompts!
+! the user for a file specification (wildcards ok) and two strings: the old  !
+! one and the new one. It then goes through the file(s), making the change.  !
+! It is designed to be a convenient tool for users who are familiar with     !
+! the SEARCH program on most VAXes. CHANGE prompts for input and displays its!
+! output very like the SEARCH program. Note that the strings prompted for by !
+! this macro can be delimited: if the first character of the string is an    !
+! <ESC>, then only an <ESC> will terminate the string, else both <ESC> and   !
+! <CR><LF> will terminate the string.                                        !
+!									     !
+! The general way this macro works is to build a hideous TECO command string !
+! in q-register B, then execute the command string. We need to build the     !
+! string because we have to create an FN command, at least, to make the      !
+! changes.								     !
+!									     !
+! The following Q-registers are used:					     !
+!									     !
+!	QA	number	ascii value of text character from the terminal      !
+!									     !
+!	QW	number	0 if we haven't output the file specification of     !
+!			the file in which the string was found, 1 if we      !
+!			already have. This guy lets us output file specs     !
+!			only for those files which contain the string        !
+!									     !
+!	QX	number	0 if no changes have been made, else > 0	     !
+!			This is only used to tell us if we should output     !
+!			the "No matches." string when we're done.            !
+!									     !
+!	QZ	number	0 if we haven't changed a string in the file, 1 if   !
+!			we have. This guy tells us whether to close and kill !
+!			the output file (when no changes were made in the    !
+!			file) or to close the output file normally (when     !
+!			changes have been made).			     !
+!									     !
+!	QB	text	This is the biggee. It holds the TECO command string !
+!			we are building. It is used twice, once to build and !
+!			execute the EN command that presets the TECO         !
+!			wildcard lookup buffer, and once to build and        !
+!			execute the command string that does all the work.   !
+!			We could build just one string and execute it, but   !
+!			then the user wouldn't know that he's misspelled his !
+!			file specification until after he's typed in the     !
+!			old and new strings.                                 !
+!									     !
+!	QE	text	holds an EB command so we can execute it	     !
+
+ED#2ED                                 ! make Y command work like it should  !
+
+Filename(s):                       ! prompt for a file specification     !
+
+! read the wildcard file specification from the terminal and use it          !
+! in a TECO EN command to preset the wildcard lookup file specification      !
+
+@^UB%en%                               ! put EN in q-register B              !
+
+! Do an EI$ to throw away extraneous input in the type-ahead buffer. See     !
+! page 117-118 of the PDP-11 TECO User's Guide for an explanation of why     !
+! this is necessary.                                                         !
+
+EI
+<
+    UA                               ! get a character from the terminal   !
+    QA-127"E                           ! if it's a delete                    !
+             8                       ! send a backspace to the terminal    !
+             32                      ! send a space to the terminal        !
+             8                       ! send a backspace to the terminal    !
+             HK                        ! clear the edit buffer               !
+             GB                        ! get contents of q-register B        !
+             B,Z-1XB                   ! copy back all but last character    !
+             HK                        ! clear the edit buffer               !
+          |                            ! else (it's not a delete)            !
+             QA-27"E                   ! if it's an escape                   !
+                     1310          ! output <CR><LF>                     !
+                     1;                ! get out of the loop                 !
+                   |                   ! else (it's not a delete or escape)  !
+                     QA-13"E           ! if it's a <CR>                      !
+                             0,32ET    ! set "read with no wait"             !
+                                    ! get the line feed that follows      !
+                             0,32ET    ! set "read with wait"             !
+                             1;        ! and get out of the loop             !
+                           |           ! else (not <DEL>, <ESC>, or <CR>)    !
+                             QA:^UB   ! append it to q-register B           !
+                           '           ! endif                               !
+                   '                   ! endif                               !
+          '                            ! endif                               !
+>
+27:^UB                                ! append an escape to q-register B    !
+27:^UB                                ! append an escape to q-register B    !
+MB                                     ! execute the command in q-register B !
+
+! The unsquished code inserted in Q-register B does the following:           !
+!   0UX                       zero the 'strings changed' flag                !
+!   <                         loop through all files                         !
+!     HK                      clear the edit buffer                          !
+!     :EN^["S                 try to get a file specification                !
+!       IEB^[                 start building an EB command                   !
+!       G*                    fill in the file specification                 !
+!       27I^[                 put in the first terminating <ESC>             !
+!       27I^[                 put in the second terminating <ESC>            !
+!       HXE                   load the EB command into q-reg E               !
+!       ME                    the EB command opens the file                  !
+!       Y                     get the first page of input                    !
+!       0UW                   zero the 'display filespec?' flag              !
+!       0UZ                   zero the 'save output file?' flag              !
+!       <                     loop for all changes in this file              !
+!         :FN                 make the actual change                         !
+
+@^UB%0UX < HK :EN"S IEB G* 27I 27I HXE ME Y 0UW 0UZ < :FN%
+
+Search string:                     ! prompt for the search string        !
+
+UA
+QA-27"E                                ! if it's an <ESC>                    !
+         1UE                           ! set 'escape terminator only' flag   !
+     |                                 ! else (first character not <ESC>)    !
+         0UE                           ! clear 'escape terminator only' flag !
+         ON1                          ! jump into the loop                  !
+     '                                 ! endif                               !
+
+<
+   UA                                ! get a character from the terminal   !
+    !N1!
+    QA-127"E                           ! if it's a delete                    !
+             8                       ! send a backspace to the terminal    !
+             32                      ! send a space to the terminal        !
+             8                       ! send a backspace to the terminal    !
+             HK                        ! clear the edit buffer               !
+             GB                        ! get contents of q-register B        !
+             B,Z-1XB                   ! copy back all but last character    !
+             HK                        ! clear the edit buffer               !
+          |                            ! else (it's not a delete)            !
+             QA-27"E                   ! if it's an escape                   !
+                     1310          ! output <CR><LF>                     !
+                     1;                ! get out of the loop                 !
+                   |                   ! else (it's not a delete or escape)  !
+                     QA-13"E           ! if it's a <CR>                      !
+                       QE"E            ! if carriage returns terminate       !
+                             0,32ET    ! set "read with no wait"             !
+                                    ! get the line feed that follows      !
+                             0,32ET    ! set "read with wait"                !
+                             1;        ! and get out of the loop             !
+|
+QA:^UB
+:^UB
+'
+                           |           ! else (not <DEL>, <ESC>, or <CR>)    !
+                             QA:^UB   ! append it to q-register B           !
+                           '           ! endif                               !
+                   '                   ! endif                               !
+          '                            ! endif                               !
+>
+27:^UB
+New string to replace search string: 
+UA
+QA-27"E                                ! if it's an <ESC>                    !
+         1UE                           ! set 'escape terminator only' flag   !
+     |                                 ! else (first character not <ESC>)    !
+         0UE                           ! clear 'escape terminator only' flag !
+         ON2                          ! jump into the loop                  !
+     '                                 ! endif                               !
+
+<
+   UA                                ! get a character from the terminal   !
+    !N2!
+    QA-127"E                           ! if it's a delete                    !
+             8                       ! send a backspace to the terminal    !
+             32                      ! send a space to the terminal        !
+             8                       ! send a backspace to the terminal    !
+             HK                        ! clear the edit buffer               !
+             GB                        ! get contents of q-register B        !
+             B,Z-1XB                   ! copy back all but last character    !
+             HK                        ! clear the edit buffer               !
+          |                            ! else (it's not a delete)            !
+             QA-27"E                   ! if it's an escape                   !
+                     1310          ! output <CR><LF>                     !
+                     1;                ! get out of the loop                 !
+                   |                   ! else (it's not a delete or escape)  !
+                     QA-13"E           ! if it's a <CR>                      !
+                       QE"E            ! if carriage returns terminate       !
+                             0,32ET    ! set "read with no wait"             !
+                                    ! get the line feed that follows      !
+                             0,32ET    ! set "read with wait"                !
+                             1;        ! and get out of the loop             !
+|
+QA:^UB
+:^UB
+'
+                           |           ! else (not <DEL>, <ESC>, or <CR>)    !
+                             QA:^UB   ! append it to q-register B           !
+                           '           ! endif                               !
+                   '                   ! endif                               !
+          '                            ! endif                               !
+>
+
+! The unsquished code appended to Q-register B does the following            !
+!        ^[                   terminate the :FN command                      !
+!        "S                   if a string was found                          !
+!          QW"E               if haven't displayed file spec yet             !
+!            1UX^[            make the 'any found?' flag true                !
+!            13^T             display a <CR>                                 !
+!            10^T             display a <LF>                                 !
+!            :G*              display the file specification                 !
+!            13^T             display a <CR>                                 !
+!            10^T             display a <LF>                                 !
+!            10^T             display a <LF>                                 !
+!            1UW              make 'display filespec?' flag false            !
+!          '                  endif                                          !
+!          V                  view the changed line                          !
+!          1UZ                make the 'any found?' flag true                !
+!        |                    else (search string not in file)               !
+!          1;                 terminate this loop                            !
+!        '                    endif                                          !
+!      >                      end of loop over the file                      !
+!      QZ"N                   if a string was found in this file             !
+!        EC                   close and save the output file                 !
+!      |                      else (search string not in file)               !
+!        EK                   close and delete the output file               !
+!      '                      endif                                          !
+!    |                        else (no more files)                           !
+!        1;                   terminate this loop                            !
+!    '                        endif                                          !
+!  >                          end of loop over all files                     !
+!  QX"E                       if didn't match the search string              !
+!  ^ANo matches.^A            tell the user                                  !
+!  '                          endif                                          !
+!  ex^[                       and we are finally done                        !
+
+@:^UB%  "S QW"E 1UX 13 10 :G* 13 10 10 1UW ' V 1UZ | 1; ' >
+ QZ"N  EC | EK ' | 1; ' > QX"E No matches. ' ex %
+
+27:^UB
+
+MB
+

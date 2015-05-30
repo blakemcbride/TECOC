@@ -1,0 +1,6 @@
+This TECO macro makes a TECO command string printable by converting
+escape characters to dollar signs and all control characters to the
+tilde-character string which is usually printed on the terminal, except
+for ^I (tab), ^M (cr), ^L (ff), and ^J (lf).
+<Z-."E1;'0A-31"GCF<'0A-27"EI$DF<'0A-13"ECF<'0A-10"ECF<'0A-9"ECF<'
+0A-12"ECF<'I^0A+64ID>

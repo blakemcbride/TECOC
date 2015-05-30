@@ -1,0 +1,142 @@
+Running TECOC
+
+NOTE -- IF YOU ARE USING LINUX, READ THE FILE README.LNX INSTEAD!
+
+
+Tecoc is typically started via batch commands to set the first
+argument to MUNG, TECO, or MAKE. The batch files are typically called
+mung, teco, make, and inspect. (Inspect does a TECO/INSPECT.)
+
+Several option switches are allowed on the TECO command line:
+
+   /IN[SPECT]  -- Read file only, don't create an output file.
+   /NOC[REATE] -- If file doesn't exist, don't create it.
+   /NOI[NI]    -- Don't execute INI file. (valid for MAKE or MUNG as well)
+   /NOM[EMORY] -- don't save filename as "last edited file" (valid for
+                  MAKE also)
+   /NOP[AGE]   -- Formfeeds don't stop file reads (valid for MAKE also)
+   /NOR[ENAME] -- Don't rename files, but copy them to keep references correct
+                  (OS/2 only)
+   +nnn	       -- sets NOPAGE and positions dot to line nnn.
+
+The part of the switch name in the square brackets is optional. For
+instance "/IN" is the same as "/INSPECT".
+
+MAKE filespec
+
+   starts tecoc to create file filespec. Does equivalent of EWfilespec$$
+
+TECO filespec
+
+   starts tecoc to edit file filespec. Does equivalent of
+   EBfilespec$Y$
+
+TECO filespec2=filespec1
+
+   starts tecoc to edit filespec1, writing to filespec2. Does
+   equivalent of ERfilespec1$EWfilespec2$Y$$
+
+TECO
+
+   starts tecoc to edit last edited file. Filename is saved in file
+   named teco*.tmp in the current directory, unless overriden
+   (described below).
+
+MUNG filespec <args>
+
+   starts tecoc to execute filespec. Equivalent to
+   I<args>$JEIfilespec$$ 
+
+   You can use "TECO @filespec <args>" instead of MUNG.
+
+**************
+Key Bindings
+
+The keys mentioned in the teco.doc file are somewhat confusing. 
+This should help:
+
+<DELIM>         The "Esc" key, "Esc" echoes as "$", however the 
+                teco.doc file shows it as '`'.
+<BS>            Type as Control-h, this isn't the "Backspace" key.
+<DELETE>        The "Backspace" key. This isn't the "Delete" key.
+<CR>            The "Enter" key.
+<LF>            Type as Control-j.
+
+Note that the assignments for <BS> and <DELETE> shown here are
+swapped. <BS> can be "Backspace" and <DELETE> can be control-h by
+clearing ET&2048, e.g. 2048,0ET
+
+
+**************
+
+The Initialization File.
+
+Tecoc mungs (executes as teco commands) the file TECO.INI in the
+current directory before processing the command line. Initialization
+can be done instead by defining a TEC$INIT environment variable (the
+DOS "SET" command does this). The value is either the list of teco
+commands to execute or a "$" followed by the pathname of the file
+containing the initialization file. This allows a single, centrally
+located initialization file.
+
+The initialization file can be used to make initial settings. It can
+return a value, but the value setting is somewhat obscure.
+
+Example:
+
+set TEC$INIT=1es
+
+will cause successful searches to auto-display in all teco sessions.
+
+**************
+
+Changing the location of the memory file.
+
+Define the environment variable TEC$MEMORY to be "$" followed by the
+pathname of the file designated the memory file.
+
+Example:
+
+set TEC$MEMORY=$c:\teco.mem
+
+will cause the name of the last edit file to be stored in the file
+teco.mem in the root directory of drive C.
+
+
+**************
+
+The Libary directory
+
+Defining the environment variable TEC$LIBRARY to be a directory path
+(including the final "\" or "/") will allow the EI command to fetch
+teco commands from this directory if the file is not found in the
+current directory.
+
+Example:
+
+set TEC$LIBRARY=c:\lib\teco\
+
+will cause the directory c:\lib\teco to be searched for teco command files.
+
+
+**************
+
+Implemented flags:
+
+ED&1	Allow carat "^" character in string searches
+ED&2    Allow yank and _ unconditionally
+ED&16   Failed searches preserve dot
+ED&64   Move dot by one after each match in multiple occurance searches
+
+ET&1    Type out in image mode
+ET&2    Use scope for delete and control-U (default=1)
+ET&4    Accept lowercase input (default=1)
+ET&8    ^T reads without echo
+ET&32   ^T reads with no wait
+ET&128  MUNG mode (abort on error) cleared by "*" prompt
+ET&2048 Swap backspace and delete (default=1)
+ET&4096 We are using 8 bit characters (default=1)
+ET&32768 Trap control-C 
+
+EZ&2    Don't rename files,  copy them (OS/2 Version)
+EZ&128  Don't stop read on formfeeds 

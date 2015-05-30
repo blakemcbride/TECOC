@@ -1,0 +1,129 @@
+
+        Test the O command.
+
+
+!
+        Testing jump commands is a little hairy.  I do it by setting a
+state variable.  At every label,  I test that we're in the proper state.
+!
+1us@O!test1!
+
+!tag2!
+qs-4"e
+    test 4 passed (jumping to 3rd (last) tag in a list works)13^T10^T
+|
+    reached tag2 by mistake, terminating.13^T10^Todone
+
+'
+5usOtest5
+
+
+!tag1!
+qs-3"e
+    test 3 passed (jumping to 2nd (middle) tag in a list works)13^T10^T
+|
+    reached tag1 by mistake, terminating.13^T10^Todone
+
+'
+4us2@O!tag0,tag1,tag2!
+
+!tag0!
+qs-2"e
+    test 2 passed (jumping to 0th (first) tag in a list works)13^T10^T
+|
+    reached tag0 by mistake, terminating.13^T10^Todone
+
+'
+3us1@O!tag0,tag1,tag2!
+ 
+
+!test1!
+qs-1"e
+    test 1 passed (a simple jump works)13^T10^T
+|
+    reached test1 by mistake, terminating.13^T10^Todone
+
+'
+2us0@O!tag0,tag1,tag2!
+
+
+
+
+!test5!
+qs-5"e
+    test 5 passed (another simple jump, escape-terminated)13^T10^T
+|
+    reached test5 by mistake, terminating.13^T10^Todone
+
+'
+
+6us3@O!tag0,tag1,tag2!
+qs-6"e
+    test 6 passed (too large tag index causes fall through)13^T10^T
+|
+    test 6 failed, 13^T10^T
+'
+
+7us-1@O!tag0,tag1,tag2!
+qs-7"e
+    test 7 passed (too small tag index causes fall through)13^T10^T
+|
+    test 7 failed, 13^T10^T
+'
+
+8us2@O!tag0,tag1,,tag2!
+qs-8"e
+    test 8 passed (an index to a null tag causes fall through)13^T10^T
+|
+    test 8 failed, 13^T10^T
+'
+9us3@O!tag0,tag1,,test9!
+test 9 failed, 13^T10^T
+10usotest10
+
+
+!test9!
+qs-9"e
+    test 9 passed (index to tag past null tag works)13^T10^T
+|
+    test 9 failed, 13^T10^T
+'
+10us2@O!,,test10!
+
+test 9 failed, 13^T10^T
+10usotest10
+
+!test10!
+qs-10"e
+    test 10 passed (index to tag past 2 null tags works)13^T10^T
+|
+    test 10 failed, 13^T10^T
+'
+
+11us
+
+<
+  <
+    <
+      <
+        @O!endloop2!
+      >
+    >
+  >
+  !endloop2!
+  qs-11"e
+      test 11 passed (jumping from inner to outer loop works)13^T10^T
+      12us@O!done!
+  |
+    reached endloop2 by mistake, terminating.13^T10^Todone
+
+  '
+>
+
+!done!
+qs-12"e
+    test 12 passed (jumping completely out of nested loops works)13^T10^T
+|
+    test 12 failed, 13^T10^T
+'
+ex

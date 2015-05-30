@@ -1,0 +1,44 @@
+!   Author:     John Guidi,  sped up by Pete Siemsen
+    Date:       20-July-79
+
+    Useage:     MUNG DETAB filespec
+
+    Abstract:   All tabs in the file specified will be replaced with
+                spaces. Tab stops are assumed to be at every 8 spaces.
+!
+
+
+********************************************************
+   This macro will read the file and transform all <TAB>
+characters into the appropriate number of <SPACE> chars.
+Note that tab stops are assumed to be at every 8 spaces.
+********************************************************
+
+
+@^UF%EB%              ! set F up with EB command !
+H:XF                  ! append filespec to F !
+27@:^UF%%             ! append <ESC> to F !
+
+HK                    ! clear text buffer !
+MF                    ! execute F to open input and output files !
+Y                     ! pull first page into text buffer !
+
+<
+  :@N/	/"U1;'        ! search for a tab,  leave loop when unsuccessful !
+  .UB                 ! put current pointer in B !
+  0L .UA              ! put pointer to begining of line in A !
+  QB-QAUC             ! put how many characters up to TAB in C !
+  <                   ! subtract 8 until QC is less than 9 !
+    QC-9"L
+      1;
+    '
+    -8%C
+  >
+  9-QCUD              ! put number of spaces into D !
+  @S/	/-D           ! find the tab again and delete it !
+  QD<                 ! insert the spaces !
+    @I/ /
+  >
+>
+EX                    ! close files !
+

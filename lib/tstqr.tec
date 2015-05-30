@@ -1,0 +1,120 @@
+ei
+	Test q-register commands
+
+
+
+1uaqa-1"nobadtest1'
+2ubqb-2"nobadtest1'
+3ucqc-3"nobadtest1'
+4udqd-4"nobadtest1'
+5ueqe-5"nobadtest1'
+6ufqf-6"nobadtest1'
+7ugqg-7"nobadtest1'
+8uhqh-8"nobadtest1'
+9uiqi-9"nobadtest1'
+10ujqj-10"nobadtest1'
+11ukqk-11"nobadtest1'
+12ulql-12"nobadtest1'
+13umqm-13"nobadtest1'
+14unqn-14"nobadtest1'
+15uoqo-15"nobadtest1'
+16upqp-16"nobadtest1'
+17uqqq-17"nobadtest1'
+18urqr-18"nobadtest1'
+19usqs-19"nobadtest1'
+20utqt-20"nobadtest1'
+21uuqu-21"nobadtest1'
+22uvqv-22"nobadtest1'
+23uwqw-23"nobadtest1'
+24uxqx-24"nobadtest1'
+25uyqy-25"nobadtest1'
+26uzqz-26"nobadtest1'
+1uAqA-1"nobadtest1'
+2uBqB-2"nobadtest1'
+3uCqC-3"nobadtest1'
+4uDqD-4"nobadtest1'
+5uEqE-5"nobadtest1'
+6uFqF-6"nobadtest1'
+7uGqG-7"nobadtest1'
+8uHqH-8"nobadtest1'
+9uIqI-9"nobadtest1'
+10uJqJ-10"nobadtest1'
+11uKqK-11"nobadtest1'
+12uLqL-12"nobadtest1'
+13uMqM-13"nobadtest1'
+14uNqN-14"nobadtest1'
+15uOqO-15"nobadtest1'
+16uPqP-16"nobadtest1'
+17uQqQ-17"nobadtest1'
+18uRqR-18"nobadtest1'
+19uSqS-19"nobadtest1'
+20uTqT-20"nobadtest1'
+21uUqU-21"nobadtest1'
+22uVqV-22"nobadtest1'
+23uWqW-23"nobadtest1'
+24uXqX-24"nobadtest1'
+25uYqY-25"nobadtest1'
+26uZqZ-26"nobadtest1'
+-9u0q0+9"nobadtest1'
+-8u1q1+8"nobadtest1'
+-7u2q2+7"nobadtest1'
+-6u3q3+6"nobadtest1'
+-5u4q4+5"nobadtest1'
+-4u5q5+4"nobadtest1'
+-3u6q6+3"nobadtest1'
+-2u7q7+2"nobadtest1'
+-1u8q8+1"nobadtest1'
+0u9q9"nobadtest1'
+101,102ua-101"nobadtest1'qa-102"nobadtest1'
+    test 1 passed (basic U and Q commands work)13^T10^T
+otest1done
+
+!badtest1!
+    test 1 failed.13^T10^T
+!test1done!
+
+10ua5ub2uc(qa+qb+qc)-17"e
+        test 2 passed (q-registers seem to work in expressions)13^T10^T
+|
+        test 2 failed13^T10^T
+'
+
+! This test helps to see what's really supposed to happen in TECO when
+  you do a :M command and then refer to local q-registers in the macro.
+  The correct behavior is to use the local q-registers from the previous
+  macro level,  if there are any.  If not,  use the ones from the previous
+  level,  etc.  The test verifies that three levels deep,  values from
+  level 1 can be accessed if no intervening levels have local q-registers.
+!
+10u.n                 ! put 10 in main-level q-register .n !
+@^U1/20u.n:m2/    ! put 20u.n$:m2$$ in q-register 1 !
+27:^U1
+@^U2/:m3/           ! put :m3$$ in q-register 2 !
+27:^U2
+@^U3/q.n/           ! put q.n$$ into q-register 3 !
+27:^U3
+m1+q.n-30"e
+        test 3 passed (:M commands use old local q-registers)13^T10^T
+|
+        test 3 failed13^T10^T
+'
+:m1+q.n-40"e
+        test 4 passed (:M commands use old local q-registers)13^T10^T
+|
+        test 4 failed13^T10^T
+'
+! If local macros are called, the : modifier is assumed (no local regs) !
+
+10u.n                 ! put 10 in main-level q-register .n !
+@^U1/20u.nm.2/    ! put 20u.n$m.2$$ in q-register .1 !
+27:^U1
+@^U.2/m.3/           ! put m.3$$ in q-register .2 !
+27:^U.2
+@^U.3/q.n/           ! put q.n$$ into q-register .3 !
+27:^U.3
+:m1+q.n-40"e
+        test 5 passed (M. commands use old local q-registers)13^T10^T
+|
+        test 5 failed13^T10^T
+'
+ex

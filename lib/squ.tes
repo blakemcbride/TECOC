@@ -1,0 +1,1773 @@
+!SQU.TEC V40.00!
+! --------------------------------------------------------------------- !
+!									!
+! TECO macro to squish other TECO macros.  This macro will take a nice,	!
+! readable TECO macro and squish it so that it is as small and as fast	!
+! as possible (and is completely unreadable).				!
+!									!
+! Command line:								!
+!									!
+!	MUNG SQU OUTFILE[.TEC]=INFILE[.TES]/SWITCHES			!
+!									!
+! For example:								!
+!									!
+!	MUNG SQU SQU.TEC=SQU.TES/D:N/L:Y/B:Y/T:Y/C:Y/W:N/A:Y/E:N	!
+!									!
+! Switches:								!
+!									!
+!	/D	Delete lexical CR/LFs					!
+!	/L	Set line lengths					!
+!	/B	Delete blank lines					!
+!	/T	Delete lexical TAB/FFs					!
+!	/C	Delete comments						!
+!	/W	Watch progress						!
+!	/A	Automatic mode (ie: squish macros loaded w/^U)		!
+!	/E	Allow adjacent ESCapes					!
+!									!
+! Use of Q-registers:							!
+!									!
+!	A.str = macro to run the squish macro in Z; then, if /L is set, !
+!	post-process the squished macro so each line is no longer the	!
+!	length set by /L:nn.						!
+!									!
+!	B.num = TRUE if any command line switches were present.		!
+!									!
+!	C.num = the buffer pointer while squishing things for error	!
+!	reporting purposes.						!
+!									!
+!	C.str = the set of comment delimiter characters	(/C:set, or	!
+!	<SP><TAB> for /C:Y).						!
+!									!
+!	E.str = macro telling when to break out of squish loop.  either	!
+!	on end of file or end of sub-squish loop			!
+!									!
+!	F.str = SQU initialization and termination macro.		!
+!									!
+!	H.num = TRUE (-1) if we are allowing adjacent escapes (/E:Y)	!
+!									!
+!	K.str = the "non-squishable ^U command" character set (/A:set)	!
+!	If we run into a @^Q<delim>text<delim>, and <delim> is *not*	!
+!	in the "non-squishable ^U command" character set, we'll assume	!
+!	that "text" is a macro that we have to recursively squish.	!
+!									!
+!	O.num = the maximum line width (/L:nn, or 70 for /L)		!
+!									!
+!	P.str = ???P is cleared if abort-on-error bit is set, and it is	!
+!	executed as a macro during cleanup, but I don't see where it is	!
+!	loaded anywhere.						!
+!									!
+!	Q.str = used to contain responses from the user.		!
+!									!
+!	R.str = "get-response-from-user" macro.				!
+!									!
+!	S.num, T.num, U.num = used to store the start and end of text	!
+!	arguments to TECO commands like FStext1$text2$.			!
+!									!
+!	W.str = "-1W" scope refresh command if watching progress (/W:Y)	!
+!									!
+!	Z.str = SQU macro proper					!
+!									!
+!	1.num = TRUE (-1) if the following command is @-sign modified	!
+!									!
+!	8.str = a string containing potential delimiting characters	!
+!	in case we can't use ESC as a delimiter.  this string will be	!
+!	searched for a delimiting character which is not in the string	!
+!	we are trying to delimit.					!
+!									!
+!	9.str = a mask containing labels we'll use in a goto.  Each	!
+!	character in the mask corresponds with a TECO command character	!
+!	and controls some action the squisher takes when it runs into	!
+!	that TECO command.  For example, if the squisher runs into	!
+!	<NUL>, the squisher uses the first character in the 9.str mask	!
+!	as a label to goto which handles <NUL>'s.  The mask characters	!
+!	are:								!
+!									!
+!		1	command takes character argument		!
+!		A	^A command					!
+!		B	delete if line is blank				!
+!		D	delete character from output			!
+!		E	E command					!
+!		F	F command					!
+!		L	lowercase char (convert to uppercase)		!
+!		O	optionally delete character from output		!
+!		T	TAB char					!
+!		U	^U command					!
+!		V	^^ command, leave next char as is		!
+!		Z	^Z command, convert to <CARET>-Z		!
+!		^	(caret) next char is really CTRL-char		!
+!		$	command takes string argument(s)		!
+!		.	(dot) pass character through w/o squishing	!
+!		@	the next command is '@' modified		!
+!									!
+! Changes:								!
+!									!
+!	Nov-89								!
+!	added comments							!
+! 	changed system specific "n,Stext$" to generic "m,nFBtext$"	!
+! --------------------------------------------------------------------- !
+
+! --------------------------------------------------------------------- !
+! Load Q-register F with SQU initialization macro.  This macro loads	!
+! other macros into various Q-registers and handles the command	line	!
+! switches:   either taking them from the command line in the edit	!
+! buffer or prompting the user for them.  When this macro is done,  	!
+! SQU will be poised to run and the only thing left in the edit buffer	!
+! will be the input and output filenames.				!
+! --------------------------------------------------------------------- !
+
+^UF			! F.str = initialization macro			!
+^D			! set radix to decimal				!
+0ED			! zero edit mode flag				!
+0^X			! zero search mode flag				!
+ET&128"N		! if abort-on-error bit is not zero		!
+	0,0XP		!   clear P.str					!
+'			! endif						!
+0,128ET			! turn on abort-on-error bit			!
+J			! jump to beginning of edit buffer		!
+< @FS%^ES%%; >		! zap multiple spaces and tabs in edit buffer	!
+J			! jump to beginning of edit buffer		!
+:@S%/%			! search for '/' command line switch delimiter	!
+UB			! put search success into B.num			!
+QB"T			! if there are switches				!
+	ET&64"E		!   if not detached				!
+		@^A%
+%			!     display <CR><LF>				!
+	'		!   endif					!
+'			! endif						!
+
+! --------------------------------------------------------------------- !
+! Load Q-register R with a "get-response-from-user" macro.		!
+!									!
+! Entry:								!
+!	The last inserted string is the display prompt.			!
+!									!
+!	The top of the stack is the Q-register name we will return	!
+!	the response in.  If the high bit of the Q-register name	!
+!	is set, insist on ESC to terminate the response, otherwise	!
+!	allow the response to be terminated with CR-LF .		!
+!									!
+! Returns:								!
+!	Input string in the Q-register you specified on entry.		!
+! --------------------------------------------------------------------- !
+
+@^UR\			! R.str = response macro 			!
+[0 [1 [2 [3		! save Q-reg's 0 through 3			!
++0U3			! 3.num = Q-reg name on top of stack		!
+^YX0			! 0.str = display prompt (last inserted string)	!
+^YK			! kill display prompt from edit buffer		!
+.U1			! 1.num = current buf ptr			!
+ZJ			! jump to buf end				!
+.U2			! 2.num = current end of buffer			!
+Q3&127"R		! if Q-reg name in 3.num is alphanumeric	!
+			!   it's a valid Q-reg name			!
+|			! else (Q-reg name not alphanumeric)		!
+			!   it's not a valid Q-reg name			!
+	@^A%?Invalid Q-register in INPLIN
+%			!   display error message			!
+	@O!EXIT!	!   go down to EXIT				!
+'
+
+! --------------------------------------------------------------------- !
+! build a mini-macro in Q-reg 1 which will put the user's response	!
+! into the Q-reg we are using to return the user's response in.		!
+! --------------------------------------------------------------------- !
+
+@I%Q2,.X%		! insert "Q2,.X" into edit buffer		!
+Q3&127@I%%		! insert Q-reg name we're loading response in	!
+Q2,.X1			! put this mini-macro into 1.str		!
+Q2,.K			! and kill it					!
+
+! --------------------------------------------------------------------- !
+! display the prompt on a new, clean, line				!
+! --------------------------------------------------------------------- !
+
+!PROMPT!
+
+13^T			! display <CR>					!
+ET&512"N		! if scope, clear to end of screen		!
+	0,1ET		!   inhibit type-out conversions		!
+	27^T		!   display ESCAPE				!
+	1,0ET		!   enable type-out conversions			!
+	0:W-4"E		!   if VT100 in ANSI mode			!
+		^^[^T	!     display [					!
+	'		!   endif					!
+	^^J^T		!   display J					!
+|			! else (not scope)				!
+	10^T		!   display <LF>				!
+'			! endif						!
+.-Q2+(0^Q)"G		! if anything on current line			!
+	0T		!   display it					!
+|			! else						!
+	:G0		!   display prompt in 0.str			!
+	Q2,ZT		!   plus what we've entered so far		!
+'			! endif						!
+
+! --------------------------------------------------------------------- !
+! Read characters from the console & insert them into the edit buffer.	!
+!									!
+!	DEL			delete last char entered		!
+!	^U			delete everything entered		!
+!	^R			redisplay prompt & what's been entered	!
+!	^Z			delete everything entered and return	!
+!	<CR>, <LF>, <ESC>	terminate input				!
+! --------------------------------------------------------------------- !
+
+!GETCH!
+
+^TU0			! get char from console & put in 0.num		!
+Q0-127"E		! if char is DEL				!
+	Z-Q2"N		!   if anything has been added to buffer	!
+		-D	!     delete last char				!
+	'		!   endif					!
+	@O!PROMPT!	!   go up to PROMPT				!
+'			! endif						!
+Q0-21"E			! if char is ^U					!
+	Q2,ZK		!   kill everything we've entered up to now	!
+	@O!PROMPT!	!   go up to PROMPT				!
+'			! endif						!
+Q0-18"E			! if char is ^R					!
+	13^T		!   display <CR>				!
+	10^T		!   display <LF>				!
+	:G0		!   display prompt in 0.str			!
+	Q2,ZT		!   display everything we've entered up to now	!
+	@O!GETCH!	!   go up to GETCH				!
+'			! endif						!
+Q0-26"E			! if char is ^Z					!
+	Q2,ZK		!   kill everything we've entered up to now	!
+	%0^[		!   convert ^Z (1Ah) to <ESC> (1Bh)		!
+'			! endif						!
+Q0-27"E			! if char is <ESC>				!
+	13^T		!   display <CR>				!
+	10^T		!   display <LF>				!
+	@O!DONE!	!   go down to DONE				!
+'			! endif						!
+Q3&128"E		! if hi-bit of return Q-reg name is zero	!
+	Q0-10"E		!   if char is <LF>				!
+		13^T	!     display <CR>				!
+		@O!DONE! !    go down to DONE				!
+	'		!   endif					!
+	Q0-13"E		!   if char is <CR>				!
+		^T^[	!      suck up <LF> of <CR>-<LF> pair?		!
+		@O!DONE! !     go down to DONE				!
+	'		!   endif					!
+'			! endif						!
+Q0@I%%			! insert input char into edit buffer		!
+@O!GETCH!		! go up to GETCH to get next character		!
+
+!DONE!
+
+M1			! execute mini-macro to load Q-reg w/response	!
+Q2,.K			! kill everything we added to the input buffer	!
+
+!EXIT!
+
+Q1J			! jump back to where we were before we started	!
+]3 ]2 ]1 ]0		! restore Q-reg's 0 through 3			!
+\			! end of ^UR					!
+
+! --------------------------------------------------------------------- !
+! Done loading response macro into Q-register R				!
+! --------------------------------------------------------------------- !
+
+! --------------------------------------------------------------------- !
+! Check for command line switches.  Basically, each switch is searched	!
+! for in the edit buffer:						!
+!									!
+!	If the switch is not found					!
+!		If there were other switches on the command line	!
+!			Set the switch to its default value		!
+!		else							!
+!			Prompt the user for the value of the switch	!
+!	else								!
+!		If switch followed by ":argument"			!
+!			Set switch to "argument"			!
+!		else							!
+!			Set switch to the opposite of its default	!
+!									!
+! While we are checking for switches, we will be building the mask in	!
+! Q-register 9								!
+! --------------------------------------------------------------------- !
+
+! --------------------------------------------------------------------- !
+! Check for /D "Delete CR/LF" switch.  /D will delete all lexical CR's	!
+! and LF's.  /D:N is the default.  The format for the /D switch is:	!
+! /D:Y or /D:N.  /D just by itself is the same as /D:Y.			!
+!									!
+! A problem with /D:Y is that the output will probably be all on one	!
+! line.  If you want to delete all CR's and LF's, yet keep the output	!
+! width manageable, use /L:nn.						!
+! --------------------------------------------------------------------- !
+
+0,0X9					! clear mask in 9.str		!
+J					! jump to beginning of buffer	!
+:@FS%/D%%"S				! if "/D" found			!
+	::@FS%:%%"S			!   if ":arg" found		!
+		0A@^UQ%%		!     Q.str = arg		!
+		D			!     delete arg		!
+	|				!   else (":" not found)	!
+		@^UQ%Y%			!     Q.str = "Y"		! 
+	'				!   endif			!
+|					! else ("/D" not found)		!
+	QB"T				!   if any other switches	!
+		@^UQ%%			!      Q.str = ""		!
+	|				!   else			!
+		@I%Delete CR/LF (Y/N) <N>? %
+		^^QMR			!     ask for /D value		!
+	'				!   endif			!
+'					! endif				!
+0QQ"A					! if /D val is alphabetic	!
+	0QQ&95-^^Y"E			!   if it's 'y' or 'Y'		!
+
+		! load 9.str with labels for control chars, with <LF>,	!
+		! <CR>, and <SP> marked as D.				!
+		!							!
+		!   %@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ %			!
+		@^U9%DA.......TD..D.......U....Z...V.D%
+
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Check for /L	"Set line lengths" switch.  If you're not explicitly	!
+! deleting all CR/LF's (ie: /D:N), you can still delete CR/LF's which	!
+! are unecessary yet still keep the width of the output line manageable.!
+! The format of the /L switch is: /L, /L:Y, /L:N, or /L:nn where nn is	!
+! the line length.  /L just by itself is the same as /L:Y, and /L:Y is	!
+! the same as /L:70.   If /D is Y then any /L is ignored.		!
+!									!
+! Note: the /L switch does delete all lexical CR/LF's; but, after	!
+! everything is squished, goes back and inserts CR/LF wherever needed	!
+! so the maximum width of the output line doesn't exceed nn chars.	!
+! --------------------------------------------------------------------- !
+
+!BADNUM!				! label to re-ask if :nn bad	!
+0UO					! clear O.num			!
+:Q9"N					! if we had /D:Y above		!
+	J				!   jump to beginning of buf	!
+	:@FS%/L%%"S			!   if "/L" found, delete it	!
+		@^A"%/L specified with /D, /L ignored
+"					!     and warn the user 	!
+		::@FS%:%%"S		!     if ":arg" found, kill ":"	!
+			0A"D		!       if arg is numeric	!
+				< D .-Z; 0A"D > '	! delete nn	!
+			|		!       else			!
+				D	!         delete arg		!
+			'		!       endif			!
+		'			!     endif			!
+	'				!   endif			!
+|					! else (no /D:Y above)		!
+	J				!   jump to beginning of buf	!
+	:@FS%/L%%"S			!   if "/L" found		!
+		::@FS%:%%"S		!     if ":arg" found		!
+			0A@^UQ%%	!       Q.str = arg		!
+			0A"D		!       if arg is numeric	!
+				< D .-Z; 0A"D 0A:@^UQ%% > ' ! get nn	!
+			|		!       else			!
+				D	!         delete arg		!
+			'		!       endif			!
+		|			!     else, just /L		!
+			@^UQ%Y%		!       Q.str = "Y"		!
+		'			!     endif			!
+	|				!   else			!
+		QB"T			!     if any other switches	!
+			@^UQ%%		!       Q.str = ""		!
+		|			!     else			!
+			@I%Set line lengths (Y for 70, N, or length) <N>? %
+			^^QMR		!       ask for /L value	!
+		'			!     endif			!
+	'				!   endif			!
+	0QQ"A				!   if /L val is alphabetic	!
+		0QQ&95-^^Y"E		!     if it's 'y' or 'Y'	!
+
+			! load 9.str with labels for control chars,	!
+			! with <LF>, <CR>, and <SP> marked as O.	!
+			!						!
+			!   %@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ %		!
+			@^U9%DA.......TO..O.......U....Z...V.O%
+
+			70UO		!       set line length to 70	!
+		'			!     endif			!
+	'				!   endif			!
+	0QQ"D				!   if /L val is numeric	!
+		.UQ			!     save current buf ptr	!
+		ZJ			!     jump to buf end		!
+		GQ			!     put /L str in buffer	!
+		^SC			!     go back to /L str begin	!
+		\UO			!     put str value in O.num	!
+		^SD			!     and delete str		!
+		.-Z"N			!     if anything left over	!
+			ZK		!        kill chars \ skipped	!
+			QQJ		!        jump back to old cp	!
+			@O!BADNUM!	!        bad number		!
+		'			!      endif			!
+		QQJ			!      jump back to old cp	!
+		QO"E			!      if /L arg is 0		!
+			@O!BADNUM!	!        bad number		!
+		'			!      endif			!
+
+		! load 9.str with labels for control chars, with <LF>,	!
+		! <CR>, and <SP> marked as O.				!
+		!							!
+		!   %@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ %			!
+		@^U9%DA.......TO..O.......U....Z...V.O%
+
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Check for /B "Delete blank lines" switch				!
+! --------------------------------------------------------------------- !
+
+:Q9"N					! if we had /D:Y above		!
+	J				!   jump to beginning of buf	!
+	:@FS%/B%%"S			!   if "/B" found		!
+		::@FS%:%%"S		!     if ":arg" found		!
+			0A-^^N"E	!       if "/B:N", ignore it	!
+				@^A"%/B:N specified with /D or /L, /B:N ignored
+"					!         warn user		!
+			'		!       endif			!
+			D		!       delete arg		!
+		'			!     endif			!
+	'				!   endif			!
+|					! else	(no /D:Y above)		!
+	J				!   jump to beginning of buf	!
+	:@FS%/B%%"S			!   if "/B" found		!
+		::@FS%:%%"S		!     if ":arg" found		!
+			0A@^UQ%%	!        Q.str = arg		!
+			D		!        delete arg		!
+		|			!     else			!
+			@^UQ%Y%		!        Q.str = "Y"		!
+		'			!     endif			!
+	|				!   else			!
+		QB"T			!     if any other switches	!
+			@^UQ%%		!        Q.str = ""		!
+		|			!     else			!
+			@I%Delete blank lines (Y/N) <N>? %
+			^^QMR		!       ask for /B value	!
+		'			!     endif			!
+	'				!   endif			!
+	0QQ"A				!   if /B val is alphabetic	!
+		0QQ&95-^^Y"E		!     if it's 'y' or 'Y'	!
+
+			! load 9.str with labels for control chars,	!
+			! with <LF> marked as B and <SP> marked as D.	!
+			!						!
+			!   %@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ %		!
+			@^U9%DA.......TB..........U....Z...V.D%
+
+		'			!     endif			!
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! at this point, if we've specified /D, /L, or /B above, 9.str should	!
+! hold the labels for the control characters, if it doesn't, we'll	!
+! supply the default labels which only deletes <NUL> and <SP>.		!
+!									!
+! Note:  we only have entries for <NUL> to <SP> here.  The entry for	!
+! exclamation point will be put in by the /C checking code below.  All	!
+! other entries are appended to 9.str after switch parsing is finished.	!
+! --------------------------------------------------------------------- !
+
+:Q9"E					! if 9.str is empty		!
+	!   %@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ %				!
+	@^U9%DA.......T...........U....Z...V.D%	! load default mask	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Check for /T "Delete lexical TABs and FFs" switch.  The format of	!
+! the /T switch is: /T, /T:Y, /T:N.  /T by itself is the same as /T:Y.	!
+! If TABs are used to format the macro to be squished, instead of being !
+! used to start an insert, you'll have to delete them using /T:Y	!
+! --------------------------------------------------------------------- !
+
+J					! jump to beginning of buffer	!
+:@FS%/T%%"S				! if "/T" found			!
+	::@FS%:%%"S			!   if ":arg" found		!
+		0A@^UQ%%		!     Q.str = arg		!
+		D			!     delete arg		!
+	|				!   else			!
+		@^UQ%Y%			!     Q.str = "Y"		!
+	'				!   endif			!
+|					! else				!
+	QB"T				!   if any other switches	!
+		@^UQ%%			!     Q.str = ""		!
+	|				!   else             		!
+		@I%Delete lexical TABs and FORM FEEDs (Y/N) <N>? %
+		^^QMR			!     ask for /T value		!
+	'				!   endif			!
+'					! endif				!
+0QQ"A					! if /T val is alphabetic	!
+	0QQ&95@^UQ%%			!   force it to uppercase	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! if /T is "Y", the following code takes the existing control char	!
+! mask in Q-reg 9 and replaces the TAB and FF entries with "O".  The	!
+! new control char mask is then put back in Q-reg 9.			!
+! --------------------------------------------------------------------- !
+
+0QQ-^^Y"E				! if /T is 'Y'			!
+	J				!  jump to beginning of buffer	!
+	G9				!  load mask into edit buffer	!
+	9J				!  jump to TAB entry		!
+	D				!  delete existing entry	!
+	@I%O%				!  insert "O"			!
+	12J				!  jump to FF entry		!
+	D				!  delete existing entry	!
+	@I%O%				!  insert "O"			!
+	J				!  jump to beginning of buffer	!
+	0,33X9				!  put mask back in 9.str	!
+	0,33K				!  and clean up edit buffer	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Check for /C "Delete comments" switch.  This switch deletes comments	!
+! as opposed to labels.  It is easier if comments are distinguishable	!
+! from labels by having a special delimiting character immediately	!
+! following the initial exclamation point.  The format of the /C	!
+! switch is:  /C, /C:Y, /C:N, or /C:? where ? is the special comment	!
+! delimiting character.  /C is the same as /C:Y, and /C:Y implies that	!
+! SPACE and TAB are the special comment delimiters.  When done, Q-reg	!
+! C will contain the special comment delimiting characters.		!
+! --------------------------------------------------------------------- !
+
+@^UC%%					! C.str = ""			!
+J					! jump to beginning of buffer	!
+:@FS%/C%%"S				! if "/C" found			!
+	::@FS%:%%"S			!   if ":arg" found		!
+		0A@^UQ%%		!     Q.str = arg		!
+		D			!     delete arg		!
+	|				!   else			!
+		@^UQ%Y%			!     Q.str = "Y"		!
+	'				!   endif			!
+|					! else				!
+	QB"T				!   if any other switches	!
+		@^UQ%%			!     Q.str = ""		!
+	|				!   else			!
+		@I%Delete comments (Y for SP/TAB, N, or set) <N>? %
+		^^QMR			!     ask for /C value		!
+	'				!    endif			!
+'					! endif				!
+:QQ"E					! if Q.str empty		!
+	@^UQ%N%				!   Q.str = "N"			!
+'					! endif				!
+0QQUQ					! Q.num = ASCII 1st Q.str char	!
+QQ"V					! if Q.num lowercase		!
+	QQ-32UQ				!   force it to uppercase	!
+'					! endif				!
+QQ-^^N"E				! if /C == "N"			!
+	:@^U9%A%			!   append "A" to 9.str mask	!
+|					! else				!
+	:@^U9%C%			!   append "C" to 9.str mask	!
+	QQ-^^Y"E			!   if /C == "Y"		!
+		32@^UC%%		!     C.str = <SP>		!
+		9:@^UC%%		!     append TAB to C.str	!
+	|				!   else (it's a set?)		!
+		GQ			!     put /C set in edit buf	!
+		^YXC			!     load it into Q-reg C	!
+		^YK			!     clean up edit buffer	!
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! append entries for all other TECO commands to the mask in Q-reg 9.	!
+! --------------------------------------------------------------------- !
+
+!    %"#$%&'()*+,-./0123456789:;<=>?%			!
+:@^U9%1..1..........................%
+
+!    %@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_%			!
+:@^U9%@....EF1.$...1$$.1.$.1..1..1.1^$%
+
+!    %`abcdefghijklmnopqrstuvwxyz{|}<tilde><sp>%	!
+:@^U9%.LLLLLLLLLLLLLLLLLLLLLLLLLL....D%
+
+! --------------------------------------------------------------------- !
+! Load Q-register 8 with potential <delim> characters in case ESC can't	!
+! be used.  We initially load 8.str with the preferred delimiters:	!
+!									!
+!	/ # * & \ ? ( ) $ <exclamation pt> @				!
+!									!
+! in case these can't be used either, we'll also append every ASCII	!
+! character to 8.str in the hope that something can be used.		!
+! --------------------------------------------------------------------- !
+
+@^U8%/#*&\?()$!@%			! pre-load 8.str		!
+1U8					! put 1 in 8.num		!
+126<					! this loop appends ASCII chars	!
+	Q8:@^U8%% %8^[			! CTRL-A to TILDE to 8.str	!
+   >
+
+! --------------------------------------------------------------------- !
+! Check for /W "Watch progress" switch					!
+! --------------------------------------------------------------------- !
+
+@^UW%%					! clear W.str			!
+ET&512"E				! if not scope, ignore /W	!
+	J				!   jump to beginning of buf	!
+	:@FS%/W%%"S			!   if "/W" found, delete it	!
+		::@FS%:%%"S		!     if ":" found		!
+			D		!       delete arg		!
+		'			!     endif			!
+	'				!   endif			!
+|					! else (it's a scope)		!
+	J				!   jump to beginning of buf	!
+	:@FS%/W%%"S			!   if "/W" found		!
+		::@FS%:%%"S		!     if ":arg" found		!
+			0A@^UQ%%	!       Q.str = arg		!
+			D		!       delete arg		!
+		|			!     else			!
+			@^UQ%Y%		!       Q.str = "Y"		!
+		'			!     endif			!
+	|				!   else			!
+		QB"T			!     if any other switches	!
+			@^UQ%%		!       Q.str = ""		!
+		|			!     else			!
+			@I%Watch progress (Y/N) <N>? %
+			^^QMR		!       ask for /W value	!
+		'			!     endif			!
+	'				!   endif			!
+	0QQ"A				!   if /W val is alphabetic	!
+		0QQ&95-^^Y"E		!     if it's 'y' or 'Y'	!
+			0:W-2"E		!       if VT100 in VT52 mode	!
+				4,0:W^[	!         set VT100 in ANSI	!
+			'		!       endif			!
+			@^UW/-1W/	!       Q.str = "-1W" (refresh)	!
+		'			!     endif			!
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Check for /A "Automatic mode".  If /A:Y, then if @^U%text% is found,	!
+! "text" is assumed to something which should *not* be sub-squished;	!
+! any other character used as a special <delim> *will* be sub-squished.	!
+! If /A:N, then go into "manual mode" where each time SQU runs into	!
+! ^Utext, it will ask if you want to sub-squish it.  If /A:<char> is	!
+! a command line switch then use <char> as the "non-squishable" <delim>	!
+! char.  If you're asked for the /A value, then you can enter a set of	!
+! "non-squishable" <delim> chars.					!
+! --------------------------------------------------------------------- !
+
+@^UK%%					! clear K.str			!
+J					! jump to beginning of buffer	!
+:@FS%/A%%"S				! if "/A" found			!
+	::@FS%:%%"S			!   if ":arg" found		!
+		0A@^UQ%%		!     Q.str = arg		!
+		D			!     delete arg		!
+	|				!   else			!
+		@^UQ%Y%			!     Q.str = "Y"		!
+	'				!   endif			!
+|					! else				!
+	QB"T				!   if any other switches	!
+		@^UQ%Y%			!     Q.str = "Y"		!
+	|				!   else			!
+		@I/Automatic mode (Y for %, N, or set) <N>? /
+		^^QMR			!     ask for /A value		!
+	'				!   endif			!
+'					! endif				!
+:QQ"N					! if any /A val			!
+	0QQUQ				!   convert /A val to ASCII 	!
+	QQ"V				!   if /A val lowercase		!
+		QQ-32UQ			!     force to uppercase	!
+	'				!   endif			!
+	QQ-^^N"N			!   if /A not "N"		!
+		QQ-^^Y"E		!     if /A == "Y"		!
+			^^%@^UK%%	!       K.str = "%"		!
+		|			!     else (it's a set?)	!
+			GQ		!       put /A set in edit buf	!
+			^YXK		!	 load it into K.str	!
+			^YK		!       clean up edit buffer	!
+		'			!     endif			!
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Check for /E "Allow adjacent ESCapes" switch.  Sometimes squishing	!
+! will put two escapes together where there weren't two escapes before.	!
+! For example, @FS/abc// will be squished to @FSabc$$, the two adjacent	!
+! escapes could be a problem this is in a macro which is EI'd.  The	!
+! format of the /E switch is: /E, /E:N, or /E:Y.  /E is the same as	!
+! /E:Y.  /E:N will direct SQU to never generate adjacent escapes where	!
+! there were none before.						!
+! --------------------------------------------------------------------- !
+
+0UH					! H.num = 0 (FALSE)		!
+J					! jump to beginning of buffer	!
+:@FS%/E%%"S				! if "/E" found			!
+	::@FS%:%%"S			!   if ":" found		!
+		0A@^UQ%%		!     Q.str = arg		!
+		D			!     delete arg		!
+	|				!   else			!
+		@^UQ%Y%			!     Q.str = "Y"		!
+	'				!   endif			!
+|					! else				!
+	QB"T				!   if any other switches	!
+		@^UQ%%			!     Q.str = ""		!
+	|				!   else			!
+		@I%Allow adjacent ESCapes (Y/N) <N>? %
+		^^QMR			!     ask for /E value		!
+	'				!   endif			!
+'					! endif				!
+0QQ"A					! if /E val is alphabetic	!
+	0QQ&95-^^Y"E			!   if it's 'y' or 'Y'		!
+		-1UH			!     H.num = -1 (TRUE)		!
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Load Q-register Z with the squisher macro				!
+!									!
+! Uses Q-register 1 for @-modified flag while processing and for	!
+! an error return when through.						!
+! --------------------------------------------------------------------- !
+
+@^UZ*					! Z.str = squish macro		!
+[1					! save Q-reg 1			!
+0U1					! clear @-modifed flag		!
+:QW"N					! if /W was TRUE		!
+	-1,3:W^[			!   turn on SEEALL mode		!
+	0,4:W^[				!   set no "mark" status	!
+	0,5:W^[				!   turn hold mode off		!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! main loop start							!
+! --------------------------------------------------------------------- !
+
+<
+!..!
+
+MW					! refresh scope			!
+
+!.!
+
+ME;					! break if E macro returns 0	!
+
+0AU0					! 0.num = char in buffer	!
+Q0"L					! if char is less than zero	!
+	@O!OFFEND!			!   end of file err		!
+'					! endif				!
+C					! advance one character		!
+Q0&128"N				! if char's hi bit is set	!
+	Q0&127U0			!   zero hi bit			!
+	-D				!   delete hi bit char		!
+	Q0@I%%				!   insert zero hi bit char	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! Use the ASCII value of the current char in 0.num as an index into the	!
+! labels in 9.str, and goto that label.					!
+! --------------------------------------------------------------------- !
+
+!DISP!					! dispatch			!
+Q0Q9@^U0%%				! 0.str = Q0th char of 9.str	!
+@O!^EQ0!				! and jump to it		!
+
+! --------------------------------------------------------------------- !
+! handle a lowercase character.  convert it to uppercase and process	!
+! it again.								!
+! --------------------------------------------------------------------- !
+
+!L!
+
+Q0-32U0					! convert to uppercase		! 
+-D					! delete lowercase char		!
+Q0@I%%					! insert uppercase char		!
+@O!DISP!				! try label for uppercase char	!
+
+! --------------------------------------------------------------------- !
+! handle '^'.  the next character is really CTRL-char.  we'll delete	!
+! the "^char" construct, insert the "real" control char, and go back	!
+! and process it again.  we'll watch out for inserting ^[ (<ESC>), we	!
+! have to be careful about creating adjacent <ESC>'s.			!
+! --------------------------------------------------------------------- !
+
+!^!
+
+0A&31U0					! 0.num = ^char			!
+C					! skip past char		!
+-2D					! delete both ^ and char	!
+QH"F					! if no adjacent ESC's 		!
+	Q0-27"E				!   if ^char is ESC		!
+		0A-27"E			!     if next char is ESC	!
+			@I%^[%		!       insert a single ESC	!
+			C		!       skip past next ESC	!
+			@O!..!		!       jump to main loop	!
+		'			!     endif			!
+		! ----------------------------------------------------- !
+		! at this point we are trying to insert an ESC; but we	!
+		! don't know if by doing so we will inadvertently form	!
+		! two adjacent escapes.  the following code searches	!
+		! backwards for the last important character (skipping	!
+		! CF/LF's) to see if that last important character was	!
+		! also an ESC.  if it was, we'll insert a <SP> to keep	!
+		! the two ESC's lexically apart.			!
+		! ----------------------------------------------------- !
+		.US			!     S.num = cur buf ptr	!
+		0UT			!     T.num = 0			!
+		<			! ----loop begin--------------- !
+			-.;		!       break if .==0		!
+			R		!       back up one char	!
+			0AUT		!       T.num = previous char	!
+			QT&128"E	!       if hi bit of char zero	!
+				QT-10"N		! if char is not <LF>	!
+					0;	!   break out of loop	!
+				|		! else (it is <LF>)	!
+					-.;	!   break if .==0	!
+					-1A-128-13"N ! if not <CR><LF>	!
+						0;  ! break out of loop !
+					'	!   endif		!
+				'		! endif			!
+			'		!       endif			!
+		>			! ----loop end----------------- !
+		QSJ			!       jump to where we startd !
+		QT-27"E			!       if last char == ESC	!
+			@I% %		!         insert <SP>		!
+		'			!       endif			!
+	'				!     endif			!
+'					!   endif			!
+Q0@I%%					! insert ^char			!
+@O!DISP!				! try again			!
+
+! --------------------------------------------------------------------- !
+! handle 'B'.  we've run into the <LF> portion of CR/LF with the /B	!
+! switch (delete blank lines) set.  if there are only two chars on the	!
+! current line, assume they are CR/LF and delete them.			!
+! --------------------------------------------------------------------- !
+
+!B!
+
+-1^Q+2"E				! if only 2 chars on this line	!
+	-2D				!   delete <CR><LF>		!
+'					! endif				!
+@O!..!					! jump to main loop		!
+
+! --------------------------------------------------------------------- !
+! handle 'O'.  we've run into <LF>, <CR>, or <LF> with the /L switch	!
+! set.						 			!
+! --------------------------------------------------------------------- !
+
+!O!
+
+-D					! delete last char		!
+."N					! if not at beginning of buffer	!
+	-1A&128"N			!   if last char hi bit set	!
+		-D			!     delete it			!
+	'				!   endif			!
+	.-1"G				!   if 2 chars past buf begin	!
+		-1A-10"E		!     if hi bi of last char set	!
+			-2A-128-13"E    !       if 2nd last char = <CR>	!
+				Q0-13"E	!         if curr char is <CR>  !
+					-2D !       delete <CR><CR>	!
+				|	!         else			!
+					@O!..! !    jump to main loop	!
+				'	!         endif			!
+			'		!       endif			!
+		'			!     endif			!
+	'				!   endif			!
+	Q0#128@I%%			!   insert char w/hi bit	!
+	Q0-13"E				!   if char is <CR>		!
+		.-Z"E			!     if at end of buffer	!
+			10@I%%		!       insert <LF>		!
+			R		!       back up one char	!
+		'			!     endif			!
+		0A&127-10"E		!     if curr char is <LF>	!
+			D		!       delete it		!
+		'			!     endif			!
+		10@I%%			!   insert <LF>			!
+	'				!   endif			!
+'					! endif				!
+@O!..!					! jump to main loop		!
+
+! --------------------------------------------------------------------- !
+! handle 'U'.  we've run into ^Uq.  usually, the string ^Uq is loading	!
+! into Q-register q is *not* squished.  the problem with ^Uq is that it	!
+! is sometimes used to load a macro into a Q-register.  This macro code	!
+! should be squished too.  What we do is if the ^U is @-modified, and	!
+! the <delim> is *not* in the "non-squishible ^U command" character set	!
+! in Q-register K, we assume it is a macro and should be sub-squished.	!
+! Otherwise, the ^U argument is assumed to be a simple string and is	!
+! not sub-squished.							!
+! --------------------------------------------------------------------- !
+
+!U!
+
+27@^U1%%				! 1.str = ESC (default delim)	!
+.UC					! C.num = current buf ptr	!
+0AU0					! 0.num = ^U Q-reg name		!
+C					! advance past Q-reg name	!
+Q0-^^."E				! if it's .q (local Q-reg name)	!
+	0AU0				!   0.num = "real" Q-reg name	!
+	C				!   advance past "."		!
+'					! endif				!
+Q0"V					! if Q-reg name is lowercase	!
+	Q0-32U0				!   convert it to uppercase	!
+	-D				!   delete lowercase char	!
+	Q0@I%%				!   insert uppercase char	!
+'					! endif				!
+Q1"T					! if @-modified			!
+	0A-(1A)"E			!   if @^Uq<delim>text<delim>	!
+		@O!$$!			!     goto $$			!
+	'				!   endif			!
+|					! else				!
+	0A-27"E				!   if ^Uq<ESC>			!
+		@O!$$!			!     goto $$			!
+	'				!   endif			!
+'					! endif				!
+.US					! S.num = current buf ptr	!
+Q1"T					! if @-modifed			!
+	0A@^U1%%			!   1.str = <delim>		!
+	D				!   delete <delim>		!
+'					! endif				!
+:QW"N					! if /W was TRUE		!
+	:@S%^EQ1%"U			!   if search for <delim> fails !
+		@O!STRINGFAIL!		!     unterminated string	!
+	'				!   endif			!
+	.,4:W^[				!   set mark status		!
+	QSJ				!   jump back to where we were	!
+	MW				!   refresh scope		!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! if there are no "non-squishable ^U command" characters, you used the	!
+! /A:N switch.  If this is the case, we'll have to drop into "manual"	!
+! mode:  everytime we run into a ^U we'll ask if you want to squish it	!
+! or not, Y or N.							!
+! --------------------------------------------------------------------- !
+
+:QK"E					! if no non-squishable ^U delim	!
+	:QW"E				!   if /W was FALSE		!
+		0T			!     display line up to now	!
+		10^T			!     display <LF>		!
+		T			!     display rest of line	!
+	'				!   endif			!
+	7^T				!   display <BEL>		!
+	ETUQ				!   save ET flags in Q.num	!
+	ET#8#4-4ET			!   turn on read w/o echo	!
+	^TU0				!   read char into 0.num	!
+	QQET				!   restore ET flags		!
+|					! else (non-squishable delims)	!
+	G1				!   put <delim> in buf		!
+	R				!   back up one char		!
+	::@S%^EGK%"S			!   if <delim> is non-squish	!
+		-D			!     delete <delim>		!
+			^^NU0		!     0.num = N			!
+	|				!   else			!
+		D			!     delete <delim>		!
+		^^YU0			!     0.num = Y			!
+	'				!   endif			!
+'					! endif				!
+:QW"N					! if /W was TRUE		!
+	0,4:W^[				!   clear "mark" status		!
+	32768W				!   set huge # of display lines	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! at this point, 0.num will be "Y" if we are to sub-squish the ^U text	!
+! --------------------------------------------------------------------- !
+
+Q0-^^Y"E				! if 0.num is Y			!
+	! ------------------------------------------------------------- !
+	! Q-register E originally holds ".-Z" (-number of chars until	!
+	! end of the buffer, when zero we're at end of buf).  The E	!
+	! macro is executed at the top of the squish loop so we break	!
+	! out of the squish loop when we reach the end of the buf. When	!
+	! we recursively sub-squish a ^U string, we want the squish	!
+	! loop to break out when it reaches the end of the ^U string.	!
+	! Therefore, we'll now load Q-register E with a macro to do so.	!
+	!								!
+	!	-1UE			E.num == -1 (continue flag)	!
+	!	0A-^^<delim>"E		if we've run into <delim>	!
+	!		0UE		  E.num == 0 (break flag)	!
+	!	'			endif				!
+	!	QE			push -1 or 0 on stack		!
+	! ------------------------------------------------------------- !
+	[E [C [S			!   save Q-reg's E, C, & S	!
+	@^UE%-1UE0A-^^%			!   load Q-reg E w/macro start	!
+	0Q1:@^UE%%			!   append <delim> to Q-reg E	!
+	:@^UE%"E0UE'QE%			!   append macro end to Q-reg E	!
+	MZ				!   squish recursively		!
+	]S ]C ]E			!   restore Q-reg's C, S & E	!
+	"N				!   if recursive MZ failed	!
+		@O!PRIORFAIL!		!     announce it		!
+	'				!   endif			!
+	C				!   advance past end ^U delim	!
+	@O!$$$$!			!   goto $$$$			!
+'					! endif				!
+@O!$$$!					! goto $$$			!
+
+! --------------------------------------------------------------------- !
+! handle 'T'.  we've run into a TAB character, start an insert.		!
+! --------------------------------------------------------------------- !
+
+!T!
+
+0U1					! clear @-modified flag		!
+
+! --------------------------------------------------------------------- !
+! handle '$'.  we've run into I, N, O, or S: commands which take a	!
+! single string argument (ie: commands which contain one <delim>).	!
+! --------------------------------------------------------------------- !
+
+!$!
+
+27@^U1%%				! 1.str = ESC (default delim)	!
+.UC					! C.num = current buf ptr	!
+
+! --------------------------------------------------------------------- !
+! $$, entry point for commands which take two string arguments (ie:	!
+! commands which contain two <delim>'s).				!
+! --------------------------------------------------------------------- !
+
+!$$!
+
+.US					! S.num = start of text		!
+Q1"T					! if @-modified			!
+	0A@^U1%%			!   1.str = <delim>		!
+	D				!   delete <delim>		!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! $$$, entry point for the ^U routine when we are not sub-squishing the !
+! ^U argument, but we've already handled being @-modified.		!
+! --------------------------------------------------------------------- !
+
+!$$$!
+
+:@S%^EQ1%"U				! if search for <delim> fails	!
+	@O!STRINGFAIL!			!   unterminated string		!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! $$$$, entry point for the ^U routine after we've sub-squished a ^U	!
+! macro.								!
+! --------------------------------------------------------------------- !
+
+!$$$$!
+
+-D					! delete trailing <delim>	!
+.UT					! T.num = end of text		!
+27U0					! 0.num = ESC (default <delim>	!
+
+! --------------------------------------------------------------------- !
+! At this point, we have to output a delimited string.			!
+!									!
+!	0.num = <delim>							!
+!	C.num = start of command					!
+!	S.num = start of text						!
+!	T.num = end of text						!
+!									!
+! --------------------------------------------------------------------- !
+
+!AA!
+
+Q0@^U0%%				! 0.str = <delim> char		!
+QT-QS"G					! if string is not-empty	!
+	QSJ				!   jump to start of string	!
+	.,.+QT-QS:@FB%^EQ0%"S		!   if <delim> is in string	!
+		! ----------------------------------------------------- !
+		! find a <delim> we can use, one which is *not* already !
+		! in the string.					!
+		! ----------------------------------------------------- !
+		G8			!     put 8.str into buf	!
+		^Y:X1			!     put 8.str into 1.str	!
+		^YK			!     kill 8.str from buf	!
+		0U0			!     clear 0.num		!
+		<			! ----loop begin---------------	!
+			Q0Q1@^U0%%	!       0.str = Q0th char of Q1	!
+			QSJ		!       jump to start of text	!
+			.,.+QT-QS@FB%^EQ0%; !   break if search fails	!
+			%0-:Q8"E	!       if next char last char	!
+				@O!NOQUOTE!	! can't find " char	!
+			'		!       endif			!
+		>			! ----loop end----------------- !
+		Q0Q1U0			!     0.num = <delim> to use	!
+		QSJ			!     jump to start of string	!
+		Q0@I%%			!     insert <delim>		!
+		QC-1J			!     jump before command	!
+		@I%@%			!     insert @			!
+		2%T^[			!     T.num (end of text) += 2	!
+		! ----------------------------------------------------- !
+	'				!   endif			!
+'					! endif				!
+QTJ					! jump to end of string		!
+Q0@I%%					! insert <delim>		!
+0U1					! clear @-modified flag		!
+@O!..!					! jump to main loop		!
+
+! --------------------------------------------------------------------- !
+! handle '1'.  we've run into ", %, G, M, Q, U, X, [, or ].  For ", the	!
+! next character is a conditional execution command.  For everything	!
+! else, the next character is a Q-register name.  In either case, if	!
+! the next char is lowercase, we uppercase it; otherwise, we fall	!
+! through to the 'V' code below which simply advances past the char.	!
+! --------------------------------------------------------------------- !
+
+!1!
+
+0A-^^."E				! if it's .q (local Q-reg name)	!
+	C				!   advance past "."		!
+'					! endif				!
+0A"V					! if lowercase			!
+	0A-32U0				!   convert to uppercase	!
+	D				!   delete lowercase char	!
+	Q0@I%%				!   insert uppercase char	!
+	@O!.!				!   goto .			!
+'					! endif				!
+! ... fall through ...!
+
+! --------------------------------------------------------------------- !
+! handle 'V'.  we've run into <CTRL>-^, simply skip it			!
+! --------------------------------------------------------------------- !
+
+!V!
+
+C					! simply advance past it	!
+@O!.!					! goto .			!
+
+! --------------------------------------------------------------------- !
+! handle '@'.  the following command is @ modified, set a flag in 1.num	!
+! so we know to look for the alternate delimiter characters.		!
+!									!
+! even though <delim> characters will be specified along with the '@'	!
+! command, we'll try to use ESC whenever possible and convert the @	!
+! modified command back into a "normally" delimited command.		!
+! --------------------------------------------------------------------- !
+
+!@!
+
+-1U1					! set @-modified flag		!
+! ...fall through ... !
+
+! --------------------------------------------------------------------- !
+! handle 'D'.  delete the character from the output file		!
+! --------------------------------------------------------------------- !
+
+!D!
+
+-D					! delete last character		!
+@O!.!
+
+! --------------------------------------------------------------------- !
+! handle 'F'.  we've run into a F', F<. F>, F|, FB, FC, FD, FK, FN, FR,	!
+! FS, or F_ command.							!
+! --------------------------------------------------------------------- !
+
+!F!
+
+27@^U1%%				! 1.str = ESC (default delim)	!
+.UC					! C.num = current buf ptr	!
+0AU0					! 0.num = 2nd command char	!
+C					! advance past 2nd cmd char	!
+Q0"V					! if 2nd cmd char is lowercase	!
+	Q0-32U0				!   convert it to uppercase	!
+	-D				!   delete lowercase char	!
+	Q0@I%%				!   insert uppercase char	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! the FB and FR commands take a single string argument, goto $$		!
+! the FC, FS, FN, and F_ commands take two string arguments, goto F$$	!
+!									!
+! ???What about FD and FK taking 1 string argument			!
+! --------------------------------------------------------------------- !
+
+Q0-^^B"E				! if it's FB			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^C"E				! if it's FC			!
+	@O!F$$!				!   goto F$$			!
+'					! endif				!
+Q0-^^R"E				! if it's FR			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^S"E				! if it's FS			!
+	@O!F$$!				!   goto F$$			!
+'					! endif				!
+Q0-^^N"E				! if it's FN			!
+	@O!F$$!				!   goto F$$			!
+'					! endif				!
+Q0-^^_"E				! if it's F_			!
+	@O!F$$!				!   goto F$$			!
+'					! endif				!
+@O!.!
+
+! --------------------------------------------------------------------- !
+! handle FC, FS, FN, and F_ commands which take two string arguments,	!
+! there are three possible formats for these commands:			!
+!									!
+!	Fx <delim> <delim>						!
+!	Fx text <delim> <delim>						!
+!	Fx text1 <delim> text2 <delim>					!
+!									!
+! we first have to find the starting and ending points of the text	!
+! arguments.  we set S.num to be the start of text1, we look for the	!
+! 1st <delim>, delete it, and set T.num to be the start of text2.  we	!
+! then look for the 2nd <delim>, delete it, and set U.num to be the	!
+! end of text2.								!
+!									!
+! if S.num == T.num & T.num == U.num, then we have: FS$$		!
+! if S.num <> T.num & T.num == U.num, then we have: FStext$$		!
+! if S.num <> T.num & T.num <> U.num, then we have: FStext1$text2	!
+! --------------------------------------------------------------------- !
+
+!F$$!
+
+.US					! S.num = start of text1	!
+27@^U1%%				! 1.str = ESC (default delim)	!
+Q1"T					! if @-modified			!
+	0A@^U1%%			!   1.str = <delim>		!
+	D				!   delete <delim>		!
+'					! endif				!
+:@S%^EQ1%"U				! if search for 1st delim fails !
+	@O!STRINGFAIL!			!   unterminated string		!
+'					! endif				!
+-D					! delete 1st <delim>		!
+.UT					! T.num = start of text2	!
+:@S%^EQ1%"U				! if search for 2nd delim fails	!
+	@O!STRINGFAIL!			!   unterminated string		!
+'					! endif				!
+-D					! delete 2nd <delim>		!
+.UU					! U.num = end of text2		!
+QH"T					! if allow adjacent escapes	!
+	27U0				!   0.num = ESC			!
+	Q0@^U0%%			!   0.str = ESC			!
+	QU-QS"G				!   if we have text1 & text2	!
+		QSJ			!     jump to start of text1	!
+		.,.+QU-QS:@FB%^EQ0%"U	!     if search for ESC fails	!
+			@O!F0!		!       use ESC as <delim>	!
+		'			!     endif			!
+	|				!   else (no text arguments)	!
+		@O!F0!			!     use ESC as DELIM		!
+	'				!   endif			!
+|					! else (don't allow adjacent $)	!
+	QU-QT"G				!   if we have text2		!
+		27U0			!     0.num = ESC		!
+		Q0@^U0%%		!     0.str = ESC		!
+		QSJ			!     jump to start of text1	!
+		.,.+QU-QS:@FB%^EQ0%"U	!     if search for ESC fails	!
+			@O!F0!		!       done w/F		!
+		'			!     endif			!
+	'				!   endif			!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! if we reach this point, there is a danger of putting adjacent ESC's	!
+! in the output.  we will try to find a character that's not in the	!
+! string we're delimiting and use that as a <delim> character instead	!
+! of ESC.  basically, we search "text1text2" looking for each character	!
+! in G8, trying to find a delimiter char that's not already in the	!
+! string.								!
+! --------------------------------------------------------------------- !
+
+G8					! put 8.str into buf		!
+^Y:X1					! put 8.str into 1.str		!
+^YK					! kill 8.str from buf		!
+0U0					! 0.num = 0			!
+<					! loop begin------------------- !
+	Q0Q1@^U0%%			!   0.str = 0.num'th char of Q1	!
+	QSJ				!   jump to start of text1	!
+	.,.+QU-QS@FB%^EQ0%;		!   break if 0.str search fails	!
+	%0-:Q8"E			!   inc 0.num, if end of 8.str	!
+		@O!NOQUOTE!		!     can't find " char		!
+	'				!   endif			!
+>					! loop end--------------------- !
+
+! --------------------------------------------------------------------- !
+! at this point, we've found our <delim> char, it's index is in 0.num	!
+! --------------------------------------------------------------------- !
+
+Q0Q1U0					! 0.num = Q0th char of Q1	!
+QSJ					! jump to start of text1	!
+Q0@I%%					! insert <delim>		!
+QC-1J					! jump 1 char before F command	!
+@I%@%					! insert @			!
+2%T^[					! T.num (end of text1) += 2	!
+2%U^[					! U.num (end of text2) += 2	!
+
+!F0!
+
+QTJ					! jump to end of text1		!
+Q0@I%%					! insert <delim>		!
+QU-QTC					! advance to end of text2	!
+Q0@I%%					! insert <delim>		!
+0U1					! clear @-modified flag		!
+@O!..!					! jump to main loop		!
+
+! --------------------------------------------------------------------- !
+! handle 'A'.  we've run into ^Atext^A or @^A/text/.  This is also the	!
+! entry point for the 'C' routine:  if we're not deleting the comment	!
+! we handle <exclamation-point>comment<exclamation-point> just like     !
+! ^Atest^A.                                                             !
+! --------------------------------------------------------------------- !
+
+!A!
+
+Q0@^U1%%				! 1.str = ^A or exclamation pt.	!
+.UC					! C.num = start of text		!
+.US					! S.num = start of text		!
+Q1"T					! if @-modified			!
+	0A@^U1%%			!   1.str = <delim>		!
+	D				!   delete <delim>		!
+'					! endif				!
+:@S%^EQ1%"U				! if search for <delim> fails	!
+	@O!STRINGFAIL!			!   unterminated string		!
+'					! endif				!
+-D					! delete second <delim>		!
+.UT					! T.num = end of text		!
+@O!AA!					! goto AA			!
+
+! --------------------------------------------------------------------- !
+! handle 'C'.  we've run into an exclamation point with the /C switch	!
+! set.  Q-register C contains the special comment delimiter characters. !
+! --------------------------------------------------------------------- !
+
+!C!
+
+::@S%^EGC%"U				! if not special comment delim	!
+	@O!A!				!   handle like ^Astring^A	!
+'					! endif				!
+R					! back up past special <delim>	!
+.UC					! C.num = current buf ptr	!
+Q0@^U1%%				! 1.str = exclamation point	!
+Q1"T					! if @-modified			!
+	0A@^U1%%			!   1.str = <delim>		!
+	D				!   delete <delim>		!
+'					! endif				!
+:@S%^EQ1%"U				! if search for <delim> failed	!
+	@O!STRINGFAIL!			!   unterminated string		!
+'					! endif				!
+QC-1,.K					! kill entire comment		!
+0U1					! clear @-modified flag		!
+@O!..!					! jump to main loop		!
+
+! --------------------------------------------------------------------- !
+! handle 'E'.  we've run into an E command.                             !
+! --------------------------------------------------------------------- !
+
+!E!
+
+27@^U1%%				! 1.str = ESC (default delim)	!
+.UC					! C.num = current buf ptr	!
+0AU0					! 0.num = 2nd command char	!
+C					! advance past 2nd cmd char	!
+Q0"V					! if 2nd cmd char is lowercase	!
+	Q0-32U0				!   convert to uppercase	!
+	-D				!   delete lowercase char	!
+	Q0@I%%				!   insert uppercase char	!
+'					! endif				!
+
+! --------------------------------------------------------------------- !
+! the EB, EG, EI, EN, ER, EW, E_ commands take a string argument, they	!
+! have to be passed to the $$ routine.					!
+! ???What about EL, EQq, EZ, and E%q taking a string argument		!
+! --------------------------------------------------------------------- !
+
+Q0-^^B"E				! if it's EB			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^G"E				! if it's EG			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^I"E				! if it's EI			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^N"E				! if it's EN			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^R"E				! if it's ER			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^W"E				! if it's EW			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+Q0-^^_"E				! if it's E_			!
+	@O!$$!				!   goto $$			!
+'					! endif				!
+@O!.!
+
+! --------------------------------------------------------------------- !
+! handle 'Z'.  we've run into a ^Z, replace it with <CARET>-Z		!
+! --------------------------------------------------------------------- !
+
+!Z!
+
+-D					! delete <CTRL>-Z		!
+@I%^Z%					! insert <CARET>-Z		!
+@O!..!					! jump to main loop		!
+
+>					! main loop end----------------	!
+
+! --------------------------------------------------------------------- !
+! At this point, everything should be squished and Q1 will be -1 if	!
+! an error occurred, or 0 if everything is OK.				!
+! --------------------------------------------------------------------- !
+
+Q1"T					! if error flag			!
+	@^U1%Trailing, pending @%	!				!
+	@O!ERROR!			!   goto error display		!
+'					! endif				!
+0U1					! clear Z-macro return value	!
+
+! --------------------------------------------------------------------- !
+! the only way the following error reporting code is executed is if we	!
+! jump to a label inside of it.  if we arrive here by any other means	!
+! then things are OK, skip down to the "endif".				!
+! --------------------------------------------------------------------- !
+
+0"N					! skip the following code	!
+!OFFEND!
+	@^U1%End of buffer while sub-squishing%
+	@O!ERROR!
+
+!NOQUOTE!
+	@^U1%Can't find a quote character%
+	@O!SETPOS!
+
+!PRIORFAIL!
+	@^U1%Prior recursion level failed%
+	@O!SETPOS!
+
+!STRINGFAIL!
+	@^U1%Unterminated string%
+
+! --------------------------------------------------------------------- !
+! the following code finishes building an error string in Q-register 1.	!
+! 1.str already contains the type of error, this code appends the	!
+! position where the error occurred and the line before and after the	!
+! error, like so:							!
+!									!
+!	<error message> from squished .=<error position>		!
+!	<line up to error>|						!
+!			   |<line after error>				!
+!									!
+! --------------------------------------------------------------------- !
+
+!SETPOS!
+	:@^U1% from squished .=%	!   append msg to 1.str		!
+	QC\				!   position in C.num to buf	!
+	^Y:X1				!   append position in buf	!
+	^YK				!   delete position from buf	!
+	13:@^U1%%			!   append <CR>			!
+	10:@^U1%%			!   append <LF>			!
+	QCJ				!   jump to where error starts	!
+	0^Q+.,.:X1			!   append line up to error	!
+	^^|:@^U1%%			!   append |			!
+	10:@^U1%%			!   append <LF>			!
+	^^|:@^U1%%			!   append |			!
+	.,^Q+.:X1			!   append rest of line		!
+
+!ERROR!
+	ZJ				!  jump to buf end		!
+	MW				!  refresh scope		!
+	0,0XW				!  clear W.str (/W switch)	!
+	7^T				!  sound bell			!
+	^^?^T				!  display "?"			!
+	:G1				!  display 1.str		!
+	7^T				!  sound bell			!
+	13^T				!  display <CR>			!
+	10^T				!  display <LF>			!
+	-1U1				!  set Z-macro return to -1	!
+'					! endif				!
+Q1					! push Z-macro return val	!
+]1					! restore Q-reg 1		!
+*					! end of ^UZ			!
+
+! --------------------------------------------------------------------- !
+! Done loading squisher macro into Q-register Z				!
+! --------------------------------------------------------------------- !
+
+! --------------------------------------------------------------------- !
+! Load squish driver macro into Q-register A				!
+! --------------------------------------------------------------------- !
+
+@^UA*					! A.str = squish driver macro	!
+-1^X					! search flag = exact matches	!
+@^UE%.-Z%				! E.str = -# chars to buf end	!
+QO"N					! if max line length not 0	!
+	ZJ				!   jump buf end		!
+	@I% %				!   insert <SP>, insure we halt	!
+'					! endif				!
+J					! jump to beginning of buffer	!
+MZ"E					! if squish macro returns OK	!
+	! ------------------------------------------------------------- !
+	! at this point, everything is squished; but, if the /L switch	!
+	! was set, we've deleted all lexical CR/LF's and have to go	!
+	! back and insert CR/LF wherever needed so the line is no	!
+	! longer than the width specified with /L:nn.			!
+	! ------------------------------------------------------------- !
+	QO"N				!   if max line length not 0	!
+		:QW"N			!     if /W was TRUE		!
+			-1,3:W^[	!       turn on SEEALL mode	!
+			0,4:W^[		!       clear "mark" status	!
+			0,5:W^[		!       turn off hold mode	!
+		'			!     endif			!
+		J			!     jump to beginning of buf	!
+		<			! ----loop begin--------------- !
+			MW		!       refresh scope		!
+			! --------------------------------------------- !
+			! the following loop advances through the edit	!
+			! buffer, looking for a character with the high	!
+			! bit set.					!
+			! --------------------------------------------- !
+			<		! ------loop begin------------- !
+				0A&128"N	! if high bit is set	!
+					0;	!   break out of loop	!
+				'		! endif			!
+				C	!         advance 1 char	!
+			>		! ------loop end--------------- !
+			0A&127-13"E	!       if char is <CR>		!
+				D	!         delete it		!
+			'		!       endif			!
+			D		!	delete <LF>		!
+			.-Z;		!       break if at end of buf	!
+			.U0		!       0.num = current buf ptr	!
+			! --------------------------------------------- !
+			! --------------------------------------------- !
+			<		! ------loop begin------------- !
+				0A&128"N	! if hi bit clear	!
+					0;	!   break out of loop	!
+				'		! endif			!
+				C	!         advance 1 char	!
+			>		! ------loop end--------------- !
+			! --------------------------------------------- !
+			! --------------------------------------------- !
+			<		! ------loop begin------------- !
+				.U1	!         1.num = cur buf ptr	!
+				0L	!         go to begin of line	!
+				.-Q0-1"L	! if			!
+					0;	!   break out of loop	!
+				'		! endif			!
+				R	!         back up one char	!
+			>		! ------loop end--------------- !
+			Q1J
+			-(0^Q)-QO"G	!       if			!
+				Q0J	!				!
+				-1A-27"E	! if last char was ESC	!
+					@I% %	!   insert <SP>		!
+				'		! endif			!
+				@I%
+%					!       insert <CR><LF>		!
+			'		!       endif			!
+		>			! ----loop end----------------- !
+		! ----------------------------------------------------- !
+		! the following loop deletes trailing CR's, LF's, and	!
+		! <SP>'s from the end of the buffer			!
+		! ----------------------------------------------------- !
+		<			! ----loop begin--------------- !
+			ZJ		!       jump to buf end		!
+			-Z;		!       break if buf empty	!
+			-1A-10"N	!       is it LF?		!
+				-1A-13"N	! is it CR?		!
+					-1A-32"N	!   is it <SP>?	!
+						0;	!     break	!
+					'		!   endif	!
+				'		! endif			!
+			'		!       endif			!
+			-D		!       delete it		!
+		>			! ----loop end----------------- !
+		MW			!     refresh scope		!
+	'				!   endif			!
+	! ------------------------------------------------------------- !
+	! make sure the edit buffer ends in a CR/LF.			!
+	! ------------------------------------------------------------- !
+	QH"F				!   if no adjacent escapes	!
+		ZJ			!     jump to buf end		!
+		."E			!     if at beginning of buf	!
+			10@I%%		!       insert <LF>		!
+		'			!     endif			!
+		-1A-10"N		!     if prev char is not <LF>	!
+			10@I%%		!       insert <LF>		!
+		'			!     endif			!
+		R			!     back up one char		!
+		."E			!     if at beginning of buf	!
+			13@I%%		!       insert <CR>		!
+		'			!     endif			!
+		-1A-13"N		!     if prev char is not <CR>	!
+			13@I%%		!       insert <CR>		!
+		'			!     endif			!
+	'				!   endif			!
+	ZJ				!   jump to buf end		!
+	! ------------------------------------------------------------- !
+	! clean up the scope						!
+	! ------------------------------------------------------------- !
+	:QW"N				!   if /W was TRUE		!
+		0:W-4"E			!     if VT100 in ANSI mode	!
+			2,0:W^[		!       set VT100 in VT52 mode	!
+		'			!     endif			!
+		-1,3:W^[		!     turn on SEEALL mode	!
+		0,4:W^[			!     clear "mark" status	!
+		MW			!     refresh scope		!
+	'				!   endif			!
+|					! else (Z macro returned err)	!
+	@^A/?Squish run failed; aborting any output
+/					!   warn user			!
+	0,0XF				!   clear F.str			!
+'					! endif				!
+0^X					! reset search mode flag	!
+*					! end of ^UA			!
+
+! --------------------------------------------------------------------- !
+! Done loading squish driver macro into Q-register A			!
+! --------------------------------------------------------------------- !
+
+! --------------------------------------------------------------------- !
+! If nothing is in the edit buffer, as them to input the name of the	!
+! input file and insert it into the buffer.				!
+! --------------------------------------------------------------------- !
+
+Z"E					! if edit buffer is empty	!
+	@I%File <.TES or .TEC>? %	!   ask for input file		!
+	^^QMR				!   get response in Q.str	!
+	GQ				!   and put it into the buffer	!
+'					! endif				!
+0,0XR					! clear R.str (response macro)	!
+0,0XQ					! clear Q.str (user responses)	!
+					! end of ^UF			!
+
+! --------------------------------------------------------------------- !
+! Done loading initialization macro into Q-register F			!
+! --------------------------------------------------------------------- !
+
+			! execute everything up until this point	!
+
+! --------------------------------------------------------------------- !
+! S t a r t   H e r e							!
+! --------------------------------------------------------------------- !
+
+@EI%%			! close current EI command			!
+MF			! execute initialization macro in F.str		!
+0,0XF			! clear F.str					!
+
+Z"E			! if no command line in buffer			!
+	@^A%Enter your macro then type MA$$
+%			!   ask them to input a macro to squeeze	!
+|			! else (the buffer isn't empty)			!
+
+	! ------------------------------------------------------------- !
+	! If the edit buffer isn't empty, it must contain the input	!
+	! filename, and it might contain the output filename like so:	!
+	!								!
+	!	[OUTFILE[.TEC]=]INFILE[.TES]				!
+	!								!
+	! Executing the F macro above has stripped all the switches	!
+	! from the command line in the edit buffer.			!
+	!								!
+	! First, deal with an output filename.  If an output filename	!
+	! exists on the command line, we might append a .TEC filetype	!
+	! to it if a filetype wasn't specified.  Then we'll load Q-reg	!
+	! F with "EWfilename$" to open it for output and remove the	!
+	! output filename from the buffer.				!
+	! ------------------------------------------------------------- !
+
+	J				! jump to start of buffer	!
+	:@FS%=%%"S			! if "=" found, have output fn	!
+		@^UF%EW%		!   put "EW" in F.str		!
+		0,.:XF			!   append fn to F.str		!
+		.UF			!   put cp in F.num		!
+		-:@S%.%"U		!   if no ".", no file type	!
+			:@^UF%.TEC%	!     append ".TEC"		!
+		'			!   endif			!
+		QFJ			!   jump to end of filename	!
+		27:@^UF%%		!   append ESC to F.str		!
+		QB"T			!   if any switches		!
+			ET&64"E		!     if not detached		!
+				:@^UF/	!       append create msg to F	!
+				@^A%Creating "%
+				:G*	!       append last filespec	!
+				@^A%"
+%					!       append "<CR><LF>	!
+				/	!       done loading F.str	!
+			'		!     endif			!
+		'			!   endif			!
+		0,.K			!   kill output fn in buffer	!
+	'				! endif				!
+
+	! ------------------------------------------------------------- !
+	! Now, deal with an input filename.  If the filename doesn't	!
+	! have a filetype, first we'll try .TES; and, if there is no	!
+	! .TES file, we'll try .TEC.  Once we have an input filename,	!
+	! we'll ER it.							!
+	! ------------------------------------------------------------- !
+
+	J				! jump to start of buf		!
+	:@S%.%"U			! if no ".", no filetype	!
+		ZJ			!   jump to buf end		!
+		@I%.TES%		!   insert ".TES"		!
+		HXQ			!   put input fn in Q.str	!
+		:@ER%^EQQ%"U		!   if ".TES" doesn't exist	!
+			-@FS%.TES%.TEC%	!     try ".TEC"		!
+		'			!   endif			!
+	'				! endif				!
+	HXQ				! Q.str = input filename	!
+	HK				! kill buffer			!
+	@ER%^EQQ%			! open input file		!
+	QB"T				! if any switches		!
+		ET&64"E			!   if not detached		!
+			@^A%Squishing "%!     display squish message"	!
+			:G*		!     display filespec buffer	!
+			@^A%"
+%					!     display "<CR><LF>		!
+		'			!   endif			!
+	'				! endif				!
+
+	! ------------------------------------------------------------- !
+	! If there's no output filename, we'll stay in TECO after	!
+	! squishing the input file.  If there is an output file, we'll	!
+	! exit TECO after squishing.					!
+	! ------------------------------------------------------------- !
+
+	:QF"E				! if no output filename		!
+		Y			!   yank 1st page		!
+		128,0ET			!   turn off abort-on-error	!
+		<			! ----loop begin--------------- !
+			^E"T		!     if formfeed flag		!
+				ZJ	!       jump to buf end		!
+				12@I%%	!       insert <FF>		!
+			'		!     endif			!
+			:A;		!     break if append fails	!
+		>			! ----loop end----------------- !
+		MA			!   squeeze page		!
+		MP			!   ??? what's in Q-reg P ???	!
+	|				! else (we have an output fn)	!
+		Y			!   yank 1st page		!
+		QB"F			!   if no switches		!
+			128,0ET		!     turn off abort-on-error	!
+		'			!   endif			!
+
+		! ----------------------------------------------------- !
+		! if we're at end-of-file after yanking in the first	!
+		! page, then squeeze what we've read in and write it	!
+		! out.  If we're not at end-of-file, then we'll have	!
+		! to go into a loop: squeezing the page we have, and	!
+		! then reading in the next page.			!
+		! ----------------------------------------------------- !
+
+		^N"T			!   if at end-of-file		!
+			^E"T		!     if formfeed flag		!
+				ZJ	!       jump to buf end		!
+				12@I%%	!       insert <FF>		!
+			'		!     endif			!
+			MA		!     squeeze page		!
+			MF		!     open output file		!
+			HPW		!     write page		!
+			HK		!     kill page			!
+		|			!   else			!
+			MF		!     open output file		!
+			<		! ------loop begin------------- !
+			^E"T		!     if formfeed flag		!
+				ZJ	!       jump to buf end		!
+				12@I%%	!       insert <FF>		!
+			'		!     endif			!
+			MA		!     squeeze current page	!
+			HPW		!     write current page	!
+			HK		!     kill current page		!
+			:Y;		!     break if yank fails	!
+			>		! ------loop end--------------- !
+		'			!   endif			!
+		EF			!   close output file		!
+		EX			!   exit			!
+	'				!   endif			!
+'					! endif				!
+

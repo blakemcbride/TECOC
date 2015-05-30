@@ -1,0 +1,134 @@
+Running TECOC on Linux
+Tecoc takes a first argument of mung, teco, or make to control its
+operating mode. In this Linux version, the name of the executable is
+tested to provide this first argument. Typically soft links are used
+to the tecoc executable, however aliases could be used instead. The
+mapping is:
+Make  is tecoc make  (note uppercase first letter)
+teco  is tecoc teco
+mung  is tecoc mung
+inspect is tecoc teco -inspect
+The provided TAR file has these four soft links defined. Extract the
+TAR file into a directory in your path, typically /usr/local/bin,
+after making sure none of the command names already exist for other
+applications. Necessary environment variables and files are described below.
+Several option switches are allowed on the TECO command line:
+   -in[spect]  -- Read file only, don't create an output file.
+   -noc[reate] -- If file doesn't exist, don't create it.
+   -noi[ni]    -- Don't execute INI file. (valid for MAKE or MUNG as well)
+   -nom[emory] -- don't save filename as "last edited file" (valid for
+                  MAKE also)
+   -nop[age]   -- Formfeeds don't stop file reads (valid for MAKE also)
+   -nor[ename] -- Don't rename files, but copy them to keep references correct
+                  (OS/2 only)
+   +nnn	       -- sets NOPAGE and positions dot to line nnn.
+The part of the switch name in the square brackets is optional. For
+instance "-in" is the same as "-inspect".
+MAKE filespec
+   starts tecoc to create file filespec. Does equivalent of EWfilespec$$
+TECO filespec
+   starts tecoc to edit file filespec. Does equivalent of
+   EBfilespec$Y$
+TECO filespec2=filespec1
+   starts tecoc to edit filespec1, writing to filespec2. Does
+   equivalent of ERfilespec1$EWfilespec2$Y$$
+TECO
+   starts tecoc to edit last edited file. Filename is saved in file
+   named teco*.tmp in the current directory, unless overriden
+   (described below).
+MUNG filespec <args>
+   starts tecoc to execute filespec. Equivalent to
+   I<args>$JEIfilespec$$ 
+   You can use "TECO @filespec <args>" instead of MUNG.
+**************
+Key Bindings
+The keys mentioned in the teco.doc file are somewhat confusing. 
+This should help:
+<DELIM>         The "Esc" key, "Esc" echoes as "$", however the 
+                teco.doc file shows it as '`'.
+<BS>            Type as Control-h, this isn't the "Backspace" key.
+<DELETE>        The "Backspace" key. This isn't the "Delete" key.
+<CR>            The "Enter" key.
+<LF>            Type as Control-j.
+Note that the assignments for <BS> and <DELETE> shown here are
+swapped. <BS> can be "Backspace" and <DELETE> can be control-h by
+clearing ET&2048, e.g. 2048,0ET
+**************
+The Initialization File.
+Tecoc mungs (executes as teco commands) the file TECO.INI in the
+current directory before processing the command line. Initialization
+can be done instead by defining a TEC_INIT environment variable. The
+value is either the list of teco commands to execute or a "$" followed
+by the pathname of the file containing the initialization file. This
+allows a single, centrally located initialization file. REMEMBER that
+the "$" must be escaped, i.e. "\$"
+The initialization file can be used to make initial settings. It can
+return a value, but the value setting is somewhat obscure.
+Example (csh):
+setenv TEC_INIT 1es
+Example (bash):
+TEC_INIT=1es
+export TEC_INIT
+will cause successful searches to auto-display in all teco sessions.
+**************
+Changing the location of the memory file.
+Define the environment variable TEC_MEMORY to be "$" followed by the
+pathname of the file designated the memory file.
+Example (csh):
+setenv TEC_MEMORY ~/teco.mem
+setenv TEC_MEMORY \$$TEC_MEMORY
+Example (bash):
+TEC_MEMORY = ~/teco.mem
+TEC_MEMORY = \$$TEC_MEMORY
+export TEC_MEMORY
+will cause the name of the last edit file to be stored in the file
+teco.mem in the home directory. By default the file name is tecoN.tmp in
+the current directory, where "N" is the process ID of the parent process to
+teco.
+**************
+The Libary directory
+Defining the environment variable TEC_LIBRARY to be a directory path
+(including the final "/") will allow the EI command to fetch
+teco commands from this directory if the file is not found in the
+current directory.
+Example (csh):
+setenv TEC_LIBRARY=\$/usr/local/lib/
+will cause the directory /usr/local/lib to be searched for teco command files.
+**************
+Implemented flags:
+ED&1	Allow carat "^" character in string searches
+ED&2    Allow yank and _ unconditionally
+ED&16   Failed searches preserve dot
+ED&64   Move dot by one after each match in multiple occurance searches
+ET&1    Type out in image mode
+ET&2    Use scope for delete and control-U (default=1)
+ET&4    Accept lowercase input (default=1)
+ET&8    ^T reads without echo
+ET&32   ^T reads with no wait
+ET&128  MUNG mode (abort on error) cleared by "*" prompt
+ET&2048 Swap backspace and delete
+ET&4096 We are using 8 bit characters (default=1)
+ET&32768 Trap control-C 
+EZ&1 Mark Henderson,  who did much of the Unix port,  likes the way
+	VAX/VMS	keeps versions of files.  VMS appends a semicolon followed
+	by a version number to files,  and has the PURGE command to clean
+	out old versions of files.  If this bit is off,  TECO-C will handle
+	file version numbers,  appending the appropriate version number to
+	file names.  Mark supplied a "purge" program (distributed with TECO-C)
+	for users of this feature.  Setting this flag turns off the feature,
+	to make TECO-C function as expected by the average Unix user.  This
+	flag is set by default.
+EZ&128  Don't stop read on formfeeds 
+EZ&256	If set,  don't do newline translation on file read/write -- binary mode. 
+        TECO is based on separate carriage return (CR) and line feed (LF) 
+        line termination. Normally on file input newline (line feed) 
+        characters are converted to CRLF pairs unless preceded
+        by a CR -- this allows reading DOS format files. On output CRLF pairs
+        are converted back to new line characters. Set this bit before starting
+        to edit a binary file, or when editing a DOS file for which no format
+        conversion is desired (ie file is saved back in DOS format).
+EZ&8192 This bit is set by default, but has no significance in this release.
+EZ&16384 Normally the backup file name is created by replacing the file extension
+         with "bak" -- foo.c becomes foo.bak, however if this bit is set then
+         the backup file name is created by simply adding ".bak" to the name -- foo.c
+         becomes foo.c.bak. This choice is overridden by EZ&1 = 0.

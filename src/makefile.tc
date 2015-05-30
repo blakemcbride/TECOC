@@ -1,0 +1,359 @@
+#
+# MAKEFILE.TC: Borland Make file for TECO-C
+# Last updated: 17 July 1990
+#
+# Command line:
+#
+#	make -fmakefile.tc [-D80186]    [-DALL]     [-DINCDIR=?]
+#			   [-DLIBDIR=?] [-DMAP]     [-DMODEL=?]
+#			   [-DNODEBUG]  [-DTCPP100]
+#
+# -D80186
+#
+#	The default is to compile for the 8086.  If you have an 80186 or
+#	an 80286, -D80186 will supposedly enable some 80186 instructions
+#	like ENTER/LEAVE and PUSH <immediate data>.
+#
+#	I don't think ENTER and LEAVE are generated if a function doesn't
+#	have any local variables.  I think ENTER and LEAVE are slower
+#	than the standard function entry/exit sequence; but they can
+#	end up being smaller (?).
+#
+#	PUSH <immediate data> means a number can be pushed directly on
+#	the stack (ie: PUSH 10) instead of loading the number into a
+#	register first and then pushing the register (ie MOV AX, 10 !
+#	PUSH AX).  Saves a minuscule amount of space; and is faster, so
+#	why not?
+#
+# -DALL
+#
+#	The default is to compile a TECO-C module and add it to the TECOC.LIB
+#	library.  If you're compiling all the modules from scratch, -DALL will
+#	compile every module first, then build the TECOC.LIB library which is
+#	much faster.
+#
+# -DINCDIR=?
+#
+#	I have my Turbo C libraries in C:\TC\INCLUDE
+#
+# -DLIBDIR=?
+#
+#	I have my Turbo C libraries in C:\TC\LIB
+#
+# -DMAP
+#
+#	The default is to not generate a TLINK .MAP file.  The CHECKSUM_CODE
+#	#define in ZPORT.H enables runtime code checksumming to insure that
+#	code isn't being overwritten by stray pointers.  The checksumming
+#	routines in TECOC.C require a current TLINK C .MAP file in order to
+#	work, so if you enable the CHECKSUM_CODE option, be sure to compile
+#	with -DMAP; and be sure you have an up-to-date .MAP file when running
+#	with code checksumming.  Note: CHECKSUM_CODE doesn't work with Turbo
+#	Debugger since TD modifies code as it runs.
+#
+# -DMODEL=?
+#
+#	Memory Model macro.  '?' is one of the following:
+#
+#	s	small	(near code, near data)
+#	c	compact	(near code, far  data)
+#	m	medium	(far  code, near data)
+#	l	large	(far  code, far  data, 64K static data)
+#	h	huge	(far  code, far  data, 64K static data per module)
+#
+#	If DEBUGGING is TRUE in ZPORT.H you will have to use the large
+#	or huge model to get large (far) code.  If DEBUGGING is FALSE
+#	in ZPORT.H you can use the compact model to get small (near) code.
+#
+#	Stay with a large (far) data model.  TECO-C uses huge pointers and
+#	we wouldn't want to send a huge pointer to a small data model C
+#	library routine which expects a near pointer.
+#
+#	There *is* code in ZPORT.H which has been used to allow debugging
+#	completely under the small data model (look for __SMALL__), although
+#	there many problems.  Do not use the small (near) data models.
+#
+# -DNODEBUG
+#
+#	The default is to include stack checking (tcc -N, see STKCHK below)
+#	and Turbo Debugger (tcc -v) code.  For production versions of TECO-C
+#	use -DNODEBUG.  This will disable stack checking (tcc -N-), disable
+#	Turbo Debugger (tcc -v-), enable jump and register optimizations
+#	(tcc -O -Z), generate for speed (-G), merge duplicate strings
+#	(tcc -d) and use the Pascal function calling sequence (tcc -p)
+#	to generate smaller and faster function calls.
+#
+#	Note:  this NODEBUG switch has *nothing* to do with the internal
+#	debugging code enabled by setting DEBUGGING on in ZPORT.H.
+#
+# -DTCPP100
+#
+#	There is a conflict in Turbo C++ v1.00 between large model and
+#	stack checking.  If TCPP is defined and we're including TD debugging
+#	code (implying we're debugging in large model?), then disable stack
+#	checking.
+#
+
+!if !$d(MODEL)		# if no model defined on the command line
+!if $d(NODEBUG)		#   if we're not debugging
+MODEL=c			#     use the compact model
+!else			#   else
+MODEL=l			#     use the large model
+!endif			#   endif
+!endif			# endif
+
+!if !$d(LIBDIR)		# if no library directory on the command line
+LIBDIR=f:\bc4\lib	#   use my Turbo C library directory
+!endif			# endif
+
+
+CSTARTUP=$(LIBDIR)\c0$(MODEL)
+CLIB=$(LIBDIR)\c$(MODEL)
+
+#
+# TCC options:
+#
+#	-1	80186/286 Instructions		(only if you have a 186+)
+#	-G	Generate for speed		(not debugging)
+#	-Idir	Include file directory
+#	-K	Default char is unsigned
+#	-N	Check stack overflow		(debugging)
+#	-O	Optimize jumps			(not debugging)
+#	-Z	Optimize register usage		(not debugging)
+#	-c	Compile only
+#	-d	Merge duplicate strings		(not debugging)
+#	-m?	memory model (? = c or l)
+#	-p	use Pascal function calls	(not deubgging)
+#	-v	Source level debugging		(debugging)
+#	-w	Enable all warnings
+#
+
+COMPILE=bcc -c -m$(MODEL) -w -K 
+
+!if $d(NODEBUG)				# if we're not debugging
+COMPILE=$(COMPILE) -p -O1		#   do optimizations
+!else					# else
+COMPILE=$(COMPILE) -v			#   compile for Turbo Debugger
+!if !$d(TCPP100))			#   if not TC++
+COMPILE=$(COMPILE) -N			#     compile for stack checking
+!endif					#   endif
+!endif					# endif
+
+!if $d(80186)				# if we're on a 80186 or better
+COMPILE=$(COMPILE) -1			#   enable 80186 code
+!endif					# endif
+
+!if $d(INCDIR)
+COMPILE=$(COMPILE) -I$(INCDIR)
+!endif
+
+
+#
+# TLIB options:
+#
+#	/c	case sensitive library
+#	/e	create extended dictionary
+#
+
+TLIB_OP=/c
+
+!if $d(NODEBUG)
+TLIB_OP=$(TLIB_OP) /e
+!endif
+
+#
+# how to make the TECOC.EXE file
+#
+
+tecoc.exe : tecoc.obj tecoc.lib
+ bcc -m$(MODEL)  -lm tecoc.obj noeh$(MODEL).lib tecoc.lib
+
+
+#
+# how to make the TECOC.OBJ module
+#
+
+tecoc.obj  : tecoc.c zport.h tecoc.h defext.h deferr.h dscren.h
+ $(COMPILE) tecoc.c
+
+#
+# what constitutes the TECOC.LIB library
+#
+
+TECOC_OBJS=\
+	baksrc.obj bldstr.obj clenup.obj cmatch.obj docjr.obj  doeves.obj \
+	doflag.obj echoit.obj err.obj    exeats.obj exea.obj   exebar.obj \
+	exebsl.obj exeb.obj   execcc.obj execln.obj execom.obj execrt.obj \
+	execst.obj execta.obj exectc.obj exectd.obj execte.obj execti.obj \
+	exectl.obj exectn.obj execto.obj exectp.obj exectq.obj exectr.obj \
+	exects.obj exectt.obj exectu.obj exectv.obj exectw.obj exectx.obj \
+	execty.obj exectz.obj exec.obj   exedgt.obj exedot.obj exedqu.obj \
+	exed.obj   exeequ.obj exeesc.obj exeexc.obj exeey.obj  exee.obj \
+	exefb.obj  exef.obj   exegtr.obj exeg.obj   exeh.obj   exeill.obj \
+	exei.obj   exej.obj   exek.obj   exelbr.obj exelst.obj exel.obj \
+	exem.obj   exenul.obj exenyi.obj exen.obj   exeopr.obj exeo.obj \
+	exeprc.obj exepw.obj  exep.obj   exeqes.obj exeq.obj   exerbr.obj \
+	exertp.obj exer.obj   exescl.obj exes.obj   exet.obj   exeund.obj \
+	exeusc.obj exeu.obj   exev.obj   exew.obj   exex.obj   exey.obj \
+	exez.obj   findes.obj findqr.obj flowec.obj flowee.obj flowel.obj \
+	getara.obj getnma.obj inccbp.obj init.obj   insstr.obj isradx.obj \
+	ln2chr.obj makdbf.obj makrom.obj popmac.obj pshmac.obj pushex.obj \
+	rdline.obj rdpage.obj readcs.obj replac.obj search.obj singlp.obj \
+	skpcmd.obj srclop.obj sserch.obj tabort.obj typbuf.obj typest.obj \
+	uminus.obj wrpage.obj zfrsrc.obj zmsdos.obj
+
+#
+# how to make the TECOC.LIB library
+#
+
+!if $d(ALL)			#build entire library at once
+
+tecoc.lib : $(TECOC_OBJS) tctlib.rsp
+ del tecoc.lib
+ tlib $(TLIB_OP) tecoc.lib @tctlib.rsp
+
+.c.obj:
+ $(COMPILE) $*.c
+
+!else				#modules added to library after compile
+
+tecoc.lib : $(TECOC_OBJS)
+
+.c.obj:
+ $(COMPILE) $*.c
+ tlib $(TLIB_OP) tecoc.lib -+$*.obj
+
+!endif
+
+#
+# The CHECKSUM_CODE routines use the ZFirst() function in ZFIRST.C
+# to get an idea of where the first code module is located in memory
+# when TECO-C is loaded.
+#
+
+zfirst.obj : zfirst.c
+
+#
+# the TECOC.LIB library modules.
+#
+
+baksrc.obj : baksrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+bldstr.obj : bldstr.c zport.h tecoc.h defext.h deferr.h dchars.h chmacs.h
+clenup.obj : clenup.c zport.h tecoc.h defext.h
+cmatch.obj : cmatch.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+docjr.obj  : docjr.c  zport.h tecoc.h defext.h deferr.h
+doeves.obj : doeves.c zport.h tecoc.h defext.h dchars.h
+doflag.obj : doflag.c zport.h tecoc.h defext.h
+echoit.obj : echoit.c zport.h tecoc.h defext.h dchars.h
+err.obj    : err.c    zport.h tecoc.h defext.h chmacs.h deferr.h dchars.h
+exea.obj   : exea.c   zport.h tecoc.h defext.h deferr.h
+exeats.obj : exeats.c zport.h tecoc.h defext.h
+exeb.obj   : exeb.c   zport.h tecoc.h defext.h
+exebar.obj : exebar.c zport.h tecoc.h defext.h deferr.h
+exebsl.obj : exebsl.c zport.h tecoc.h defext.h chmacs.h
+exec.obj   : exec.c   zport.h tecoc.h defext.h
+execcc.obj : execcc.c zport.h tecoc.h defext.h deferr.h
+execln.obj : execln.c zport.h tecoc.h defext.h
+execom.obj : execom.c zport.h tecoc.h defext.h deferr.h
+execrt.obj : execrt.c zport.h tecoc.h defext.h chmacs.h deferr.h
+execst.obj : execst.c zport.h tecoc.h defext.h deferr.h
+execta.obj : execta.c zport.h tecoc.h defext.h dchars.h
+exectc.obj : exectc.c zport.h tecoc.h defext.h dchars.h
+exectd.obj : exectd.c zport.h tecoc.h defext.h
+execte.obj : execte.c zport.h tecoc.h defext.h
+execti.obj : execti.c zport.h tecoc.h defext.h dchars.h
+exectl.obj : exectl.c zport.h tecoc.h defext.h dchars.h
+exectn.obj : exectn.c zport.h tecoc.h defext.h
+execto.obj : execto.c zport.h tecoc.h defext.h
+exectp.obj : exectp.c zport.h tecoc.h defext.h
+exectq.obj : exectq.c zport.h tecoc.h defext.h
+exectr.obj : exectr.c zport.h tecoc.h defext.h deferr.h
+exects.obj : exects.c zport.h tecoc.h defext.h
+exectt.obj : exectt.c zport.h tecoc.h defext.h deferr.h
+exectu.obj : exectu.c zport.h tecoc.h defext.h deferr.h dchars.h
+exectv.obj : exectv.c zport.h tecoc.h defext.h deferr.h
+exectw.obj : exectw.c zport.h tecoc.h defext.h deferr.h
+exectx.obj : exectx.c zport.h tecoc.h defext.h
+execty.obj : execty.c zport.h tecoc.h defext.h
+exectz.obj : exectz.c zport.h tecoc.h defext.h
+exed.obj   : exed.c   zport.h tecoc.h defext.h deferr.h
+exedgt.obj : exedgt.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exedot.obj : exedot.c zport.h tecoc.h defext.h
+exedqu.obj : exedqu.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exee.obj   : exee.c   zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+exeequ.obj : exeequ.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeesc.obj : exeesc.c zport.h tecoc.h defext.h dchars.h
+exeexc.obj : exeexc.c zport.h tecoc.h defext.h
+exeey.obj  : exeey.c  zport.h tecoc.h defext.h
+exef.obj   : exef.c   zport.h tecoc.h defext.h chmacs.h deferr.h
+exefb.obj  : exefb.c  zport.h tecoc.h defext.h deferr.h
+exeg.obj   : exeg.c   zport.h tecoc.h defext.h deferr.h
+exegtr.obj : exegtr.c zport.h tecoc.h defext.h deferr.h
+exeh.obj   : exeh.c   zport.h tecoc.h defext.h
+exei.obj   : exei.c   zport.h tecoc.h defext.h dchars.h deferr.h
+exeill.obj : exeill.c zport.h tecoc.h defext.h deferr.h
+exej.obj   : exej.c   zport.h tecoc.h defext.h
+exek.obj   : exek.c   zport.h tecoc.h defext.h
+exel.obj   : exel.c   zport.h tecoc.h defext.h
+exelbr.obj : exelbr.c zport.h tecoc.h defext.h deferr.h
+exelst.obj : exelst.c zport.h tecoc.h defext.h deferr.h
+exem.obj   : exem.c   zport.h tecoc.h defext.h deferr.h
+exen.obj   : exen.c   zport.h tecoc.h defext.h deferr.h
+exenul.obj : exenul.c zport.h tecoc.h defext.h
+exenyi.obj : exenyi.c zport.h tecoc.h defext.h deferr.h
+exeo.obj   : exeo.c   zport.h tecoc.h defext.h dchars.h deferr.h
+exeopr.obj : exeopr.c zport.h tecoc.h defext.h
+exep.obj   : exep.c   zport.h tecoc.h defext.h deferr.h
+exeprc.obj : exeprc.c zport.h tecoc.h defext.h deferr.h
+exepw.obj  : exepw.c  zport.h tecoc.h defext.h
+exeq.obj   : exeq.c   zport.h tecoc.h defext.h deferr.h
+exeqes.obj : exeqes.c zport.h tecoc.h defext.h
+exer.obj   : exer.c   zport.h tecoc.h defext.h
+exerbr.obj : exerbr.c zport.h tecoc.h defext.h deferr.h
+exertp.obj : exertp.c zport.h tecoc.h defext.h deferr.h
+exes.obj   : exes.c   zport.h tecoc.h defext.h dchars.h deferr.h
+exescl.obj : exescl.c zport.h tecoc.h defext.h deferr.h
+exet.obj   : exet.c   zport.h tecoc.h defext.h dchars.h
+exeu.obj   : exeu.c   zport.h tecoc.h defext.h deferr.h
+exeund.obj : exeund.c zport.h tecoc.h defext.h deferr.h
+exeusc.obj : exeusc.c zport.h tecoc.h defext.h dchars.h
+exev.obj   : exev.c   zport.h tecoc.h defext.h
+exew.obj   : exew.c   zport.h tecoc.h defext.h dscren.h
+exex.obj   : exex.c   zport.h tecoc.h defext.h deferr.h
+exey.obj   : exey.c   zport.h tecoc.h defext.h deferr.h
+exez.obj   : exez.c   zport.h tecoc.h defext.h
+findes.obj : findes.c zport.h tecoc.h defext.h deferr.h
+findqr.obj : findqr.c zport.h tecoc.h defext.h deferr.h chmacs.h
+flowec.obj : flowec.c zport.h tecoc.h defext.h deferr.h
+flowee.obj : flowee.c zport.h tecoc.h defext.h deferr.h
+flowel.obj : flowel.c zport.h tecoc.h defext.h deferr.h
+getara.obj : getara.c zport.h tecoc.h defext.h deferr.h
+getnma.obj : getnma.c zport.h tecoc.h defext.h deferr.h
+inccbp.obj : inccbp.c zport.h tecoc.h defext.h deferr.h
+init.obj   : init.c   zport.h tecoc.h defext.h deferr.h
+insstr.obj : insstr.c zport.h tecoc.h defext.h deferr.h
+isradx.obj : isradx.c zport.h tecoc.h defext.h chmacs.h
+ln2chr.obj : ln2chr.c zport.h tecoc.h defext.h dchars.h chmacs.h
+makdbf.obj : makdbf.c zport.h tecoc.h defext.h
+makrom.obj : makrom.c zport.h tecoc.h defext.h deferr.h
+popmac.obj : popmac.c zport.h tecoc.h defext.h
+pshmac.obj : pshmac.c zport.h tecoc.h defext.h deferr.h
+pushex.obj : pushex.c zport.h tecoc.h defext.h dchars.h deferr.h
+rdline.obj : rdline.c zport.h tecoc.h defext.h deferr.h dchars.h
+rdpage.obj : rdpage.c zport.h tecoc.h defext.h deferr.h
+readcs.obj : readcs.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h \
+             dscren.h
+replac.obj : replac.c zport.h tecoc.h defext.h dchars.h
+search.obj : search.c zport.h tecoc.h defext.h deferr.h dchars.h
+singlp.obj : singlp.c zport.h tecoc.h defext.h dchars.h
+skpcmd.obj : skpcmd.c zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+srclop.obj : srclop.c zport.h tecoc.h defext.h deferr.h
+sserch.obj : sserch.c zport.h tecoc.h defext.h
+tabort.obj : tabort.c zport.h tecoc.h
+typbuf.obj : typbuf.c zport.h tecoc.h defext.h dchars.h chmacs.h
+typest.obj : typest.c zport.h tecoc.h defext.h dchars.h
+uminus.obj : uminus.c zport.h tecoc.h defext.h
+wrpage.obj : wrpage.c zport.h tecoc.h defext.h dchars.h deferr.h
+zfrsrc.obj : zfrsrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+zmsdos.obj : zmsdos.c zport.h tecoc.h defext.h chmacs.h clpars.h deferr.h \
+             dchars.h dscren.h vrbmsg.h

@@ -1,0 +1,808 @@
+!CLPARS.TEC V2.3 14-May-2004 Tom Almy, Pete Siemsen, and Mark Henderson!
+
+!+***************************************************************************
+	This macro is the imbedded command-line parsing macro for TECOC.  It
+   was created by extracting the imbedded command-line parsing macro from the
+   TECO-11 executable file and then modifying it.
+
+	This macro is compiled into TECO-C.  This is the human-readable
+   source code.  To compress it (remove comments, extra whitespace, etc.)
+   into an unreadable version in file CLPARS.TEC,  do the following command
+   with a working TECO:
+
+	mung squ clpars.tec=clpars.tes/d:n/l:y/b:y/t:n/c:+/w:n/a:y/e:n
+
+   Then run genclp to convert CLPARS.TEC into CLPARS.H,  a C include file.
+
+    Notes:
+
+	1.  On entry,  Q1 contains a value
+
+	2.  Bits in Q-register 1 have the following meanings:
+
+		1	/VTEDIT
+		2	/INSPECT
+		4	/NOMEMORY
+		8	/FIND
+		16	/SEEALL
+		32	/HOLD
+		64	/NOPAGE
+		128	/SCROLL
+		256	/NOCREATE
+		512	/NORENAME
+		1024	unused
+		2048	input file is open
+		4096	/NOINI
+		8192	force setting of filespec memory
+		16384	input filename is in edit buffer
+		32768	???
+
+	3.  Q-register 2 holds numeric argument of /SCROLL:n switch
+
+	4.  Q-register Y holds the command-line option character,  which
+	    is a slash on most systems,  and a dash under Unix.
+
+	5.  Q-register .T holds a macro which is needed only when the :EGMEM
+	    command isn't supported.  It generates (in q-register F) the
+	    name of a file that holds filename memory.
+
+	6.  Q-register F holds the name of the file used to save file names.
+
+	7.  Q-register 4 holds the line number to go to.
+
+****************************************************************************!
+
+!+ save the q-registers that we'll be changing !
+[F0,0XF
+[90,0X9
+[00,0X0
+[20,0X2
+10U0[0                 !+ radix 10 !
+U0[00                !+ case independent searching !
+EDU0[0ED&4ED             !+ turn on automatic memory expansion !
+EUU0[0-1EU               !+ no case flagging on typeout !
+ESU0[00ES                !+ no typeout after searches !
+ETU0[032768#32#8#1,0ET   !+ ^C trap, read nowait and noecho, image typeout !
+Q1U0                     !+ Q0 = Q1 !
+0U1[1
+0,0X1
+0U4
+(-1EJ-25600)*(-1EJ-25858)"E             !+ if Unix or Linux !
+    ^^-UY                !+ Unix command lines delimit options with '-' !
+|
+    ^^/UY                !+ VMS command lines delimit options with '/' !
+'
+
+!+***************************************************************************
+  Put a subroutine into Q-register .T which,  when called,  fills Q-register
+  F with a filename to be used to store filespec memory.  This subroutine
+  will only be needed if the :EGMEM isn't supported.
+****************************************************************************!
+@^U.T/
+    :QF"E                       !+ if we haven't already set q-register F !
+        .U.1                    !+ remember where we are in edit buffer !
+        Iteco                  !+ start building "tecoxxxx.tmp" !
+        0EJ\                    !+ insert process id into edit buffer !
+        .-Q1U.L                 !+ length of "tecoxxxx" part of filename !
+        Q.L-8"G                 !+ if it's longer than 8 characters !
+            Q.1+4J              !+ go to front of the digits !
+            Q.L-8D              !+ prune most significant digits from front !
+            4C                  !+ and move to the end again !
+        '
+        I.tmp                  !+ finish it off !
+!+ RSTS/E and RT-11 aren't supported by TECO-C
+    -1EJ-4"E                              ~* if RSTS/E ~
+            I<60>-MODE:#3000
+        |
+            -1EJ-7"N                      ~* if not RT-11 ~
+                I;1--CR
+            '
+        '
+!
+        Q.1,.XFQ.1,.D          !+ save it in q-register F and clean up !
+    '/
+27:^U.T
+!+***************************************************************************
+  If we're on RSTS/E,  do something special
+****************************************************************************!
+!+-1EJ-4"E:QZ#Z"E-1G_J::FSdcl  tecoTECO"UHK':S ^[J0''!
+
+Q0+1"E                   !+ if Q1 was equal to -1 on entry !
+    32768U0              !+ Q0 = 32768 !
+'
+32768"E                  !+ if we're on a 16-bit machine (?) !
+    :EITECO"S           !+ try to execute macro in file TECO !
+        ]1
+        Q0#32768U1
+        [1
+        J
+        ODONE
+    '
+'
+
+!+***************************************************************************
+  Get the command line string from q-register Z into the edit buffer
+****************************************************************************!
+
+Z"EGZ0,0XZ'              !+ get command line string from Z and clear Z !
+J
+::S^ES"S^SD'            !+ remove leading whitespace !
+::STECO32"S-2D'         !+ change TECO32 to TECO,  if needed !
+ZJ-:S^ES"S.-Z"EFR''    !+ remove trailing whitespace !
+Z"EODONE'               !+ if there's no command line,  don't initialize !
+
+Q0&32767U1
+0,0X1
+0,0X9
+
+!+***************************************************************************
+  If there's a -NOINI switch, (-NOINI if under Unix)  delete it,  compact
+  any trailing whitespace, and set the 4096 bit of q-register 1.
+****************************************************************************!
+
+J:S^ES^EUYNOI"SONOINI'
+J:S^EUYNOI"FONONOINI'
+!NOINI!
+^SD::SN"S-D::SI"S-D''
+::S^ES"S^SD0A"AI ''
+Q1#4096U1
+!NONOINI!
+
+!+***************************************************************************
+  Execute the initialization file.
+****************************************************************************!
+
+Q1&4096"E                      !+ if there's no NOINI switch !
+    HX0HK                      !+ save the command line in Q0 !
+    EPEA                       !+ switch to secondary I-O streams !
+    EF
+
+!+ Get the INI macro into the edit buffer !
+
+    :EGINI"S                  !+ get the INI file specification !
+        G*
+        J0A-36"ED              !+ if the first character is a dollar-sign !
+            HX1
+            HK
+            :ER^EQ1"S         !+ open the file for reading !
+                YHX1HKECG1     !+ and put it's contents into the edit buffer !
+            |
+                %Can't find initialization file ":G1"1310
+            '
+        '
+        0,0X1
+    |                          !+ else (no defined INI filename) !
+        0,0X1
+        (-1EJ-5)*(-1EJ-1024)"E !+ if VAX/VMS !
+            EN[]*.*:EN"S     !+ get current dir spec into Q1 !
+                G*JS[R0KFS.]JS]0,.X1HK
+            '
+        '
+        :ER^EQ1TECO.INI"S      !+ if TECO.INI exists in current directory !
+            YHX9HKECG90,0X9     !+ get it's contents into the edit buffer !
+        '
+    '
+    EREW                      !+ switch back to primary streams !
+
+    Z"N                         !+ if there's an INI macro to execute !
+        ZJ
+        .U0
+        G1
+        I=
+        G0
+        Q0J
+        ZX9
+        ZK
+        ]1
+        ]0Q0ET
+        ]0Q0ES
+        ]0Q0EU
+        ]0Q0ED
+        ]0Q0
+        ]0Q0
+        ]2
+        HX0
+        HK
+        G9
+        J
+        S=
+        0,.-1X9
+        0,.K
+        M0+0U9                   !+ execute INI macro, save result in Q9 !
+        0,0X0
+        [2
+        0,0X2
+        10U0[0                 !+ radix 10 !
+        U0[00                !+ case independent searching !
+        EDU0[0ED&4ED             !+ turn on no-memory-expansion bit !
+        EUU0[0-1EU               !+ no case flagging on typeout !
+        ESU0[00ES                !+ no typeout after searches !
+        ETU0[032768#32#8#1,0ET   !+ image mode, ^T noecho and nowait, ^C trap !
+        [1
+        G9
+        X1
+        K
+        0,0X9
+        Q9U1
+        J::S^ES"S^SD'           !+ delete leading whitespace !
+        ZJ-:S^ES"S.-Z"EFR''    !+ delete trailing whitespace !
+        Z"E
+            OSCOPES
+        '
+    |
+        G0
+    '
+'
+
+
+!+***************************************************************************
+  If there's a -NOMEMORY switch (-NOMEMORY under Unix),  delete it, compact
+  any trailing whitespace, and set the 4 bit of q-register 1.
+****************************************************************************!
+
+J:S^ES^EUYNOM"SONOMEMORY'
+J:S^EUYNOM"FONONOMEMORY'
+!NOMEMORY!
+^SD::SE"S-D::SM"S-D::SO"S-D::SR"S-D::SY"S-D'''''
+::S^ES"S^SD0A"AI ''
+Q1#4U1
+!NONOMEMORY!
+
+
+!+***************************************************************************
+  If there's a /NOCREATE switch, (-NOCREATE under Unix), delete it, compact
+  any trailing whitespace, and set the 256 bit of q-register 1.
+****************************************************************************!
+
+J:S^ES^EUYNOC"SONOCREATE'
+J:S^EUYNOC"FONONOCREATE'
+!NOCREATE!
+^SD::SR"S-D::SE"S-D::SA"S-D::ST"S-D::SE"S-D'''''
+::S^ES"S^SD0A"AI ''
+Q1#256U1
+!NONOCREATE!
+
+
+!+***************************************************************************
+  If there's a /NOPAGE switch, (-NOPAGE under Unix), delete it, compact
+  any trailing whitespace, and set the 64 bit of q-register 1.
+****************************************************************************!
+
+J:S^ES^EUYNOP"SONOPAGE'
+J:S^EUYNOP"FONONOPAGE'
+!NOPAGE!
+^SD::SA"S-D::SG"S-D::SE"S-D'''
+::S^ES"S^SD0A"AI ''
+Q1#64U1
+!NONOPAGE!
+
+
+!+***************************************************************************
+  If there's a /NORENAME switch, (-NORENAME under Unix), delete it, compact
+  any trailing whitespace, and set the 512 bit of q-register 1.
+****************************************************************************!
+
+J:S^ES^EUYNOR"SONORENAME'
+J:S^EUYNOR"FONONORENAME'
+!NORENAME!
+^SD::SA"S-D::SG"S-D::SE"S-D'''
+::S^ES"S^SD0A"AI ''
+Q1#512U1
+!NONORENAME!
+
+
+!+***************************************************************************
+  If we're not under RSTS/E,  and the command is "TECO @file", then change
+  it to "MUNG file".
+****************************************************************************!
+
+!+ -1EJ-4"N!                          !+ if not RSTS/E !
+J::STE"S<0A"AC|1;'>::S^ES@"S0KIMUNG ''
+!+ '!
+
+
+!+***************************************************************************
+  If it's a MUNG command, find the file specification,  delete it from
+  the edit buffer,  and do an EI on the file.
+****************************************************************************!
+
+J::SMU"S-2D                        !+ if it's a MUNG command !
+    <0A"AD|1;'>                     !+ delete alphabetics following MU !
+    ::S^ES"S^SD'                   !+ delete trailing whitespace !
+    (-1EJ-5)*(-1EJ-1024)"E          !+ if VAX/VMS !
+        J::S""S-D                  !+ and it starts with double quote !
+            ::S^ES"S^SD'           !+ remove whitespace following the " !
+        '
+    '
+
+!+ The MUNG file specification might be followed by data to be put into
+  the edit buffer.  The file specification and the data are separated by
+  a comma,  a slash,  or whitespace.  Set Q0 to point to the end of the
+  file specification,  regardless of how its terminated.!
+
+    ZU0                             !+ put edit buffer length in Q0 !
+    (-1EJ-25600)*(-1EJ-25858)"E      !+ if Unix or Linux !
+        J:S-"SR.-Q0"L.U0''         !+ if - precedes Q0, change Q0 !
+    |
+        J:S/"SR.-Q0"L.U0''         !+ if / precedes Q0, change Q0 !
+    '
+    J:S^ES"S.-Q0"L.U0''            !+ if whitespace precedes Q0, change Q0 !
+
+    J<S,;                          !+ if a comma precedes Q0, change Q0 !
+        .U1
+        Q1-1J-:S["S:S]"S.-Q1"GF<'''
+        Q1-1J-:S<"S:S>"S.-Q1"GF<'''
+        Q1-1J-:S("S:S)"S.-Q1"GF<'''
+        Q1-1J.-1-Q0"LD.U0'
+        0;
+    >
+
+    Q0J<-.;-1A-32"N-1A-9"N0;''-D>   !+ delete whitespace preceding Q0 !
+
+!+ copy the file specification into q-register .0. If there's no file
+   specification, complain and die. !
+
+    0,.X.0
+    :Q.0"E?How can I MUNG nothing?1310'
+
+!+ delete the file specification and trailing whitespace (if any) from the
+   edit buffer, execute the MUNG file and we're done. !
+
+    ::S^ES^[                       !+ locate end of whitespace, if any !
+    0,.K                            !+ delete spec + trailing whitespace !
+    0U0                             !+ don't leave trash in Q0 !
+    EI^EQ.0                        !+ execute the MUNG file !
+    JODONE                         !+ and we're done !
+'
+
+!+***************************************************************************
+  If there's a /VTEDIT (-VTEDIT under Unix), switch...
+****************************************************************************!
+
+J:S^ES^EUYVT"SOVTEDIT'
+J:S^EUYVT"FONOVTEDIT'
+!VTEDIT!
+The VTEDIT command line option is not supported by TECOC1310
+
+!+
+    ::SE"S^SD::SD"S^SD::SI"S^SD::ST"S^SD''''
+    ::S:H"S-2D::SO"S-D::SL"S-D::SD"S-D'''Q1#32U1'
+    ::S:S"S-2D::SE"S-D::SE"S-D::SA"S-D::SL"S-D::SL"S-D'''''Q1#16U1'
+    ::S:H"S-2D::SO"S-D::SL"S-D::SD"S-D'''Q1#32U1'
+    ::S^ES"S^SD0A"AI ''
+    Q1#1U1
+!
+!NOVTEDIT!
+
+!+***************************************************************************
+  If we're running Unix,  check for a +nnn option.  If there is one,  set
+  the 128 bit of the EZ flag (to read in the whole file, regardless of form
+  feeds) and put the number in Q-register 4.
+****************************************************************************!
+
+!+ -1EJ-25600"E               if Unix !
+    J:S^ES+"S
+        ^SD\U40,128EZ^sd::ss"S^sD0A"AI ''
+    '
+!+ ' !
+!+Set EZ flag if nopage!
+Q1&64"N0,128ez'
+
+!+***************************************************************************
+  If there's a /SCROLL switch (-SCROLL under Unix),  delete it,  get the
+  numeric argument (or default to 0) into q-register 2.
+  If :SEEALL follows -SCROLL,  then set bit 16 of q-register 1.
+  Delete any trailing whitespace and set bit 128 of q-register 1.
+****************************************************************************!
+
+J:S^ES^EUYSC"SOSCROLL'
+J:S^EUYSC"FONOSCROLL'
+!SCROLL!
+^SD::SR"S-D::SO"S-D::SL"S-D::SL"S-D''''
+::S:^ED"SR-D\U2FR|0U2'              !+ get numeric arg into Q2!
+::S:S"S-2D::SE"S-D::SE"S-D::SA"S-D::SL"S-D::SL"S-D'''''
+    Q1#16U1
+'
+::S^ES"S^SD0A"AI ''                 !+ delete trailing whitespace!
+Q1#128U1
+!NOSCROLL!
+
+
+!+***************************************************************************
+  If it's a TECO command...
+****************************************************************************!
+
+J::STE"S-2D                          !+ if it's a TE command !
+    <0A"AD|1;'>                       !+ delete alphabetics following TE !
+    ::S^ES"S^SD'                     !+ delete trailing whitespace !
+
+!+***************************************************************************
+  If there's a /INSPECT switch, (-INSPECT if under Unix)  delete it,  compact
+  any trailing whitespace, and set the 2 bit of q-register 1.
+****************************************************************************!
+
+    J:S^ES^EUYIN"SOINSPECT'
+    J:S^EUYIN"FONOINSPECT'
+    !INSPECT!
+    ^SD::SS"S-D::SP"S-D::SE"S-D::SC"S-D::ST"S-D'''''
+    ::S^ES"S^SD0A"AI ''
+    Q1#2U1
+    !NOINSPECT!
+
+!+***************************************************************************
+  If there's a /FIND switch, (-FIND if under Unix)  delete it,  compact
+  any trailing whitespace, and set the 8 bit of q-register 1.
+****************************************************************************!
+
+    J:S^ES^EUYFI"SOFIND'
+    J:S^EUYFI"FONOFIND'
+    !FIND!
+    The /FIND command line option is not supported by TECOC1310
+    
+!+
+    ^SD::SN"S-D::SD"S-D''
+    ::S^ES"S^SD0A"AI ''
+    Q1#8U1
+!
+    !NOFIND!
+
+!+ If there's more to the command,  then delete preceding whitespace and
+   if the remainder of the command line contains a quoted string,  do a ZJ. !
+
+    J
+    <
+        .-Z;
+        0A-9"EDF<'
+        0A-32"EDF<'
+        C
+        -1A-""E:S""S
+        (-1EJ-25857)*(-1EJ-25858)"E             !+ If OS/2 or Linux then delete quotes !
+           0J2<@FS/"//>ZJ'|
+           ZJ''                  !+ if no second quote, go to end !
+    >
+
+!+ Get the remembered file specification into the edit buffer. !
+
+    Q1&4#Z"E                     !+ if there's no file name and no -NOMEMORY !
+        :EGMEM"S                !+ if :EGMEM is supported !
+            G*J                  !+ get it into the edit buffer !
+            ::S$"S^SD           !+ if leading dollar sign, delete and... !
+            |OGOTIT'           !+ otherwise got it and get outa here !
+        |                        !+ else :EGMEM isn't supported !
+            M.T                  !+ generate file name in F !
+            GF                   !+ and get it !
+        '
+            HX0HK                !+ save filename in Q0 and clear buffer !
+            EPEA                 !+ select secondary I-O streams !
+            EF                   !+ close current output file !
+            :ER^EQ0"S           !+ open file (name is in Q0) !
+                Y
+                L
+                ."N-1A-10"E-D''  !+ remove trailing lf, if any !
+                ."N-1A-13"E-D''  !+ remove trailing cr, if any !
+                ZK
+                HX0HK
+                EC               !+ copy input to output and close streams !
+                G0
+            '
+            EREW               !+ select primary I-O streams !
+            0,0X0
+        !GOTIT!
+
+!+ If there's a file specification,  then delete preceding whitespace and
+   if the remainder of the filespec contains a quoted string,  do a ZJ. !
+!+ However there shouldn't be any whitespace -- don't do this step 
+   because it messes up names with embedded spaces 
+        J
+        <
+            .-Z;
+            0A-9"EDF<'
+            0A-32"EDF<'
+            C
+            -1A-""E:S""UZJ''
+        >
+!       ZJ                        !+ but move to end just in case !
+        Z"N
+            Q1#32768#16384U1
+        '
+    '                             !+ endif (no filename and no -NOMEMORY) !
+
+    Q1&16384"N                          !+ if input filename in edit buffer !
+        Q1&2"E                          !+ if not -INSPECT !
+            Edi
+        |
+            Inspec
+        '
+        ting file "HT"1310
+    '
+
+    Z"E                                 !+ if there's no file name !
+        Q1&2"EOSCOPES'                 !+ if not -INSPECT, goto SCOPES !
+        ?How can I inspect nothing?1310
+        
+    '
+
+    Q1&2"E                               !+ if not -INSPECT !
+        J:S="S                          !+ if it's ofile=ifile !
+            0,.-1X00,.K                  !+ save ofile name in Q0 !
+            ZU0                          !+ save length of ifile name in Q0 !
+            HX2HK                        !+ save ifile name in Q2 !
+            :Q2"N                        !+ if there's an ifile name !
+                :ER^EQ2"U               !+ try to open the ifile !
+                    G2HX0HKONOTFND      !+ and goto NOTFND if it fails !
+                '
+            '
+            :Q0"N                        !+ if there's an ofile name !
+                EW^EQ0                  !+ open the ofile !
+            '
+            Q0"N                         !+ if the ifile name length not = 0 !
+                Q1#2048U1                !+ remember: input file is open !
+            '
+            OREMEM
+        '
+    '
+
+    HX0HK
+    Q1&2"E                               !+ if not -INSPECT !
+        :EB^EQ0"S                       !+ open it for reading-writing !
+            Q1#2048U1                    !+ remember: input file is open !
+            OREMEM
+        '
+        :ERQ0"S                      !+ TAA Added -- try to open for read !
+            Q1#2048U1
+            %Can't write to file -- opening for input only1310
+            OREMEM
+        '
+        Q1&256"N                         !+ EB failed, so if -NOCREATE !
+            Q1&32768"E
+                ONOTFND
+            '
+        '
+        %Can't find file ":G0"1310
+        Q1&32768"E
+            %Creating new file1310
+            OCREATE
+        |
+            %Ignoring TECO's memory1310
+            Q1#8192U1
+            0,0X0
+            OREMEM
+        '
+    '
+
+    :ER^EQ0"S                     !+ it's -INSPECT,  open input file !
+        Q1#2048U1                  !+ remember: input file is open !
+        OSCOPES
+    '
+
+    !NOTFND!
+    ?Can't find file ":G0"?1310
+    
+'
+
+
+!+***************************************************************************
+  If it's a MAKE command...
+****************************************************************************!
+
+J::SMA"S-2D
+    <0A"AD|1;'>                        !+ delete letters following MA !
+    ::S^ES"S^SD'                     !+ delete trailing whitespace !
+    J
+    <
+        .-Z;
+        0A-9"EDF<'
+        0A-32"EDF<'
+        C
+        -1A-""E:S""S
+        (-1EJ-25857)*(-1EJ-25858)"E             !+ If OS/2 or Linux then delete quotes !
+           0J2<@FS/"//>ZJ'|
+           ZJ''                  !+ if no second quote, go to end !
+    >
+
+    Z"E?How can I MAKE nothing?1310'
+
+    Z-4"EJ::SLOVE"SNot war?1310''
+
+    HX0HK                              !+ save the filespec in Q0 for REMEM !
+    !CREATE!
+    EW^EQ0                           !+ Open file for writing !
+    OREMEM                           !+ and go remember !
+'
+%Unrecognized command "HTHK"1310
+OSCOPES
+!+***************************************************************************
+  Remember the filename in filespec memory.  The filespec is in Q0.
+****************************************************************************!
+
+!REMEM!
+Q1&8192"E                              !+ if 8192 bit is off in Q1 !
+    Q1&(32768#4)"NOSCOPES'           !+ if ??? or -NOMEMORY, goto SCOPES !
+    :Q0"EOSCOPES'                    !+ if Q0 is empty, goto SCOPES !
+'
+
+!+ The file specification is now in Q0.  If :EGMEM is unsupported,  a file
+   is used to implement filespec memory.
+!
+
+:EGMEM"S                             !+ if :EGMEM is supported !
+    ZJG*C                            !+ append remembered spec to buffer !
+    ::S$"U                           !+ no leading $ !
+      ZK:EGMEM ^EQ0                  !+ set remembered filespec to Q0 !
+      OSCOPES                        !+ Goto SCOPES !
+    |
+      -1D                              !+ delete dollar !
+      ZXFZK                            !+ Save in q reg F !
+    '
+|
+    M.T                            !+ Generate file name !
+'
+EA                                 !+ switch to secondary output stream !
+:EW^EQF"S                        !+ open the file !
+    G0 HPW HK EF                   !+ and write the filespec into it !
+    '
+    EW                           !+ switch to primary output stream !
+
+
+!+***************************************************************************
+****************************************************************************!
+
+!SCOPES!
+!+ -VTEDIT is not supported
+Q1&1"N                                 ~* if /VTEDIT ~
+    ET&512"E
+        %Your terminal is not an interactive scope1310
+        Q1#1-1U1
+    |
+        0,3:W                         ~* clear SEEALL mode ~
+        Q1&16"N-1,3:W'                ~* if /SEEALL, set SEEALL mode ~
+        0,5:W                         ~* clear hold mode ~
+        Q1&32"N/1,5:W'                ~* if /HOLD, set hold mode ~
+    '
+'
+
+Q1&1"E
+    OYANK
+'
+
+~* load the VTEDIT macro file name into q-register 9 ~
+
+:EGVTE"S                              ~* if :EGVTE is supported ~
+    1G*X9K
+|
+    :@9%DIT%
+    :Q1"E
+        (-1EJ-5)*(-1EJ-1024)"E
+            EN[]*.*:EN"S
+                ZJ
+                .U0
+                G*
+                Q0J
+                S[                R
+                Q0,.K
+                FS.]                Q0J
+                S]                Q0,.X1
+                Q0,ZK
+            '
+        '
+    '
+'
+
+:Q9"N                                  ~* if Q9 isn't empty ~
+    :EI^EQ1^EQ9"S
+        Q1#2048-2048U1
+        OYANK
+    '
+'
+
+~****************************************************************************
+  Get the library directory specification into q-register 1.
+  If there's no defined library directory,  define the default one.
+****************************************************************************~
+
+:EGLIB"S                                  ~* if there's a defined lib dir  ~
+    G*X1K                              ~* use it                        ~
+|                                          ~* else                          ~
+    -1EJ-0"E        @1%LB:[1,2]%       | ~* if RSX-11D: LB:[1,2]      else~
+    -1EJ-1"E        @1%LB:[1,2]%       | ~* if RSX-11M: LB:[1,2]      else~
+    -1EJ-2"E        @1%LB:[1,2]%       | ~* if RSX-11S: LB:[1,2]      else~
+    -1EJ-3"E        @1%LB:[1,2]%       | ~* if IAS:     LB:[1,2]      else~
+    (-1EJ-5)*(-1EJ-1024)"E                 ~* if VAX/VMS                    ~
+                    @1%SYS$LIBRARY:%   | ~*             SYS$LIBRARY:  else~
+    -1EJ-6"E        @1%LB:[1,2]%       | ~* if RSX-11S: LB:[1,2]      else~
+    -1EJ-7"E        @1%SY:%            | ~* if RT-11:   SY:           else~
+                    @1%%                 ~* default:    nothing           ~
+    '''''''
+'
+
+:Q1"N                                      ~* if there's a library directory ~
+    :EI^EQ1VTEDIT"S                       ~* execute the macro in there ~
+        Q1#2048-2048U1
+        OYANK
+    '
+'
+%The :G9 macro is not available1310
+!
+
+
+!+**************************************************************************!
+
+!YANK!
+Q1&2048"N                                  !+ if input file is open !
+    Y                                      !+ read in the first page !
+'
+
+J
+!+
+Q1&8"N                                     ~* if /FIND ~
+    Finding position marker...1310
+    EW    G*
+    X0
+    K
+    -1
+    :Q0"N
+        :N~~/\~~
+"S^SD'
+        U0
+    |
+        :_~~/\~~
+"S^SD'
+        U0
+    '
+    0
+    Q0"U
+        ?Position marker not found?1310
+        
+    '
+'
+!
+
+
+!+***************************************************************************
+  On entry,  Q2 contains the numeric argument given in the -SCROLL:n
+  switch,  or 0 if no -SCROLL switch was specified.
+****************************************************************************!
+
+Q1&128"N                                   !+ if -SCROLL !
+    ET&512"E
+        %Your terminal is not an interactive scope1310
+    |
+        Q2"E
+            2:W-4U2
+        '
+        0,3:W        Q1&16"N                              !+ if -SEEALL !
+            1,3:W        '
+        0,5:W        Q1&32"N                              !+ if -HOLD!
+            1,5:W        '
+        Q2,7:W-Q2"N
+            %Your terminal doesn't support scrolling1310
+        '
+    '
+'
+
+!+***************************************************************************
+****************************************************************************!
+
+!DONE!
+q4-1"G                  !+ if q4 greater than 1 !
+    q4-1:s^J"U0J'      !+ search for q4th line feed !
+'
+q1&64"N                 !+ NOPAGE switch? !
+    0,128EZ
+'
+q1&512"N                !+ NORENAME switch? !
+    0,2EZ
+'
+]1
+]0Q0ET
+]0Q0ES
+]0Q0EU
+]0Q0ED
+]0Q0
+]0Q0
+]2
+]0
+]9
+]F
+0U.10U.L0U40UY0,0X.T    !+ reset q registers !
+

@@ -1,0 +1,856 @@
+
+
+
+                                     TECO-C
+
+                               Programmer's Guide
+         (last updated February 18, 1991 to reflect TECO-C version 140)
+
+
+
+1  INTRODUCTION
+
+     These notes apply to TECOC version  135,  which  runs  under  VAX/VMS,
+MS-DOS,  and  Unix  (SunOS,  which  is BSD).  See file AAREADME.TXT for the
+specifics of operating system and compilers which have been used.
+
+     TECO-C is meant to be a complete implementation of TECO as defined  by
+the  Standard  TECO  User's  Guide  and Language Reference Manual, (in file
+TECO.DOC).  It was written so that the author could move to  many  machines
+without knowing many editors.
+
+
+
+2  COMPILING AND LINKING
+
+     Conditional compilation directives are used to build TECO-C  correctly
+for   different   environments.    Identifiers   automatically  defined  by
+the different compilers are used.  Some identifiers defined in file ZPORT.H
+control  whether  video  support  or extra debugging code is included.  See
+"VIDEO" and "DEBUGGING". Files are provided which "build" TECO-C in various
+environments.  See file AAREADME.TXT for details.
+
+
+
+3  RUNNING TECO-C
+
+     When you run TECO, the command line used to invoke TECO is parsed  for
+an input/output file name and several optional switches. TECO-11 parses the
+command line using a TECO macro imbedded in the program.  TECO-C  does  the
+same  thing.   Actually,  the imbedded macro used to parse the command line
+was stolen from TECO-11.  I commented it and then  modified  it  to  repair
+minor  inconsistencies.   Use  of  TECO-11's  macro makes TECO-C invocation
+identical to TECO-11's, even responding to "make love" with "Not war?".
+
+     The macro is in file CLPARS.TES.  The compressed version (no  comments
+or  whitespace)  is  in  file  CLPARS.TEC.   The  GENCLP  program  converts
+CLPARS.TEC into CLPARS.H, an  include  file  suitable  for  compiling  into
+TECO-C.
+
+
+
+4  CODE CONVENTIONS
+
+     The code is not modular.  Communication between almost  all  functions
+is  through  global variables, not argument lists.  There is a reason:  the
+nature of the basic parsing algorithm is  to  use  the  characters  in  the
+command  string  as indices into a table of functions.  This makes for very
+fast command parsing, but it means that all the functions  have  to  modify
+
+                                                                Page 2
+
+
+global  values,  because no arguments are passed in.  In other words, there
+were going to be 130 or so un-modular functions anyway,  so  I gave  up  on
+modularity.  This explanation does not explain some of the complications in
+the search code, like the global variable SrcTyp.  Oh, well.
+
+     Here's a brief list of some of the conventions followed by the code:
+
+     1.  TECO-C is portable, so some  convention  was  needed  to  separate
+         portable  code  from  system-dependent  code.   There  is one file
+         containing the system-dependent  code  for  each  platform  TECO-C
+         supports.   These files have names that start with a "Z":  ZVMS.C,
+         ZMSDOS.C and ZUNIX.C.
+
+         All the system-dependent functions in those  files  start  with  a
+         "Z".   For  example,  the function that allocates memory is called
+         ZAlloc.  A VMS version of ZAlloc can be found in  ZVMS.C,  and  an
+         MS-DOS version can be found in ZMSDOS.C.
+
+         An extra file called ZUNKN.C exists to help efforts to port TECO-C
+         to  a  new  environment.   This  file  contains  stubs for all the
+         system-dependent functions.
+
+     2.  All   system-independent    global    variables    are    declared
+         alphabetically  in  file  TECOC.C.   They are defined in DEFEXT.H,
+         which is included by all modules.
+
+     3.  File TECOC.H contains the "global"  definitions,  including  those
+         for most structures.
+
+     4.  Variables  and  functions  are  defined  using   the   portability
+         identifiers  defined  in the ZPORT.H file.  Functions which do not
+         return a value are defined as VOID.   TECO-C  should  compile  and
+         link  on  different  machines  by  changing  only  the environment
+         definitions in the ZPORT.H file.
+
+     5.  At one time, every function was in a file with the same  name
+         as  the  function.   This  made  it  easy  to  find the code for a
+         function.  The problem was that some groups of functions use  data
+         not  needed  by  the other functions.  This was especially true of
+         the system-dependent functions.  Also, some functions were  called
+         only by one other function, so it made sense for them to be in the
+         same module as the caller and be  made  "static".   So  now,  most
+         functions  are  in a file named the same as the function, with the
+         following exceptions:
+
+         1.  All the "Z" functions are in are in the "Z" file for the given
+             system.
+
+         2.  The conditionally-compiled functions (ZCpyBl in  ZINIT.C,  the
+             "Dbg" functions at the bottom of TECOC.C, the "v" functions in
+             EXEW.C) aren't in their own files.  If  they  were,  then  the
+             command procedures/makefiles that compile the files would need
+             to contain logic to conditionally compile the files.
+
+                                                                Page 3
+
+
+         3.  The functions for the "E" and "F" commands are in  EXEE.C  and
+             EXEF.C,  respectively.  So if you want to find function ExeEX,
+             don't look for a file named EXEEX.C.
+
+
+     6.  Symbols are 6 characters long or less.  The  way  I  remember  it,
+         this  was caused by the first system I wrote TECOC for:  CP/M-68k,
+         which had a limit of 8 characters for file names.   The  last  two
+         characters  had to be ".C", so 6 characters were left for the file
+         name.  Since the file  name  was  the  same  as  the  function  it
+         contained, functions were limited to 6 characters in length.  When
+         I saw how nicely the function declarations looked (they fit in one
+         tab slot), I used 6 characters for other symbols too.
+
+         I've since been told that  CP/M-68k  has  8-character  file  names
+         followed  by  3-character file types, so CP/M-68k can't be blamed.
+         So shoot me.
+
+         This standard has prevented problems from occurring with compilers
+         that don't support very many characters of uniqueness.
+
+         In order to make up for the resultant  cryptic  names,  upper  and
+         lower  case  are mixed.  An uppercase letter indicates a new word.
+         For example, "EBfEnd" stands for "Edit Buffer End".  If  you  need
+         to  know what a variable name means, look at the definition of the
+         variable in DEFEXT.H.  The expanded  version  of  the  abbreviated
+         name  appears  in  the  comment  on  the same line as the variable
+         definition.   A  detailed  description  can  be  found  with   the
+         declaration of the variable in TECOC.C.
+
+         The  limit  of  6  letters  in  variable  names  is   relaxed   in
+         system-dependent code.
+
+     7.  Variable and function names follow patterns where  possible.   For
+         instance,  "EBfBeg"  and "EBfEnd" are the beginning and end of the
+         edit buffer.  If you see a variable named "BBfBeg", you can assume
+         that it is the beginning of some other buffer, and that a "BBfEnd"
+         exists which is the end of that buffer.
+
+     8.  Character strings are usually represented in C by a pointer  to  a
+         sequences  of bytes terminated with a null character.  I didn't do
+         that in TECO-C because I thought it was too inefficient.   To  get
+         the  length  of  a  string,  you  have  to count characters.  Most
+         strings in TECO-C are therefore represented by two pointers, on to
+         the  first  character  and one to the character following the last
+         character.  With this representation, it's easy to add  characters
+         to a string and trivial to get the length.
+
+     9.  Each file has a consistent format, which is:
+
+         1.  a comment describing the function
+         2.  include directives
+         3.  the function declaration
+
+                                                                Page 4
+
+
+         4.  local variable definitions, in alphabetical order
+         5.  code
+
+
+
+
+5  TOP LEVEL EXECUTION AND COMMAND PARSING
+
+     The top level code for TECO-C is contained in  file  TECOC.C.   It  is
+very  simple:   after initializing, a loop is entered which reads a command
+string from the user, executes it, and loops back to read  another  command
+string.   If  the  user executes a command which causes TECO-C to exit, the
+program is exited directly via a call to the TAbort function.  TECO-C never
+exits by "falling out the bottom" of the main function.
+
+     After a command string is read,  the  ExeCSt  function  is  called  to
+execute  the  command  string.  ExeCSt contains the top-level parsing code.
+The parse is trivial:  each command character is used as an  index  into  a
+table  of  functions.   The  table  contains  one entry for each of the 128
+possible characters.  Each function  is  responsible  for  "consuming"  its
+command  so  that when it returns, the command string pointer points to the
+next command.
+
+
+
+5.1  Error Handling
+
+     When an error is detected, an error message is displayed at the  point
+that  the  error  is  detected,  and  the  function  in which the error was
+detected returns a FAILURE status to its caller.  Almost always, the caller
+returns  a FAILURE status to it's caller, which returns a FAILURE status to
+it's caller, etc.  When a FAILURE status is returned to  the  main  command
+string parser, parsing of the command string stops and the user is prompted
+for a new command string.
+
+     This style tends to cause all function calls to follow the same  form,
+which is
+
+                    if (function() == FAILURE)
+                            return(FAILURE);
+
+     Things get more complicated in the system-dependent code (in the files
+with  names  that  start  with  a  "Z").  I extended TECO's error reporting
+slightly to allow the user to see the  operating  system's  reason  for  an
+error,  as this is often useful.  For example, under VAX/VMS there are many
+reasons why an attempt to create an output file might fail.  They  include:
+errors  in  file  name  syntax,  destination  directory non-existence, file
+protection violations or disk quota violation.  In order to  supply  enough
+information to the user, TECO-C outputs multiple-line error messages when a
+system error occurs.
+
+     Multiple-line error messages  contain  one  line  that  describes  the
+operating  system's  perception  of  the error and one line that describe's
+TECO's perception of the error.  For instance, if a user of VAX/VMS does  a
+"EW[abc]test.txt$$"  command  when  the directory [abc] does not exist, the
+
+                                                                Page 5
+
+
+error message generated by TECO-C is:
+
+            ?SYS   %RMS-F-DNF, directory not found
+            ?UFO   unable to open file "[abc]test.txt" for output
+
+     System errors are therefore reported in  a  system-dependent  fashion,
+using  whatever  messages  the operating system can supply.  Under VAX/VMS,
+the system service $GETMSG provides human-readable messages that TECO-C can
+use  in the "SYS" part of the error message.  Under UNIX, syserrlist[error]
+is a pointer to these messages.
+
+     There is another way in which error reporting in the  system-dependent
+code is tricky.  Under VAX/VMS, some system calls may return a code that is
+"successful" but contains extra information.  For instance, when a user has
+set his directories so that only a limited number of versions of a file can
+exist, RMS will automatically purge the oldest version of the file when the
+user  creates  a  file.   This only happens if the newly created file would
+cause too many versions of the file to exist.  When this happens,  the  VMS
+service  returns  a FILEPURGED status, which is successful.  TECO-C informs
+the user about these things by displaying the message in brackets.
+
+
+
+5.2  Command Modifiers (CmdMod)
+
+     Command parsing  is  complicated  by  command  modifiers  and  numeric
+arguments, which may precede some commands.  These are implemented in a way
+that maintains the basic "jump table" idea.  For instance, when an  at-sign
+(@)  modifier  is  encountered  in  a  command  string, the at-sign command
+function (ExeAtS) is called.  The only thing ExeAtS  does  is  set  a  flag
+indicating  that  an  at-sign  has  been  encountered.   Commands which are
+affected by an at-sign modifier check this flag and behave accordingly.
+
+     The flags which indicate command modifiers  are  contained  in  global
+variable  CmdMod.   A  bit in CmdMod is reserved for each command modifier.
+The modifiers are "@", ":" and "::".  Of course, once  the  flag  has  been
+set,  it  must be cleared.  With this parsing algorithm, the only way to do
+that is to make every command function explicitly  reset  CmdMod  before  a
+successful  return.  This is not too bad:  clearing all the flags in CmdMod
+is done with one statement:  "CmdMod = '\0';".
+
+     For numeric arguments to commands, an expression stack  is  used  (see
+Stacks).   The  EstTop variable is the pointer to the top of the expression
+stack.  Commands which handle numeric arguments check EStTop to see if  the
+expression stack contains a value.
+
+     A special case of  numeric  arguments  is  "m,n".   The  "m"  part  is
+encountered  and  causes  the value to be pushed onto the expression stack.
+The comma causes the ExeCom function to  move  the  value  into  a  special
+"m-argument"  global  variable (MArgmt), clear the expression stack and set
+another flag in CmdMod indicating that the "m" part of  an  "m,n"  pair  is
+defined.   Then the "n" is encountered and pushed onto the stack.  Commands
+which can take "m,n" pairs check the flag in CmdMod.
+
+                                                                Page 6
+
+
+     To summarize, CmdMod and  EStTop  are  variables  which  describe  the
+context  of  a command.  Each command function tests these variables to see
+if it was preceded by modifiers or  numbers.   For  this  to  work,  it  is
+important  that the expression stack and the flags in CmdMod are cleared at
+the right times.  It is the responsibility  of  each  command  function  to
+leave  CmdMod  and  EStTop  with  the  proper  values  before  successfully
+returning.  The rules are:
+
+     1.  If the command function is returning FAILURE,  don't  worry  about
+         clearing  CmdMod  or EStTop.  They will be cleared before the next
+         command string is executed.
+
+     2.  If the command function leaves a value on the expression stack, do
+         not  clear  EStTop before returning SUCCESS.  If the command calls
+         GetNmA,  do  not  clear  EStTop,  as  GetNmA  does  it  for   you.
+         Otherwise, clear EStTop before returning SUCCESS.
+
+     3.  Clear CmdMod unless the command function sets flags  or  needs  to
+         leave  them alone.  ExeDgt, for example, handles digit strings and
+         doesn't clear CmdMod because the MARGIS bit may be set.
+
+
+
+
+6  SEARCHING
+
+     The search algorithm in TECO-C is complex.  The war between the desire
+for  a  fast search and the need to handle all the features of TECO'ssearch
+commands has produced code which can  be  a  real  pain  to  follow.   This
+section  attempts  to explain how things got the way they are.  The code is
+explained in a bottom-up fashion, to follow  the  way  it  evolved  in  the
+author's twisted mind.
+
+     The basic search idea is to scan a contiguous edit buffer for a search
+string.  The steps are:
+
+     1.  Search the edit buffer for  the  first  character  in  the  search
+         string.  If you reach the end of the edit buffer without matching,
+         the search fails.
+
+     2.  When the first character of the search string matches a  character
+         in  the  edit  buffer,  try  to match successive characters in the
+         search string with the characters which follow the found character
+         in  the  edit buffer.  If they all match, the search succeeds.  If
+         one doesn't, go back to step 1.
+
+
+     This is basically what TECO-C does.  The  features  of  TECO's  search
+commands has buried these steps deep within some confusing code.
+
+     The first complication is introduced by pattern  matching  characters.
+TECO  has  17 "match constructs", whiceh are indicated in the search string
+by the special characters ^X, ^S, ^N and ^Ex where "x" can be several other
+characters.   For  instance,  a  ^X  in  the  search  string means that any
+character is to be accepted as a match in  place  of  the  ^X.   Characters
+
+                                                                Page 7
+
+
+other  than  the  match  constructs represent themselves.  An example:  the
+search string "a^Xb" contains 3 match constructs:  a, ^X and b.
+
+     TECO also supports forward  or  backward  searching.   When  searching
+backwards,  only  the  search  for  the first match construct in the search
+string is done in a backwards direction.  When the character is found,  the
+characters  following  it  are  compared in a forward direction to the edit
+buffer characters.  This means that once the first match construct has been
+found,  a single piece of code can be used to compare successive characters
+in the search  string  with  successive  characters  in  the  edit  buffer,
+regardless of whether the search is forwards or backwards.
+
+     Adding these new features, the new description of searching is:
+
+     1.  Search the edit buffer forwards or backwards for a character which
+         matches  the  first  match construct in the search string.  If you
+         reach the end of the edit  buffer  without  matching,  the  search
+         fails.
+
+     2.  When the first match construct of  the  search  string  matches  a
+         character  in  the  edit  buffer,  try  to  match successive match
+         constructs in the search string with the characters  which  follow
+         the  found  character  in the edit buffer.  If they all match, the
+         search succeeds.  If one doesn't, go back to step 1.
+
+
+     To begin a description of which routines implement  the  above  steps,
+and  in  order  to  have  a  reference  for later discussion, the following
+hierarchy chart of "who calls who" is presented.
+
+
+
+                                                                Page 8
+
+
+ ExeEUn ExeFB ExeFC ExeFD ExeFK ExeFN ExeFS ExeFUn ExeN ExeS ExeUnd
+    |     |     |     |     |     |     |     |      |    |    |
+    |     |     |     |     |     |     |     |      |    |    |
+    ------------------------------------------------------------
+                                  |
+                                  V
+                                Search
+                                  |
+                                  V
+                                SrcLop
+                                  |
+                                  V
+                                SSerch
+                               |  |  |
+                        +------+  |  +------+
+                 +---+  |         |         |  +---+
+                 |   V  V         |         V  V   |
+                 |  ZFrSrc        |        BakSrc  |
+                 |   |  |         |         |  |   |
+                 +---+  |         |         |  +---+
+                        +------+  |  +------+
+                               V  V  V
+                                CMatch  <--+
+                                  |        |
+                                  +--------+
+
+
+     At the top are the functions that implement search commands  (E_,  FB,
+FC,  FD, FK, FN, FS, F_, N, S and _).  All of these functions call the main
+search function:  Search.
+
+     At the lower level are the functions which implement  steps  1  and  2
+described   above.   ZFrSrc  searches  forwards  in  the  edit  buffer  for
+characters which match the first character in the  search  string.   BakSrc
+does the same thing, but searches backwards.  SSerch calls one of these two
+functions and then executes a loop which calls CMatch to compare successive
+match  constructs  in  the  search string to characters following the found
+character in the edit buffer.  The reason that ZFrSrc,  BakSrc  and  CMatch
+call themselves is to handle some of the more esoteric match constructs.
+
+     Case dependence in TECO is controlled by the search mode flag (see the
+^X  command).  The variable SMFlag holds the value of the search mode flag,
+and is used by ZFrSrc, BakSrc and CMatch.
+
+     One final point to help confuse things:  ZFrSrc  is  system-dependent.
+It  contains  a  VAX/VMS-specific version which uses the LIB$SCANC run-time
+library routine to access the SCANC  instruction.   The  SCANC  instruction
+looks  like  it was designed to handle TECO's match constructs.  I couldn't
+resist using it, but it was a mistake,  as  it  needlessly  complicates  an
+already  messy  algorithm.   I have decided to remove the VMS-specific code
+some time in the future.
+
+     Further complications of the search algorithm  arise  because  of  the
+following capabilities of TECO searches:
+
+                                                                Page 9
+
+
+     1.  If there is no text argument, use the previous search argument.
+
+     2.  If colon modified, return success/failure and no error message
+
+     3.  If the search fails and we're in a loop and  a  semicolon  follows
+         the  search  command,  exit  the  loop without displaying an error
+         message.
+
+     4.  Handle optional repeat counts
+
+     5.  If the ES flag is non-zero, verify the search based on  the  value
+         of the flag.
+
+     6.  If bit 64 of the ED flag is set,  move  dot  by  one  on  multiple
+         searches.
+
+     7.  If bit 16 of the ED flag  is  set,  don't  move  after  a  failing
+         search.
+
+     8.  Be fast.
+
+
+
+
+7  MEMORY MANAGEMENT
+
+     7.1  The Edit Buffer And Input Buffer
+
+     TECO-C is based on TECO-11, but it  uses  a  different  form  of  edit
+buffer memory management.  Here's why.
+
+     The edit buffer in TECO-11 is implemented as  a  continuous  block  of
+memory.   This  allows  rapid  movement  through  the  edit buffer (by just
+maintaining a  pointer  to  the  current  spot)  and  makes  searches  very
+straightforward.  Insertion and deletion of text is expensive, because each
+insertion or deletion requires moving the text following the spot where the
+insertion  or  deletion  occurs  in order to maintain a continuous block of
+memory.  This gets to be a real pain when a  video  editing  capability  is
+added to TECO, because in video mode text is added/deleted one character at
+a time very rapidly.
+
+     TECO-C uses a edit buffer gap scheme.   The  edit  buffer  occupies  a
+continuous piece of memory, but there is a gap at the "current spot" in the
+edit buffer.  When the user moves around the edit buffer, the gap is  moved
+by  shuffling  text from one side of the gap to the other.  This means that
+moving around the text buffer is slower than for TECO-11's scheme, but text
+insertion  and deletion is very fast.  Searches are still fast because most
+searches start at the current spot and  go  forwards  or  backwards,  so  a
+continuous  piece  of memory is searched.  In the future, when some kind of
+video mode is added, insertion and deletion one-character-at-a-time will be
+fast using the gap scheme.
+
+     The variables that maintain pointers to the edit buffer  and  the  gap
+within  the buffer can be confusing, so here's some examples.  Suppose that
+10000 bytes are allocated for the edit buffer when TECO-C  is  initialized.
+
+                                                               Page 10
+
+
+Suppose the allocated memory starts at address 3000.
+
+        Empty edit buffer (the gap spans the whole edit buffer):
+
+                EBfBeg = 3000           (edit buffer beginning)
+                GapBeg = 3000           (gap beginning)
+                GapEnd = 13000          (gap end)
+                EBfEnd = 13000          (edit buffer end)
+
+        Buffer contains "test",  character pointer is before the first 't':
+
+                EBfBeg = 3000           (edit buffer beginning)
+                GapBeg = 3000           (gap beginning)
+                GapEnd = 12996          (gap end)
+                         12997  't'
+                         12998  'e'
+                         12999  's'
+                EBfEnd = 13000  't'     (edit buffer end)
+
+
+        Buffer contains "test",  character pointer is after the last 't':
+
+                EBfBeg = 3000   't'     (edit buffer beginning)
+                         3001   'e'
+                         3002   's'
+                         3003   't'
+                GapBeg = 3004           (gap beginning)
+                GapEnd = 13000          (gap end)
+                EBfEnd = 13000          (edit buffer end)
+
+
+        Buffer contains "test",  character pointer is after the 'e':
+
+                EBfBeg = 3000   't'     (edit buffer beginning)
+                         3001   'e'
+                GapBeg = 3002           (gap beginning)
+                GapEnd = 12998          (gap end)
+                         12999  's'
+                EBfEnd = 13000  't'     (edit buffer end)
+
+     When an insertion command is executed, the text is  inserted  starting
+at  GapBeg.  When a deletion command is executed, GapEnd is incremented for
+a forward delete or GapBeg is decremented for a backwards delete.  When the
+character  pointer  is moved forwards, the gap is moved forwards by copying
+text from the end of the gap to the beginning.  When the character  pointer
+is moved backwards, the gap is moved backwards by copying text from the the
+area just before the gap to the area at the end of the gap.
+
+     There are a few messy cases, such as when a bounded search is executed
+and  the bounded text area includes the edit buffer gap.  In this case, the
+gap is temporarily moved so that the search can proceed over  a  continuous
+memory area.
+
+                                                               Page 11
+
+
+     In order to confuse things a little, TECO-C has one  addition  to  the
+basic  edit  buffer  gap  management.  Following the end of the edit buffer
+(EBfEnd) is the current input stream buffer.   Since  file  input  commands
+always  cause  text  to  be appended to the end of the edit buffer, this is
+natural.  Thus, no input buffer is needed:  text is input directly into the
+edit  buffer.   This  makes  the code a little confusing, but it avoids the
+problem of having an input buffer.  When you have an input buffer, you have
+to  deal with the question of how large the buffer should be and what to do
+with it when it's too small.  this  scheme  is  fast  and  and  saves  some
+memory.  (see File Input)
+
+
+
+7.2  Q-registers
+
+     Q-registers have two parts:  a numeric part and  a  text  part.   Each
+q-register  is  represented by a structure containing three fields:  one to
+hold the numeric part and two to point to the  beginning  and  end  of  the
+memory holding the text part.  If the text part of the q-register is empty,
+then the pointer to the beginning of the text is NULL.
+
+     There are 36 global q-registers, one for each letter of  the  alphabet
+and  1  for  each digit from 0 to 9.  These q-registers are accessible from
+any macro level.  There are 36 local q-registers for each macro level.  The
+names  for  local  q-registers  are preceded by a period.  Thus the command
+"1xa" inserts a line into global q-register "a", while the  command  "1x.a"
+inserts  a line into local q-register ".a".  Storage for the data structure
+defining local q-registers is not allocated until  a  local  q-register  is
+first  used.   This  saves  space  and  time, because local q-registers are
+rarely used, and doing things this way avoids allocating and freeing memory
+every time a macro is executed.
+
+
+
+8  STACKS
+
+     8.1  Expression Stack
+
+     An expression stack is used to parse TECO's expressions.  Consider the
+command string QA+50=$$.  When the command string is executed, the value of
+QA is pushed on the expression stack, then the operator "+"  is  pushed  on
+the  expression  stack, and then the value "50" is pushed on the expression
+stack.  Whenever a full expression that can be reduced is on the expression
+stack, it is reduced.  For the above example, the stack is reduced when the
+value "50" is pushed.
+
+     The expression stack is implemented in the following variables:
+
+        EStack  the stack itself,  containing saved operators and operands
+        EStTop  index of the top element in EStack
+        EStBot  index of the current "bottom" of the stack in EStack
+
+     The "bottom" of the expression stack can change because an  expression
+can  include  a macro invocation.  For example, the command QA+M3=$$ causes
+the value of "QA" to be pushed on the expression stack,  then  the  "+"  is
+
+                                                               Page 12
+
+
+pushed,  and  then  the  macro  contained in q-register 3 is executed.  The
+macro in q-register 3 returns a value to be used in the  expression.   When
+the macro is entered, a new expression stack "bottom" is established.  This
+allows  the  macro  to  have  a  "local"  expression  stack  bottom   while
+maintaining the stack outside the macro.
+
+
+
+8.2  Loop Stack
+
+     The loop stack contains the loop count and the address  of  the  first
+command  in  the loop.  For example, in the command 5<FSMP$mt$>$$, the loop
+stack contains the loop count (5) and the address of the first  command  in
+the  loop  (F).  Whenever the end-of-loop character (>) is encountered, the
+loop count is decremented.  If the loop count is still  greater  than  zero
+after  it has been decremented, then the command string pointer is reset to
+point to the first character in the loop (F).
+
+     The loop stack is implemented in the following variables:
+
+        LStack  the stack itself,  containing saved counts and addresses
+        LStTop  index of the top element in LStack
+        LStBot  index of the current "bottom" of the stack in LStack
+
+     The loop stack needs a "floating" bottom for the same reason that  the
+expression   stack   needs  one:   macros.   Consider  the  command  string
+4<Smp$M7$>$$.  When the "<" in is encountered, the loop count (4)  and  the
+address  of  the  first  character  in  the loop (S) are placed on the loop
+stack.  Command execution continues, and the "M7" command  is  encountered.
+Suppose  that  q-register 7 contains the erroneous command string 10>DL>$$.
+When the ">" command is encountered in the macro,  TECO  expects  the  loop
+stack to contain a loop count and an address for the first character in the
+loop.  In this example, there is no matching "<" command in the macro which
+would  have  set  up  the loop stack.  It would be very bad if TECO were to
+think that the loop count was 4 and the first command in the loop was  "S".
+In this situation, what TECO should do is generate the error message "BNI >
+not in iteration".  In order to implement  this,  the  variable  LStBot  is
+adjusted  each  time  a  macro is entered or exited.  LStBot represents the
+bottom of the loop stack for the current macro level.
+
+
+
+8.3  Macro Stack
+
+     The macro stack is used to preserve  context  each  time  a  macro  is
+entered.   All important values are pushed onto the stack before a macro is
+entered and popped off the stack when the macro is exited.  The macro stack
+is  also  used  by  the  EI  command,  which means it's used when executing
+initialization files and mung files.
+
+
+
+9  HELP
+
+     This section discusses on-line HELP, which  is  available  only  under
+
+                                                               Page 13
+
+
+VAX/VMS.
+
+     The HELP command is not documented in the TECO manual  distributed  by
+DEC.,  even  though  it  is supported in TECO-11 and TECO-32.  To get help,
+simply type "HELP" followed by a carriage return.  HELP is  the  only  TECO
+command that is not terminated by double escapes.
+
+     Help  in  TECOC  is  different  than  help  in  TECO-11.   In  TECO-C,
+interactive  help mode is entered, so that a user can browse through a help
+tree, as he can from DCL.  In  TECO-C,  access  is  provided  to  only  two
+libraries:   the  library  specific  to  TECO-C (pointed to by logical name
+TEC$INIT) and the system help library.  To get help  on  TECO-C,  just  say
+"HELP",  with  or  without arguments.  To get help from the system library,
+say "HELP/S".  I find this easier to use than TECO-11's syntax.
+
+     The help library for TECO-C is contained in file TECOC.HLB,  which  is
+generated  from  TECOC.HLP,  which  is  generated from TECOC.RNH.  See file
+TECOC.RNH for a description of how to do it.   This  help  library  is  far
+broader  than  the library for TECO-11, but much of it has yet to be filled
+in.
+
+     The help library is also the repository for  verbose  error  messages,
+which are displayed when the help flag (EH) is set to 3.  For systems other
+than VMS, the ZHelp function displays  verbose  text  contained  in  static
+memory (see file ZHELP.C).
+
+
+
+10  FILE INPUT
+
+     TECO has an elegant design that allows high speed input.  There are no
+linked  list  data  structures  to  keep track of, and most file input goes
+directly to the end of the edit buffer.
+
+     TECO-C takes advantage of this by reading normal file  input  directly
+to  the end of the edit buffer.  After each input call, nothing needs to be
+moved; the pointer to the end of the edit  buffer  is  simply  adjusted  to
+point  to  the  end  of the new record.  The pointer to the end of the edit
+buffer (EBfEnd) serves two purposes:  it points to  the  end  of  the  edit
+buffer and to the beginning of the input buffer.
+
+     A side effect of this scheme is the sharing of memory between the edit
+buffer and the input buffer.  When the edit buffer is empty, it can be made
+smaller by shrinking the edit buffer gap in order to make the input  buffer
+larger.   Obviously,  if  the  edit  buffer needs to be expanded, the input
+buffer can suffer  before  more  memory  is  actually  requested  from  the
+operating  system.   This  is  easily achieved by moving the pointer to the
+"end-of-the-edit-buffer"/ "beginning-of-the-input-buffer".
+
+     This scheme works, but provides no support for the other forms of file
+input.   The  EP and ER$ commands provide a complete secondary input stream
+which can be open at the same time as the primary stream (two  input  files
+at  once).   The  EI  command  reads  and  executes  files  containing TECO
+commands, and is used to execute the initialization file,  if  one  exists.
+The  EQq  command,  if  implemented,  reads  the  entire contents of a file
+
+                                                               Page 14
+
+
+directly into a Q-register.
+
+     A second problem arises:  on each of the open files, the quantum  unit
+of  input  is  not  standard.   For  A,  Y  and  P commands, a form feed or
+end-of-file "terminate" the read.  For n:A commands, form feed, end-of-line
+or  end-of-file  "terminate"  each  read.   For EI commands, two escapes or
+end-of-file "terminate" the read.  The input code must "save"  the  portion
+of  an  input record following a special character and yield the saved text
+when the next command for the file is executed.
+
+     The scheme used in TECO-C is to  read  text  from  the  current  input
+stream  directly  to  the end of the edit buffer.  When the input stream is
+switched via a EP or ER$ command, the obvious switching of file descriptors
+happens,  and  any  text that's "leftover" from the last read is explicitly
+saved elsewhere.  Note that this happens VERY rarely, so a  malloc/free  is
+acceptable.
+
+     For EI and EQq commands, the input memory following the edit buffer is
+used  as  a  temporary  input  buffer.  After the file is read, the text is
+copied to a Q-register in the case of EQq and to a separate buffer  in  the
+case of EI.
+
+
+
+11  VIDEO
+
+     As of 18-Feb-1991, TECO-C supports video only under  Unix.   The  code
+was  written  by  Mark  Henderson,  using  the  CURSES  package.   See file
+VIDEO.TXT for a discussion of how it works.
+
+
+
+12  PORTABILITY
+
+     TECO-C was written with portability in mind.   The  first  development
+machine  was  "minimal":   a  SAGE  IV  (68000)  running CP/M-68k.  In that
+environment, there was no "make" utility.
+
+     Initially, the system-independent code (files that don't start with  a
+"Z")  had  absolutely  no  calls to standard C runtime functions.  This was
+because I had several problems with  the  "standard"  functions  not  being
+"standard" on different machines.  With the onset of ANSI C I've grown less
+timid, but the main code still references  almost  no  standard  functions.
+This  is  less  of  a  limitation than you might think:  TECO-C doesn't use
+null-terminated strings.  It also doesn't use unions, floating point or bit
+fields.
+
+
+
+13  PORTING TO A NEW ENVIRONMENT
+
+
+     1.  Move the source code to the target machine.
+
+                                                               Page 15
+
+
+     2.  Inspect file ZPORT.H.  You need to select the  compiler  you  want
+         the code compiled for.  For instance, if you are porting to a Unix
+         system, then fix ZPORT.H so that the unix  identifier  is  defined
+         (it  is  usually  defined  by  default  by the compiler).  If your
+         compiler is nothing like anything supported by ZPORT.H,  then  set
+         the UNKNOWN identifier.
+
+     3.  Compile and link.  See file AAREADME.TXT for descriptions  of  how
+         TECO-C  is  built  in  supported environments, and steal like mad.
+         The problem here is that you need a "Z" file for your environment,
+         containing  all  the  "Z" functions needed by TECO-C.  The easiest
+         thing to do is copy ZUNKN.C to your own "Z" file and link  against
+         that.   For  instance,  if I ever port TECO-C to a Macintosh, I'll
+         copy ZUNKN.C to ZMAC.C.
+
+     4.  Fix things  so  the  compile/link  is  successful.   If  you  have
+         compiled  with UNKNOWN set, you should get an executable file that
+         displays a  message  and  dies  when  the  first  system-dependent
+         function  is  called.  The strategy is to fix that function (often
+         by stealing from the code for other operating systems), relink and
+         deal  with  the  next message until you have something that works.
+         Functions should be implemented in roughly  the  following  order:
+         ZInit,  ZTrmnl, ZExit, ZDspCh, ZAlloc, ZRaloc, ZFree, ZChin.  This
+         will give you a TECO with everything but file I/O.   You  can  run
+         it,  add  text  to  the  edit  buffer,  delete  text,  search, use
+         expressions and the = sign command (a calculator).  Then  do  file
+         input:   ZOpInp,  ZRdLin,  ZIClos.   Then do file output:  ZOpout,
+         ZWrBfr, ZOClos, ZOClDe.  Use the test macros (*tst*.tec)  to  test
+         how everything works (see Testing).
+
+
+
+
+14  TESTING
+
+     Testing of TECO-C is performed by executing macros.   The  macros  are
+contained  in  files named TSTxxx.TEC, where XXX is some kind of indication
+as to what is tested.  For instance, TSTQR.TEC tests q-registers.  The test
+macros  do  not  test  all  the  functions  provided  by  TECO.   They were
+originally used to verify that TECO-C performs exactly the same as  TECO-11
+under  the  VMS operating system.  When I needed to test a chunk of code, I
+sometimes did it the right way and wrote a macro.
+
+
+
+15  DEBUGGING
+
+     A debugging system (very ugly, very useful)  is  imbedded  within  the
+code.   It  is conditionally complied into the code by turning on or off an
+identifier (DEBUGGING) defined in the TECOC.H file.  When debugging code is
+compiled  in,  you can access it using the ^P command, which is not used by
+regular TECO.  The ^P command with no argument will display help about  how
+to use ^P.
+
+                                                               Page 16
+
+
+     If you are working under  VMS,  it  sometimes  helps  to  compare  the
+execution  of  TECO-C with TECO-11.  Put a test command string into a file.
+Use DEFINE/USER_MODE to redirect the output of TECO-C to a file and execute
+the  macro  with  TECO-C.   Then  do  the same thing with TECO-11.  Use the
+DIFFERENCES command to compare the two output files.  They  should  be  100
+percent identical.

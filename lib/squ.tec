@@ -1,0 +1,80 @@
+!SQU.TEC V40.00!@F0ED0ET&128"N0,0XP'0,128ETJ<@FS%^ES%%;>J:S/UB
+QB"TET&64"E
+''@R\[0[1[2[3+0U3X0K.U1ZJ.U2Q3&127"R|
+?Invalid Q-register in INPLIN
+OEXIT'IQ2,.XQ3&127IQ2,.X1Q2,.K!PROMPT!13ET&512"N0,1ET271,0ET
+0:W-4"E['J|10'.-Q2+(0)"G0T|:G0Q2,ZT'!GETCH!U0Q0-127"EZ-Q2"N-D'
+OPROMPT'Q0-21"EQ2,ZKOPROMPT'Q0-18"E1310:G0Q2,ZTOGETCH'Q0-26"E
+Q2,ZK%0'Q0-27"E1310ODONE'Q3&128"EQ0-10"E13ODONE'Q0-13"EODONE'
+'Q0IOGETCH!DONE!M1Q2,.K!EXIT!Q1J]3]2]1]0\0,0X9J:@FS%/D%%"S
+::@FS%:%%"S0AQD|QY'|QB"TQ|IDelete CR/LF (Y/N) <N>? QMR''0QQ"A
+0QQ&95-Y"E9DA.......TD..D.......U....Z...V.D''!BADNUM!0UO:Q9"NJ
+:@FS%/L%%"S%/L specified with /D, /L ignored
+::@FS%:%%"S0A"D<D.-Z;0A"D>'|D'''|J:@FS%/L%%"S::@FS%:%%"S0AQ0A"D<D
+.-Z;0A"D0A:Q>'|D'|QY'|QB"TQ|
+ISet line lengths (Y for 70, N, or length) <N>? QMR''0QQ"A
+0QQ&95-Y"E9DA.......TO..O.......U....Z...V.O70UO''0QQ"D.UQZJGQC\UO
+D.-Z"NZKQQJOBADNUM'QQJQO"EOBADNUM'
+9DA.......TO..O.......U....Z...V.O'':Q9"NJ:@FS%/B%%"S::@FS%:%%"S
+0A-N"E%/B:N specified with /D or /L, /B:N ignored
+'D''|J:@FS%/B%%"S::@FS%:%%"S0AQD|QY'|QB"TQ|
+IDelete blank lines (Y/N) <N>? QMR''0QQ"A0QQ&95-Y"E
+9DA.......TB..........U....Z...V.D''':Q9"E
+9DA.......T...........U....Z...V.D'J:@FS%/T%%"S::@FS%:%%"S0AQD|
+QY'|QB"TQ|IDelete lexical TABs and FORM FEEDs (Y/N) <N>? QMR''
+0QQ"A0QQ&95Q'0QQ-Y"EJG99JDIO12JDIOJ0,33X90,33K'CJ:@FS%/C%%"S
+::@FS%:%%"S0AQD|QY'|QB"TQ|
+IDelete comments (Y for SP/TAB, N, or set) <N>? QMR'':QQ"EQN'0QQUQ
+QQ"VQQ-32UQ'QQ-N"E:9A|:9CQQ-Y"E32C9:C|GQXCK''
+:91..1..........................:9@....EF1.$...1$$.1.$.1..1..1.1^$ 
+:9.LLLLLLLLLLLLLLLLLLLLLLLLLL....D8/#*&\?()$!@1U8126<Q8:8%8>W 
+ET&512"EJ:@FS%/W%%"S::@FS%:%%"SD''|J:@FS%/W%%"S::@FS%:%%"S0AQD|QY'
+|QB"TQ|IWatch progress (Y/N) <N>? QMR''0QQ"A0QQ&95-Y"E0:W-2"E
+4,0:W'W-1W'''KJ:@FS%/A%%"S::@FS%:%%"S0AQD|QY'|QB"TQY|
+IAutomatic mode (Y for %, N, or set) <N>? QMR'':QQ"N0QQUQQQ"VQQ-32UQ
+'QQ-N"NQQ-Y"E%K|GQXKK'''0UHJ:@FS%/E%%"S::@FS%:%%"S0AQD|QY'|
+QB"TQ|IAllow adjacent ESCapes (Y/N) <N>? QMR''0QQ"A0QQ&95-Y"E-1UH
+''@Z*[10U1:QW"N-1,3:W0,4:W0,5:W'<!..!MW!.!ME;0AU0Q0"LOOFFEND'C
+Q0&128"NQ0&127U0-DQ0I'!DISP!Q0Q90O^EQ0!L!Q0-32U0-DQ0IODISP!^!
+0A&31U0C-2DQH"FQ0-27"E0A-27"EI^[CO..'.US0UT<-.;R0AUTQT&128"EQT-10"N
+0;|-.;-1A-128-13"N0;'''>QSJQT-27"EI '''Q0IODISP!B!-1+2"E-2D'O.. 
+!O!-D."N-1A&128"N-D'.-1"G-1A-10"E-2A-128-13"EQ0-13"E-2D|O..''''
+Q0#128IQ0-13"E.-Z"E10IR'0A&127-10"ED'10I''O..!U!271.UC0AU0C
+Q0-."E0AU0C'Q0"VQ0-32U0-DQ0I'Q1"T0A-(1A)"EO$$'|0A-27"EO$$''.USQ1"T
+0A1D':QW"N:S^EQ1"UOSTRINGFAIL'.,4:WQSJMW':QK"E:QW"E0T10T'7ETUQ
+ET#8#4-4ETU0QQET|G1R::S^EGK"S-DNU0|DYU0'':QW"N0,4:W32768W'Q0-Y"E
+[E[C[SE-1UE0A-^^0Q1:E:E"E0UE'QEMZ]S]C]E"NOPRIORFAIL'CO$$$$'
+O$$$!T!0U1!$!271.UC!$$!.USQ1"T0A1D'!$$$!:S^EQ1"UOSTRINGFAIL'
+!$$$$!-D.UT27U0!AA!Q00QT-QS"GQSJ.,.+QT-QS:FB^EQ0"SG8:X1K0U0<
+Q0Q10QSJ.,.+QT-QSFB^EQ0;%0-:Q8"EONOQUOTE'>Q0Q1U0QSJQ0IQC-1JI@ 
+2%T''QTJQ0I0U1O..!1!0A-."EC'0A"V0A-32U0DQ0IO.'!V!CO.!@!-1U1!D!
+-DO.!F!271.UC0AU0CQ0"VQ0-32U0-DQ0I'Q0-B"EO$$'Q0-C"EOF$$'
+Q0-R"EO$$'Q0-S"EOF$$'Q0-N"EOF$$'Q0-_"EOF$$'O.!F$$!.US271 
+Q1"T0A1D':S^EQ1"UOSTRINGFAIL'-D.UT:S^EQ1"UOSTRINGFAIL'-D.UUQH"T
+27U0Q00QU-QS"GQSJ.,.+QU-QS:FB^EQ0"UOF0'|OF0'|QU-QT"G27U0Q00QSJ
+.,.+QU-QS:FB^EQ0"UOF0'''G8:X1K0U0<Q0Q10QSJ.,.+QU-QSFB^EQ0;
+%0-:Q8"EONOQUOTE'>Q0Q1U0QSJQ0IQC-1JI@2%T2%U!F0!QTJQ0IQU-QTCQ0I 
+0U1O..!A!Q01.UC.USQ1"T0A1D':S^EQ1"UOSTRINGFAIL'-D.UTOAA!C!
+::S^EGC"UOA'R.UCQ01Q1"T0A1D':S^EQ1"UOSTRINGFAIL'QC-1,.K0U1O.. 
+!E!271.UC0AU0CQ0"VQ0-32U0-DQ0I'Q0-B"EO$$'Q0-G"EO$$'Q0-I"EO$$'
+Q0-N"EO$$'Q0-R"EO$$'Q0-W"EO$$'Q0-_"EO$$'O.!Z!-DI^ZO..>Q1"T
+1Trailing, pending @OERROR'0U10"N!OFFEND!
+1End of buffer while sub-squishingOERROR!NOQUOTE!
+1Can't find a quote characterOSETPOS!PRIORFAIL!
+1Prior recursion level failedOSETPOS!STRINGFAIL!
+1Unterminated string!SETPOS!:1 from squished .=QC\:X1K13:1 
+10:1QCJ0+.,.:X1|:110:1|:1.,+.:X1!ERROR!ZJMW0,0XW7?:G17
+1310-1U1'Q1]1*@A*-1E.-ZQO"NZJI 'JMZ"EQO"N:QW"N-1,3:W0,4:W 
+0,5:W'J<MW<0A&128"N0;'C>0A&127-13"ED'D.-Z;.U0<0A&128"N0;'C><.U10L
+.-Q0-1"L0;'R>Q1J-(0)-QO"GQ0J-1A-27"EI 'I
+'><ZJ-Z;-1A-10"N-1A-13"N-1A-32"N0;'''-D>MW'QH"FZJ."E10I'-1A-10"N10I 
+'R."E13I'-1A-13"N13I''ZJ:QW"N0:W-4"E2,0:W'-1,3:W0,4:WMW'|
+?Squish run failed; aborting any output
+0,0XF'0*Z"EIFile <.TES or .TEC>? QMRGQ'0,0XR0,0XQEIMF0,0XFZ"E
+Enter your macro then type MA$$
+|J:@FS%=%%"SFEW0,.:XF.UF-:S."U:F.TEC'QFJ27:FQB"TET&64"E:F
+Creating ":G*"
+''0,.K'J:S."UZJI.TESHXQ:ER^EQQ"U-FS.TES.TEC''HXQHKER^EQQQB"T
+ET&64"ESquishing ":G*"
+'':QF"EY128,0ET<"TZJ12I':A;>MAMP|YQB"F128,0ET'"T"TZJ12I'MAMFHPW
+HK|MF<"TZJ12I'MAHPWHK:Y;>'EFEX''

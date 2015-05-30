@@ -1,0 +1,118 @@
+FINDQR.C:
+
+Cast is needed to get it to compile under Borland C.
+
+CLPARS.TES:
+
+If no EGMEM or if EGMEM and filename starts with a $, then CLPARS
+gets totally hosed. Major hacking was needed to fix.
+
+ZMSDOS.C, EXEE.C TECOC.H:
+
+Backup file is created for EW and other occasions. It should only be
+created with the EB command (or TECOC TECO on the command line).
+
+Added BOOLEAN Backup argument to ZMSDOS:ZOpOut. Only make backup if
+Backup==TRUE.  Argument is passed through in EXEE:OpnOut. In
+EXEE:ExeEB, value passed is TRUE.  In EXEE:ExeEW and EXEE:ExeEPr the
+value passed is False.  When file is closed in ZMSDOS:ZOClos then if
+no backup was wanted we won't create one.
+
+EXEM.C:
+
+Colon modified macros pass the colon into the internal command. This
+prevented the tstqr.tec test file from working.
+
+The fix is to clear the colon flag if it is set within ExeM().
+
+EXEM.C:
+
+Execution of local macros caused new set of local q registers to be
+generated.
+
+The fix is to not generate new macro set if macro is local.
+
+SRCLOP.C:
+
+n,mFB command did not work unless at gap. Fixed.
+
+SEARCH.C:
+
+ES now ignored if in macro or loop
+
+WCHART.TXT:
+
+Changed FB and FC as "implemented" Also G* and G_ as implemented.
+
+ZMSDOS.C: CLPARS.TES:
+
+Added test for ED_FF flag (in EZ??) to ignore form feeds. Then change
+clpars.tes so /NOPAGE will set it *before* yanking.
+
+ZMSDOS.C TECOC.H EXEE.C:
+
+ZDoCmd used the file name buffer for the command, while ExeEG keeps the
+command in a local buffer. This prevents EG from working in any version!
+
+I added arguments to ZDoCmd to pass the command string.
+
+ZMSDOS.C
+
+The TEC$LIBRARY environment variable was not being examined for the EI
+command, unlike at least the UNIX version. This basically made TEC$LIBARY
+worthless since its only other use was during initializaton for video
+support, which doesn't exist in MSDOS. So I fixed it.
+
+
+ZMSDOS.C
+
+Tecoc has the ugly habit of allowing you to edit a readonly file,
+only to die on you when you finish. It's easy enough to check that
+the output file is writable first. The problem is in ZOpOut().
+
+Because MSDOS TECOC creates the temp file in the current directory,
+any attempt to EW or EB a file in another drive will cause failure
+when the rename is attempted. In these cases the file must be copied.
+ZOClos() is the culprit.
+
+I added a "fastcopy" function, much like what was done in zunix.c,
+but quite a bit simpler. The OS/2 version will need this since OS/2
+prefers copying over renaming to preserve file extended attributes
+and PM references. The handling in the OS/2 code is slightly
+different in that the only file that ever gets deleted is the
+temporary file. When this code is included in the MSDOS version, it
+takes too much space for compact model, so I don't update the time stamp
+(that allows it to squeek by).
+
+Along the same lines, Tecoc will create a backup file in the wrong
+directory if the file name has an explicit path and has a "." in one
+of the directory names.  ZOClos() is the culprit, again.
+
+I added the "% Superseding existing file" warning message. Why wasn't
+it there??
+
+CLPARS.TES
+
+After the attempt to do an EB fails, clpars assumed the failure was
+caused by the input file not being found. Added new code to attempt
+to open the file via ER - if that succeeds, prints message that file
+is being opened read-only.
+
+Added handling for a /NORENAME switch, needed by OS/2. I also added
+code to remove quotes in a quoted file name string if OS/2. Reason:
+file names can have embedded spaces, yet quotes are not allowed.
+
+I couldn't see any reason to strip spaces from the filename saved
+in "memory" since the name had already been processed. This was causing
+a problem with the OS/2 version since I stripped the quotes.
+
+I removed the restriction of the +nnn commandline argument so it
+would work with MS/DOS and OS/2. Why limit it to UNIX?
+
+Clpars leaves the macro .T around after completion (remember -- it's
+not called as a macro if USE_ANSI_CLPARS, which makes it a top level
+local macro), and also leaves non-zero values in qy, q8, q.l, q4, and
+possibly q.1. Fixed. However I don't understand the reasoning for
+*saving* q registers during execution of clpars since there is
+nothing in them at the start of the macro execution.
+

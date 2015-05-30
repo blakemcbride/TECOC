@@ -1,0 +1,20 @@
++baksrc.obj +bldstr.obj +clenup.obj +cmatch.obj +docjr.obj  +doeves.obj &
++doflag.obj +echoit.obj +err.obj    +exeats.obj +exea.obj   +exebar.obj &
++exebsl.obj +exeb.obj   +execcc.obj +execln.obj +execom.obj +execrt.obj &
++execst.obj +execta.obj +exectc.obj +exectd.obj +execte.obj +execti.obj &
++exectl.obj +exectn.obj +execto.obj +exectp.obj +exectq.obj +exectr.obj &
++exects.obj +exectt.obj +exectu.obj +exectv.obj +exectw.obj +exectx.obj &
++execty.obj +exectz.obj +exec.obj   +exedgt.obj +exedot.obj +exedqu.obj &
++exed.obj   +exeequ.obj +exeesc.obj +exeexc.obj +exeey.obj  +exee.obj   &
++exefb.obj  +exef.obj   +exegtr.obj +exeg.obj   +exeh.obj   +exeill.obj &
++exei.obj   +exej.obj   +exek.obj   +exelbr.obj +exelst.obj +exel.obj   &
++exem.obj   +exenul.obj +exenyi.obj +exen.obj   +exeopr.obj +exeo.obj   &
++exeprc.obj +exepw.obj  +exep.obj   +exeqes.obj +exeq.obj   +exerbr.obj &
++exertp.obj +exer.obj   +exescl.obj +exes.obj   +exet.obj   +exeund.obj &
++exeusc.obj +exeu.obj   +exev.obj   +exew.obj   +exex.obj   +exey.obj   &
++exez.obj   +findes.obj +findqr.obj +flowec.obj +flowee.obj +flowel.obj &
++getara.obj +getnma.obj +inccbp.obj +init.obj   +insstr.obj +isradx.obj &
++ln2chr.obj +makdbf.obj +makrom.obj +popmac.obj +pshmac.obj +pushex.obj &
++rdline.obj +rdpage.obj +readcs.obj +replac.obj +search.obj +singlp.obj &
++skpcmd.obj +srclop.obj +sserch.obj +tabort.obj +typbuf.obj +typest.obj &
++uminus.obj +wrpage.obj +zfrsrc.obj +zmsdos.obj

@@ -1,0 +1,170 @@
+#
+#  This makefile correctly builds TECOC on a Commodore Amiga with AmigaDOS
+#  version 1.3, and SAS Institute C version 5.10.  To use this file, type
+#
+#	lmk -f makefile.ami
+#
+#  Note: file tecoc.lnk is needed for this file to work.
+#
+CC=lc
+#
+# use for production runs:
+#
+#CFLAGS= -O -cu
+#LFLAGS= nodebug smallcode smalldata
+#
+# use for debugging runs:
+#
+CFLAGS= -d3 -cu
+LFLAGS= verbose
+#
+# Objects to link to build tecoc
+#
+OFILES=	baksrc.o bldstr.o clenup.o cmatch.o docjr.o doeves.o doflag.o \
+	echoit.o err.o exea.o exeats.o exeb.o exebar.o exebsl.o exec.o \
+	execcc.o execln.o execom.o execrt.o execst.o execta.o exectc.o \
+	exectd.o execte.o execti.o exectl.o exectn.o execto.o exectp.o \
+	exectq.o exectr.o exects.o exectt.o exectu.o exectv.o exectw.o \
+	exectx.o execty.o exectz.o exed.o exedgt.o exedot.o exedqu.o \
+	exee.o exeequ.o exeesc.o exeexc.o exeey.o exef.o exefb.o exeg.o \
+	exegtr.o exeh.o exei.o exeill.o exej.o exek.o exel.o exelbr.o \
+	exelst.o exem.o exen.o exenul.o exenyi.o exeo.o exeopr.o exep.o \
+	exeprc.o exepw.o exeq.o exeqes.o exer.o exerbr.o exertp.o exes.o \
+	exescl.o exet.o exeu.o exeund.o exeusc.o exev.o exew.o exex.o \
+	exey.o exez.o findes.o findqr.o flowec.o flowee.o flowel.o \
+	getara.o getnma.o inccbp.o init.o insstr.o isradx.o ln2chr.o \
+	makdbf.o makrom.o popmac.o pshmac.o pushex.o rdline.o rdpage.o \
+	readcs.o replac.o search.o singlp.o skpcmd.o srclop.o sserch.o \
+	tabort.o typbuf.o typest.o uminus.o wrpage.o zfrsrc.o zamiga.o \
+	tecoc.o
+tecoc:  $(OFILES)
+	blink with tecoc.lnk $(LFLAGS)
+# 
+# delete objects and executable
+#
+clean:
+	delete \#?.o tecoc
+#
+# object <- source dependencies
+#
+tecoc.o: tecoc.c zport.h tecoc.h deferr.h dchars.h chmacs.h
+baksrc.o: baksrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+bldstr.o: bldstr.c zport.h tecoc.h defext.h deferr.h dchars.h chmacs.h
+clenup.o: clenup.c zport.h tecoc.h defext.h
+cmatch.o: cmatch.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+docjr.o: docjr.c zport.h tecoc.h defext.h deferr.h
+doeves.o: doeves.c zport.h tecoc.h defext.h dchars.h
+doflag.o: doflag.c zport.h tecoc.h defext.h
+echoit.o: echoit.c zport.h tecoc.h defext.h dchars.h
+err.o: err.c zport.h tecoc.h defext.h deferr.h dchars.h
+exea.o: exea.c zport.h tecoc.h defext.h deferr.h
+exeats.o: exeats.c zport.h tecoc.h defext.h
+exeb.o: exeb.c zport.h tecoc.h defext.h
+exebar.o: exebar.c zport.h tecoc.h defext.h deferr.h
+exebsl.o: exebsl.c zport.h tecoc.h defext.h chmacs.h
+exec.o: exec.c zport.h tecoc.h defext.h
+execcc.o: execcc.c zport.h tecoc.h defext.h deferr.h
+execln.o: execln.c zport.h tecoc.h defext.h
+execom.o: execom.c zport.h tecoc.h defext.h deferr.h
+execrt.o: execrt.c zport.h tecoc.h defext.h chmacs.h deferr.h
+execst.o: execst.c zport.h tecoc.h defext.h deferr.h
+execta.o: execta.c zport.h tecoc.h defext.h dchars.h
+exectc.o: exectc.c zport.h tecoc.h defext.h dchars.h
+exectd.o: exectd.c zport.h tecoc.h defext.h
+execte.o: execte.c zport.h tecoc.h defext.h
+execti.o: execti.c zport.h tecoc.h defext.h dchars.h
+exectl.o: exectl.c zport.h tecoc.h defext.h dchars.h
+exectn.o: exectn.c zport.h tecoc.h defext.h
+execto.o: execto.c zport.h tecoc.h defext.h
+exectp.o: exectp.c zport.h tecoc.h defext.h
+exectq.o: exectq.c zport.h tecoc.h defext.h
+exectr.o: exectr.c zport.h tecoc.h defext.h deferr.h
+exects.o: exects.c zport.h tecoc.h defext.h
+exectt.o: exectt.c zport.h tecoc.h defext.h deferr.h
+exectu.o: exectu.c zport.h tecoc.h defext.h deferr.h dchars.h
+exectv.o: exectv.c zport.h tecoc.h defext.h deferr.h
+exectw.o: exectw.c zport.h tecoc.h defext.h deferr.h
+exectx.o: exectx.c zport.h tecoc.h defext.h
+execty.o: execty.c zport.h tecoc.h defext.h
+exectz.o: exectz.c zport.h tecoc.h defext.h
+exed.o: exed.c zport.h tecoc.h defext.h deferr.h
+exedgt.o: exedgt.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exedot.o: exedot.c zport.h tecoc.h defext.h
+exedqu.o: exedqu.c zport.h tecoc.h defext.h deferr.h chmacs.h
+exee.o: exee.c zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+exeequ.o: exeequ.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeesc.o: exeesc.c zport.h tecoc.h defext.h dchars.h
+exeexc.o: exeexc.c zport.h tecoc.h defext.h
+exeey.o: exeey.c zport.h tecoc.h defext.h
+exef.o: exef.c zport.h tecoc.h defext.h chmacs.h deferr.h
+exefb.o: exefb.c zport.h tecoc.h defext.h deferr.h
+exeg.o: exeg.c zport.h tecoc.h defext.h deferr.h
+exegtr.o: exegtr.c zport.h tecoc.h defext.h deferr.h
+exeh.o: exeh.c zport.h tecoc.h defext.h
+exei.o: exei.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeill.o: exeill.c zport.h tecoc.h defext.h deferr.h
+exej.o: exej.c zport.h tecoc.h defext.h
+exek.o: exek.c zport.h tecoc.h defext.h
+exel.o: exel.c zport.h tecoc.h defext.h
+exelbr.o: exelbr.c zport.h tecoc.h defext.h deferr.h
+exelst.o: exelst.c zport.h tecoc.h defext.h deferr.h
+exem.o: exem.c zport.h tecoc.h defext.h deferr.h
+exen.o: exen.c zport.h tecoc.h defext.h deferr.h
+exenul.o: exenul.c zport.h tecoc.h defext.h
+exenyi.o: exenyi.c zport.h tecoc.h defext.h deferr.h
+exeo.o: exeo.c zport.h tecoc.h defext.h dchars.h deferr.h
+exeopr.o: exeopr.c zport.h tecoc.h defext.h
+exep.o: exep.c zport.h tecoc.h defext.h deferr.h
+exeprc.o: exeprc.c zport.h tecoc.h defext.h deferr.h
+exepw.o: exepw.c zport.h tecoc.h defext.h
+exeq.o: exeq.c zport.h tecoc.h defext.h deferr.h
+exeqes.o: exeqes.c zport.h tecoc.h defext.h
+exer.o: exer.c zport.h tecoc.h defext.h
+exerbr.o: exerbr.c zport.h tecoc.h defext.h deferr.h
+exertp.o: exertp.c zport.h tecoc.h defext.h deferr.h
+exes.o: exes.c zport.h tecoc.h defext.h dchars.h deferr.h
+exescl.o: exescl.c zport.h tecoc.h defext.h deferr.h
+exet.o: exet.c zport.h tecoc.h defext.h dchars.h
+exeu.o: exeu.c zport.h tecoc.h defext.h deferr.h
+exeund.o: exeund.c zport.h tecoc.h defext.h deferr.h
+exeusc.o: exeusc.c zport.h tecoc.h defext.h dchars.h
+exev.o: exev.c zport.h tecoc.h defext.h
+exew.o: exew.c zport.h tecoc.h defext.h dscren.h
+exex.o: exex.c zport.h tecoc.h defext.h deferr.h
+exey.o: exey.c zport.h tecoc.h defext.h deferr.h
+exez.o: exez.c zport.h tecoc.h defext.h
+findes.o: findes.c zport.h tecoc.h defext.h deferr.h
+findqr.o: findqr.c zport.h tecoc.h defext.h deferr.h chmacs.h
+flowec.o: flowec.c zport.h tecoc.h defext.h deferr.h
+flowee.o: flowee.c zport.h tecoc.h defext.h deferr.h
+flowel.o: flowel.c zport.h tecoc.h defext.h deferr.h
+getara.o: getara.c zport.h tecoc.h defext.h deferr.h
+getnma.o: getnma.c zport.h tecoc.h defext.h deferr.h
+inccbp.o: inccbp.c zport.h tecoc.h defext.h deferr.h
+init.o: init.c zport.h tecoc.h defext.h deferr.h
+insstr.o: insstr.c zport.h tecoc.h defext.h deferr.h
+isradx.o: isradx.c zport.h tecoc.h defext.h chmacs.h
+ln2chr.o: ln2chr.c zport.h tecoc.h defext.h dchars.h chmacs.h
+makdbf.o: makdbf.c zport.h tecoc.h defext.h
+makrom.o: makrom.c zport.h tecoc.h defext.h deferr.h
+popmac.o: popmac.c zport.h tecoc.h defext.h
+pshmac.o: pshmac.c zport.h tecoc.h defext.h deferr.h
+pushex.o: pushex.c zport.h tecoc.h defext.h dchars.h deferr.h
+rdline.o: rdline.c zport.h tecoc.h defext.h deferr.h dchars.h
+rdpage.o: rdpage.c zport.h tecoc.h defext.h deferr.h
+readcs.o: readcs.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h \
+	  dscren.h
+replac.o: replac.c zport.h tecoc.h defext.h dchars.h
+search.o: search.c zport.h tecoc.h defext.h deferr.h dchars.h
+singlp.o: singlp.c zport.h tecoc.h defext.h dchars.h
+skpcmd.o: skpcmd.c zport.h tecoc.h defext.h chmacs.h dchars.h deferr.h
+srclop.o: srclop.c zport.h tecoc.h defext.h deferr.h
+sserch.o: sserch.c zport.h tecoc.h defext.h
+tabort.o: tabort.c zport.h tecoc.h
+typbuf.o: typbuf.c zport.h tecoc.h defext.h dchars.h chmacs.h
+typest.o: typest.c zport.h tecoc.h defext.h dchars.h
+uminus.o: uminus.c zport.h tecoc.h defext.h
+wrpage.o: wrpage.c zport.h tecoc.h defext.h dchars.h deferr.h
+zfrsrc.o: zfrsrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
+zamiga.o: zamiga.c zport.h tecoc.h clpars.h dchars.h deferr.h defext.h \
+	  dscren.h vrbmsg.h

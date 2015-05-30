@@ -1,0 +1,63 @@
+        TECO-C (version number 146)
+
+        Copyright 1983, 1990 by Pete Siemsen. This software is provided to
+you free of charge for your own use.  Use it as you see fit; if it doesn't
+work, I disclaim all responsibility.  You may re-distribute this software
+UNCHANGED only if you include this copy-right notice.  Alternatively, if
+you change this software, you may re-distribute the result only if you
+include BOTH this copyright notice, AND an additional notice identifying
+you and indicating that you have changed the software.
+
+        This program is still under development.  See file PROBLEMS.TXT for
+notes I've written to myself about things to do to the program. If you
+modify this code to enhance it or fix a bug,  please communicate the changes
+to me.  My address is
+
+                        Pete Siemsen
+                        645 Ohio Avenue #302
+                        Long Beach, Ca. 90814
+
+                        (213) 433-3059  (home)
+                        (213) 740-7391  (work)
+                        Internet: siemsen@usc.edu
+
+[NOTE -- This is old information. Better to contact me, Tom Almy, below.]
+
+*******************************************************
+
+This archive contains TECO-C modified and compiled for DOS, Win32,
+OS/2, and Linux (on Intel 32bit architecture).  The modifications have been made by:
+
+                Tom Almy
+                tomalmy@aracnet.com
+
+who is a "old time" TECO user. Not only did I port TECO-C but I also
+corrected some bugs. For OS/2 modified the file backup algorithm to do
+copying rather than renaming as an option. This makes it Workplace
+Shell friendly. The Win32, Linux and OS/2 versions allow long file names.
+
+Included files in this archive:
+
+readme.1st      This file
+readme.txt      Quick operating instructions for the TECO literate
+readme.lnx      Operating and install instructions for Linux users
+wchart.txt      List of all the implemented commands.
+teco.doc        The official teco reference. TECOC IS CLOSE TO TECO-11 IN FUNCTIONALITY
+*.tes           TECO command files for various things
+*.tec           Compressed TECO command files
+
+These apply to OS/2, DOS, and Windows versions:
+inspect.cmd     Command files to invoke tecoc
+inspect.bat     (cmd for OS/2, bat for DOS/Win32)
+mung.cmd
+mung.bat
+teco.cmd
+teco.bat
+tmake.cmd       this would be "make" but most people use the program
+                "make". 
+tmake.bat
+tecocmd.btm     Equivalent aliases for JPSoft products (4DOS, et cetera)
+
+
+
+The executable program is downloaded as a separate file.

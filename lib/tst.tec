@@ -1,0 +1,6 @@
+10u.n                     ! put 10 in main-level q-register .n !
+@^U1/20u.n:m2/27:^U1    ! put 20u.n$:m2$$ in q-register 1 !
+@^U2/:m3/27:^U2          ! put :m3$$ in q-register 2 !
+@^U3/q.n=/27:^U3          ! put q.n=$$ into q-register 3 !
+
+

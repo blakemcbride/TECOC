@@ -1,0 +1,816 @@
+	This file contains release notes for TECOC.  The "base version"
+is 100 (reported by the EO command).  The version number starts at 100 to
+avoid confusion with TECO-11 version numbers,  which were close to 40 as of
+01-Jan-1987.
+10-Dec-1987 version 100
+baseline version as of Fall Decus Symposium, Anaheim
+04-Jan-1988 version 101		(mostly stuff for XENIX)
+1. created this file
+2. changed EXEEO.C to make the version number 101.
+3. changed FBFSIZ (file name size) to 20 in AMODEM.C
+4. changed XAFTER.CSH to execute under CSH instead of SH
+5. removed unused tags IFTag and OFTag from ZPORT.H
+6. added comment about this file to AAAREADME.TXT
+7. Created an updated XBUILD.CSH.
+8. added a tab to INIT.C.
+9. Added debugging code to PARSCL.C, MEMINI.C, ZINIFL.C, MUNG.C, ZREMBR.C,
+   and INIOPN.C.  This code is activated only if the variable DbgLvl is
+   initialized to 1 in DBGDSP.C.
+10. Added semi-colon to line 181 of ZOPINP.C so it'll compile.
+11. Changed ZREMBR.C so it returns NO in XENIX section.
+12. Added code to set TrmTyp in XENIX section of ZTRMNL.C.
+13. Changed SCRNOP.C so it tests TrmTyp (not OpCode) against UNTERM.
+14. Added XENIX sections to ZDSPCH.C, ZDSPBF.C and ZCHIN.C.
+23-Jan-1988 version 102
+1. changed EXEEO.C to make the version number 102.
+2. changed the debugging code in ZABORT.C to avoid an infinite loop
+3. removed "signal(SIGTERM, ZAbort)" from XENIX code in ZINIT.C
+4. changed ZTRMNL.C to support control-Cs under XENIX
+5. check for control-C in ZCHIN.C,  needed to do it in all other Z routines
+6. added XENIX section to ZRDLIN.C
+7. define sys$close in ZOPINP.C and ZOPOUT.C
+8. define sys$get, sys$putmsg in ZRDEI.C
+9. renamed/modified all the .CSH and .COM files so they start with "Z" and
+   updated AAAREADME.TXT to reflect the changes.
+10. added file FALL87.RNO,  updated AAAREADME.TXT about it
+11. fixed comment in RDLINE.C.
+12. changed || to | in ZHELP.C so / immediate commands are okay under VMS.
+13. fixed "invalid buffer size" bug for reading large files by changing
+    "65536" to "65535" in ZRDLIN.C.
+14. fixed control-C handling,  so that type-out of a large buffer works.
+    Changed EXECST.C, ZDSPBF.C, FRSTCH.C, READCS.C.
+15. added a test to EXECST.C so that commands like "<test$$" will
+    now produce "unterminated command" errors,  as they should
+16. modified EXEEI.C to make EI$$ a null command to make CHANGE.TEC work
+30-Jan-1988 version 103		( to make CHANGE.TEC work )
+1. changed EXEEO.C to make the version number 103.
+2. changed definition of Mung from DEFAULT to VOID in MUNG.C.
+3. changed TmpEI from DEFAULT to VOID in TMPEI.C, ZINIFL.C, MUNG.C
+4. removed superfluous "else" from ZSWILD.C
+5. moved WFab, WNam initialization from ZINIFL.C to ZINIT.C
+6. set WFab.fab$l_fna in ZINIT.C to make EN command work
+7. added XENIX section to ZCPYBL.C
+8. fixed XENIX section of ZICLOS.C
+9. fixed XENIX section of ZOPOUT.C
+10. fixed XENIX section of ZRDLIN.C
+11. fixed XENIX section of ZWRITE.C
+12. changed constants for XENIX in ZPORT.H
+13. changed calloc to malloc in ZALLOC.C, merged similar sections
+14. added debugging code to RDLINE.C
+15. added debugging line to WRBUFR.C
+16. fixed unlink call in ZOCLOS.C,  added debugging code
+17. fixed unlink call in ZOCLDE.C
+18. added -O switch to CC commands in XMKBLD.CSH (optimizes code)
+31-Mar-1988 version 104
+1. changed EXEEO.C to make the version number 104.
+2. changed the way code is compiled under XENIX:  deleted XMKBLD.CSH,
+   created ZXBLD.CSH and ZXDBLD.CSH,  modified ZXLOGIN.CSH and ZXCCC.CSH
+3. fixed XENIX file creation mode in ZOPOUT.C
+4. fixed XENIX section of ZMKOFN.C
+5. fixed setting of CmdMod and EStTop in EXEEB.C
+6. removed unnecessary call to ExeEY in INIOPN.C
+7. fixed XENIX file renaming in ZOCLOS.C
+8. used auto-decrement instead of addition in MEMINI.C
+9. Renamed CHRFUNCS.H to CHRMACS.H.  All references to CHRFUNCS.H
+   had to be changed:  many files modified.  Also changed macros that
+   are in CHRMACS.H to use an array.  Merged that array with the one that
+   was in ReadCS.
+10. made ZTrmnl define TrmTyp as UNTERM when we're running in a batch job.
+11. took out "dying" message in GETNMA.C
+12. fixed CR/LF appending in EXEEQU.C
+13. fixed file output code in ZDSPCH.C
+13-Apr-1988 version 105
+1. changed EXEEO.C to make the version number 105.
+2. removed extra tab from ZINIT.C
+3. renamed XAFTER.CSH to ZXAFTER.CSH
+4. changed ZXAFTER.CSH so it renames CHRMACS.H,  not CHRFUNCS.H
+5. added improved error reporting in ZOPINP.C
+6. added "cc -c tecoc.c" to ZXBLD.CSH
+7. added "/STANDARD=PORTABLE" qualifiers to CC commands in ZVBLD.COM
+8. Fixed ZWrite to append LFs correctly under XENIX
+9. Fixed ZChIn to make CR/LFs under XENIX out of LFs.
+10. changed ZOpOut to use fopen instead of creat/fdopen.
+11. overhauled error reporting.  Many modules changed, including all "Z" files.
+    Added OpnOut and ZErMsg.
+12. Replaced GroEBf with InsStr to merge several copies of the same code
+    sequence.  Affected ExeBSl, ExeCtI, ExeG, ExeI, Replac.
+13. Removed post-copy of memory after ZRaloc calls.  ZRaloc does it.
+14. Took /STANDARD=PORTABLE off VMS compile commands to prevent warnings
+    about "globalref".
+30-Jul-1988 version 106
+1. changed EXEEO.C to make the version number 106.
+2. fixed some error reporting bugs.
+3. check for mung mode failure in ExeCSt, not ErrMsg
+4. changed EI buffer size to 20000 to let TSTSRC.TEC be input
+06-Aug-1988 version 107
+1. changed EXEEO.C to make the version number 107.
+2. fixed FR command.
+3. fixed it so two control-C's terminate TECOC,  as it should be.
+4. overhauled command-line parsing to make it use a TECO macro to do it,
+   like TECO-11 does.  Major changes to initialization code.  I did this to
+   provide the extra power and to make invocation of TECOC the same as TECO-11
+   under VAX/VMS.  Created ExeEG,  ZExeEJ, ZEgIni, ZEgLib, ZEgMem, ZEgSym
+   and ZEgVte.  Deleted ZIniFl, Mung, ZExeEG.
+5. fixed ::S command.
+6. fixed ] command's memory deallocation.
+22-Feb-1989 version 108		( porting to Turbo C )
+1. changed EXEEO.C to make the version number 108.
+2. created function prototypes (without arguments) in DefTeco.h and removed
+   them from all other files.
+3. changed /REPLACE to /INSERT in ZVBLD.COM
+4. fixed definition of ErrTxt in BldStr.
+5. moved "#include stsdef" into VAX section of ZErMsg.
+6. moved expressions out of "if" statements to avoid compiler warnings in
+   FindQR, MakDBf, PshMac, StCopy, ZTrmnl.
+7. Deleted reference to ZDefErr.h from ZOClDe.
+8. deleted ZError.h
+9. changed "ErrMag" to "ErrMsg" in ZOClos.
+10. removed variables declared but never used in DoEI, ExeEG, WrBufr, ZOClos.
+11. removed "return(xxx)" from XENIX section of ZHhelp,  which is a VOID
+    function.
+12. Express 32768 in octal in DefTeco.h for ET_TRAP_CTRL_C to avoid problems
+    putting it into an unsigned EtFlag.
+13. Added type-cast to ZCpyBl call in RdLine.
+14. changed XENIX section of ZExeEJ so it defines ZExeEJ, not ZExCtH.
+15. Replaced the Execut function with syntax for calling a function whose
+    address you have in a variable.
+16. Made mods to make it run under Turbo C under MS-DOS.  Added __TURBOC__
+    sections to Zxxxx.c files and created ZPBLD.BAT and ZPDBLD.BAT.
+19. Fixed Turbo C section in ZDspBf, ZDspCh, ZChIn, ZWrite.
+20. Changed "LONG" to "ptrdiff_t" in several files.
+21. Added Turbo C section to ZPrsCL.
+    Just to get it working,  commented out the Turbo C code in ZPrsCL.
+    This prevents the command-line macro from executing,  which avoids the
+    execution of EJ and EG commands in the macro.  EJ and EG are not yet
+    supported for non-VMS environments.  It now limps under Turbo C/MS-DOS
+28-Feb-1989 version 109		( more porting to Turbo C )
+1. changed EXEEO.C to make the version number 109.
+2. made type conversions explicit via type casts in various functions.
+3. replaced calls to ZChrIt with type-cast "(char)" and deleted ZChrIt
+4. appended all the Dbgxxx functions to the end of TECOC.C and changed
+   compile/link so there is no separate debugging library.  This simplifies
+   the link sequence.
+5. fixed VDOW.C and VSETW.C so setting DEBUGGING to NO will not cause
+   compilation errors.
+6. changed references to .h files to lowercase so you don't have to
+   explicitly rename them after copying them from one machine to another
+7. various minor changes so it will build for an UNKNOWN environment
+8. use FILENAME_MAX,  an ANSI C identifier
+9. changed the XENIX identifier to the more general __UNIX__ and restructured
+   the conditional compilation code to use "#elif".
+10. replaced StCopy with strcpy
+11. replaced ZCpyBl with MEMMOVE
+12. created a file named MAKEFILE for use with Unix "make".
+13. improved type definitions and casting to keep lint happy.
+14. use EXIT_FAILURE and EXIT_SUCCESS in calls to exit() and ZAbort().
+15. Defined return codes for the EJ command in systems other than VMS
+    so the command-line parsing macro could function.
+16. Removed references to StCopy and ZCpyBl from ZPBLD.BAT and deleted
+    ZPLNK.BAT.  Fixed ZPLNK.BAT to not refer to DBGTECOC.LIB.
+28-Feb-1989 version 110
+1. changed EXEEO.C to make the version number 110.
+2. made the 2048 bit of the ET flag cause the BACKSPACE character to be
+   treated just like the DEL character on input.  This supports the
+   conventions used by IBM PCs and Unix.  On those systems,  you'll have
+   trouble getting a BACKSPACE into the command line,  a minor problem.
+3. to simplify an effort to port TECO-C to RT-11, renamed the following
+   files so the name portion of the filespec is 6 characters or less.
+        renamed CHRMACS.H      to CHMACS.H
+        renamed COMMANDS.TXT   to WCHART.TXT
+        renamed DEFCHARS.H     to DCHARS.H
+        renamed DEFSCREN.H     to DSCREN.H
+        renamed DEFTECO.H      to TECOC.H
+        renamed TEC0_V40.TEC   to TECV40.TEC
+        renamed TECO_V40.TES   to TECV40.TES
+   The following files were not renamed,  and are the only remaining files
+   with names longer than 6 characters.
+        AAAREADME.TXT       I just didn't want to rename this one
+        GETTECO.            used only on Unix systems
+        MAKEFILE.           used only on Unix systems
+        PROBLEMS.TXT        I just didn't want to rename this one
+        RELEASE.TXT         I just didn't want to rename this one
+        ZVLOGIN.COM         used only on VAX/VMS systems
+        ZXAFTER.CSH         used only on Xenix systems
+        ZXLOGIN.CSH         used only on Xenix systems
+4. Fixed ZPBLD.BAT: removed superfluous -I option, added ECHO statements so
+   you can tell how far it's gotten,  lowercased file names.
+5. Removed definition of TraceM from ZExCtC, which doesn't use TraceM.
+6. Don't return a value from ZDoCmd or ZHelp,  they're VOID functions.
+7. Fixed Sun and Turbo C sections of ZExeEJ and ZClnEG.
+8. Changed second argument of PushEx from BYTE to DEFAULT.
+9. Made ZClnEG a LONG function to match it's use in ExeEG.
+10. Made MakDBf calls in PushEx and GetNMA use a type cast when passing
+    EstTop and EstBot so it works under Turbo C.
+12. Fixed expression syntax in CLPARS.TES.
+13. Fixed handling of :ER commands in Turbo C section of ZOpInp.
+14. Added function prototypes to tecoc.h.  They're conditionally compiled
+    based on the new USE_PROTOTYPES identifier defined in zport.h.
+15. Replaced GENCLP.TEC with GENCLP.C.
+11-Jun-1989 version 111
+1. changed EXEEO.C to make the version number 111.
+2. More type-casts added to allow Turbo C to compile the code when the
+   function prototypes are used (USE_PROTOTYPE == YES).
+3. Moved setting of EtFlag out of ZInit.c and into ZTrmnl.c.
+28-Jun-1989 version 112
+1. changed EXEEO.C to make the version number 112.
+2. changed || to | in ZTrmnl.c to fix setting of EtFlag.
+3. changed CrType to VT100 in ZTrmnl.c for IBM-PC so ANSI sequences are used.
+4. rewrote logic to fix bugs and improve readability in InpDel.c.
+5. renamed ScrnOp to ZScrOp so IBM-PC screen handling could be added.
+6. replaced old usage of ET_BKSP_IS_DEL with new code in ZChIn.
+7. added error message generation to ZChIn
+8. fixed ZVBLD.COM so the link of GENCLP has LNK$LIBRARY defined
+9. changed mktemp to tmpnam (ANSI) in ZOpOut.c.
+10. merged VDoW, VGetW and VSetW into ExeW
+11. Lots of little changes to reduce messages produced by lint and by
+    Turbo C when the -w switch (maximum warnings) is used.
+19-Jul-1989 version 113
+1. changed EXEEO.C to make the version number 113.
+2. Fixed ZPBLD.BAT and ZPTLIB.BAT
+3. Added code for IBM PC to ZScrOp.c
+4. Added FFLINS,  used in InpDel and ReadCS.
+5. Fixed comments in FindQR and tecoc
+6. Changed ugly \015 to \r, \012 to \n, \011 to \t in all files
+7. More type casting to reduce warnings from Turbo C.
+8. Changed almost every file to insert new "charptr" and "QRptr" types.
+   These are needed to support the brain-damaged memory access on IBM-PCs,
+   where the pointers need to be "HUGE" to work.
+9. fixed a bug in MakRom that caused :X commands (among others) to fail.
+10. Converted QBfBeg, QBfPtr and QNumbr to the simpler QR
+11. Rewrote GENCLP so it makes a file that Turbo C reads correctly.
+12. Made a SIZE_T typedef to support Turbo C.
+13. Used farmalloc in ZAlloc, farfree in ZFree and farrealloc in ZRaloc in
+    Turbo C sections.
+14. made 0EJ return 0 for Turbo C.
+15. Fixed ZWrite code for Turbo C.
+02-Aug-1989 version 114
+1. changed EXEEO.C to make the version number 114.
+2. Renamed RELEASE.TXT to CHANGES.TXT
+3. merged all the Z files into ZVMS,C, ZMSDOS.C, ZUNIX.C, ZUNKN.C
+4. merged all the SKP files into SKPCMD.C
+5. merged CHKHLP.C, FRSTCH.C and INPDEL.C into READCS.C
+6. merged REDUCE.C into PUSHEX.C
+7. merged MEMINI.C into INIT.C
+8. merged DOEI.C into EXEEI.C
+9. merged DOFBFC.C into SRCLOP.C
+10. merged EXEE*.C files into EXEE.C (EXEEB.C is an exception)
+11. merged EXEF*.C files into EXEF.C (EXEFB.C is an exception)
+12. Implemented colon modifier on EW command.  This is an undocumented
+    feature required for the CLPARS macro to work on non-VAXen.
+13. merged ZFILES.H into ZVMS.C, ZMSDOS.C, ZUNIX.C
+14. fixed GENCLP.C yet again, for VMS
+15. fixed memory shuffling bug in RDLINE.C
+21-Aug-1989 version 115 (Manfred Siemsen)
+1. Changed ExeEO() in EXEE.C to make the version number 115
+2. Created DEFEXT.H, replaced all EXTERN lines with #include "defext.h"
+3. Modified all #if DEBUGGING...#endif lines to call 3 debugging
+   functions:  DbgFEn() upon function entry, DbgFEx() upon function
+   exit, and DbgFMs() for messages in the body of a function.  Also,
+   indented the debugging lines so they line up under the code they
+   "belong" with, instead of being munched over on the left margin.
+4. Modified debugging routines to use sprintf/printf to display
+   values of variables instead of displaying things "manually" through
+   other Teco-C build/display routines.  We still avoid the use of
+   sprint/printf in non-debugging code.
+5. Modified the indentation scheme to more closely match K&R
+6. Put squiggly braces '{}' around ALL statements, even if they
+   aren't required.
+7. Modified the comment scheme to be consistent with Pete's
+   latest X-window'ish standard.
+8. Created a Turbo C MAKEFILE (MAKEFILE.TC).
+9. Began implementation of ZPWild() and ZSWild() in ZMSDOS.C.  It
+   seems to work ok, but there should be more error checking put in
+   to guard against the user entering a bizarre filename.
+10 Implememted ZDoCmd() in ZMSDOS.C.  Required change to ExeEG() in
+   EXEE.C.  If it wasn't :EG, TxtLen was never set, might have been
+   garbage, moved TxtLen assignment out of "if (COLON..." statement.
+   Also, ZAbort() was called if TxtLen was not zero, should have
+   been called if TxtLen *is* zero.
+30-Aug-1989 version 116
+1. Changed ExeEO() in EXEE.C to make the version number 116
+2. rearranged includes in "Z" files so that my .h files come after the
+   system ones.  This was needed so ZPORT.H can redefine FILENAME_MAX,
+   which on VMS is wrong (38 ain't right).  Rearranged ZPORT.H for the
+   same reason.
+3. Replaced ERRMSG.C with ERR.C and created the new error reporting
+   functions ErrChr and ErrStr.  Doing this removes places where I was
+   writing into string literals,  which worked but wasn't real kosher.
+   It also makes lint happy about ErrMsg (fixed number of arguments now)
+   and modularizes the error code.  Merged DSPCHR.C and VRBERR.C into
+   ERR.C.
+4. Created ZVrbos.
+5. Fixed error message numbering.
+6. Fixed prototype for ErrDsp and ErrPst in ERR.C.
+7. Commented out illegal test case in TSTQR.TEC.
+8. Made Charac a char instead of an int in ZChIn to fix bug.
+21-Oct-1989 version 117
+1. Changed ExeEO() in EXEE.C to make the version number 117
+2. Moved #endif in TECOC.C from just after DbgSlv() to just after
+   DbgDsp() so DbgDsp() wasn't included when DEBUGGING is FALSE.
+3. Updated MAKEFILE.TC.
+4. Updated ZPTLIB.BAT.
+6. Changed prototype of ZVrbos in ZMSDOS.C, ZVMS.C, ZUNIX.C,
+   ZUNKN.C, and TECOC.H.
+7. Changed DoEI() comment in EXEE.C.
+8. Made ZRdEI() call ZRdLin() instead of calling fgets() directly.
+9. Changed ZWrite() to ZWrLin(), it's more descriptive.
+23-Oct-1989 version 118
+1. Changed ExeEO() in EXEE.C to make the version number 118
+2. minor fixes to make lint happy
+3. Changed ZChIn() in ZMSDOS.C to ignore any IBM PC scan code
+   other than DEL to eliminate the "Unrecognized character" bomb.
+4. Changed CLPARS.TES so filespec memory works on PC's.
+5. Changed EXEQ.C to fix numeric expression parsing
+6. Change definition of FEArry[] from (*F[])() to (*F[])(VOID)
+   to eliminate Turboc C "function w/no prototype" warning.
+03-Nov-1989 version 119 (Manfred)
+1. Changed ExeEO() in EXEE.C to make the version number 119.
+2. Because of some bizzare behaviour, the CHECKSUM_CODE #define and routines
+   were added to check code at runtime to make sure it wasn't being
+   overwritten.  These routines read the Turbo C .MAP file to get the order
+   and length of all the modules, calculates and stores an initial checksum
+   for each module; and then compares the initial checksum of each module
+   with the checksum calculated after every command is executed in ExeCSt().
+3. Changed ZAlloc(), ZRaloc(), and ZFree() to return and expect a new
+   type "voidptr" instead of charptr's.  I then removed the casts before
+   ZAlloc() and ZRaloc() returns in the code.  Borland Turbo C says that
+   explictly casting returns from malloc/realloc hides things from the
+   compiler and is bad practice in ANSI C.
+4. Changed "struct QReg *LQTabl" to "QRptr LQTabl" in the definition of
+   MStck in TECOC.H per phone call w/Pete.
+5. Changed an incorrect call to DbgFEn() in ZOpOut()...should have displayed
+   DbgSBf instead of "".
+6. Changed the DbgFEn(), DbgFEx(), and DbgFMs() calls to send NULL instead
+   of "" if there is no special debugging message to display.  This saves
+   space when Turbo C is not merging duplicate strings (tcc -d).  Otherwise
+   there are billions of "" strings in the .EXE file ("" strings take 1
+   byte of space because they contain a '\0').  I used CHANGE.TEC to do it!
+7. Changed ZRaloc() in ZMSDOS.C to manually reallocate blocks.  There is a
+   problem with Turbo C's farrealloc() in that it uses movedata() to move
+   data from the old block to the new block.  Movedata() expects a size_t
+   as the number of bytes to move.  size_t under Turbo C v2 is *always* a
+   16-bit unsigned int regardless of memory model.  This means that if the
+   old block is >64K, movedata() won't move the data correctly from the old
+   block to the new block when the old block is >64K.
+8. Implemented the ^B system date (ZExCtB) and ^H system time (ZExCtH)
+   routines in ZMSDOS.C using DOS calls.  EIDATE.TES$ will display the
+   current date and time.
+9. Initialized ff_status in ZMSDOS.C to -1 so EN$$ with no preceding
+   ENfilename$$ doesn't blow up by calling findnext() with no initial
+   findfirst().  Is <File Not Found ""> a reasonable return?
+10.Changed ExeRBr() so that End_P1 is set to NULL when Start is set to
+   NULL after the ZFree(QR->Start).  Otherwise, End_P1 might not be NULL
+   and will cause problems for those routines which blindly subtract
+   End_P1 from Start to get the length of text in the Q-register.
+11.Changed the line in ^EQq logic part of BldStr() where QR->End_P1 was
+   being subtracted from QR-Start, when it should be the other way around.
+12.Changed FArray[] in ExeCSt().  The ^Q entry was ExeNYI(), it should have
+   been ExeCtQ().  The ^_ entry was ExeOpr(), it should have been ExeUsc().
+   Actually, both ExeOpr() and ExeUsc() would have pushed ^_ on the stack,
+   so it was a...uh...push.
+13.Changed ^G entry FCAray[] in ExeCrt() from ExeNul() to ExeIll() so it
+   jibes with FArray[] in ExeCSt() entry.
+14.The logic in ReadEI() in EXEE.C determining whether or not to add a
+   trailing CR-LF to the line read from the EI file was wrong.  ReadEI()
+   now calls ZRdlin() to read lines from the EI file.  ZRdLin() returns
+   the length of the read line *without* the trailing newline returned by
+   fgets().  The ReadEI() logic was checking if the line ended in VT or
+   in ESC-CR-LF.  Since the line returned by ZRdLin() should never end in
+   CR-LF, the ESC check was bogus. I changed it to only add a CR-LF if
+   the line did NOT end in VT or ESC which I think was the original intent.
+15.While playing with ReadEI() in EXEE.C, I was having problems reading in
+   a huge macro (>ZBFINIT bytes long).  The problem was that if the EI
+   buffer became full (ie: BufPtr == ZBfEnd), ReadEI() was calling
+   ZRdLin() with (ZBfEnd-BufPtr == 0).  ZRdLin() was in turn essentially
+   calling "fgets(buf,0,fp)".  When told to read into a 0 size buffer,
+   fgets() simply returns the buffer.  ZRdLin() only fails if fgets()
+   returned NULL or if an error happened, otherwise it will happily
+   return 0 as the length of the line it read, therefore, back in
+   ReadEI(), the "BufPtr += line_len" never incremented BufPtr
+   anywhere and ReadEI() never broke out of it's FOREVER loop, it
+   looped infinitely, reading zero bytes into a zero length buffer.
+   I added the ZBFMIN and ZBFEXP #defines in ZPORT.H and changed ReadEI()
+   so it dynamically reallocates the EI buffer when it is close to
+   becoming full.
+16.Changed ExeCtu(). The call to MakRom() used to make the Q-register
+   text area 1 character longer when doing a "n^Qq" was sending the wrong
+   argument.  It was sending the new *total* size of the text area
+   (end-start+1) instead of the *additional* size of the text area (1 byte).
+17.Changed the way the CLPARS macro is handled:
+   a)  If USE_ANSI_CLPARS is FALSE.
+   Changed CLPARS.TES to not clear itself out of memory when it was
+   finished.  The CLPARS macro is loaded and executed in Q-register Y.
+   The last thing it did was a "0,0XY" to clear itself out.  The problem
+   is that ExeX() would call ZFree() to clear Q-register Y, leaving
+   CBfPtr effectively pointing into a free'ed memory area.  This wasn't
+   fatal because the "0,0XY" was the very last thing in the CLPARS macro
+   so no further TECO instructions were looked for in the free'ed area;
+   but, technically it was wrong.  I removed the "0,0XY" from the CLPARS
+   macro and changed ZPrsCl() so it manually ZFree()'s Q-register Y after
+   it finishes executing it.
+   Note: SQU also uses this technique: issuing a '0,0Xq' at the tail end of
+   a macro loaded in Q-register 'q' to clear the macro out after it
+   finishes executing.  If this is a common TECO macro practice, maybe
+   we'll have to think this through a little more.
+   b) If USE_ANSI_CLPARS is TRUE
+   If USE_ANSI_CLPARS is true, the CLPARS macro is stored as one
+   gigantic string in clpars[].  If USE_ANSI_CLPARS is false, the
+   CLPARS macro is split into lines and stored as an array of strings
+   in *clpars[].  The advantage to USE_ANSI_CLPARS is that to execute
+   the CLPARS macro, ZPrsCL() simply made the text area pointers of
+   Q-register Y point at clpars[] to "load" Q-register Y before doing
+   the MY$$.  Otherwise, if USE_ANSI_CLPARS is false, the CLPARS
+   macro is executed by (slowly) loading it from *clpars[], line-by-line,
+   into Q-register Y and then doing the "MY$$".
+   The problem was that if USE_ANSI_CLPARS was true, Q-register Y held
+   statically allocated data which could cause problems when the CLPARS
+   macro did the "0,0XY" to clean up.  "0,0XY" would make ExeX() try to
+   ZFree() the statically allocated clpars[] string.
+   While looking at this problem I noticed that, other than for historical
+   reasons, there is no reason the CLPARS macro *has* to be executed from
+   Q-register Y.  I changed ZPrsCL() so that if USE_ANSI_CLPRS is true, it
+   directly executes the CLPARS macro from the clpars[] string without
+   bothering to load it into Q-register Y first.
+18.Removed TRACE_IMBEDDED_MACRO.
+19.Removed static initialization of QRgstr[] in TECOC.C and moved it
+   into MemIni() in INIT.C along with the other initializations of
+   global static arrays (QStack[], etc). [See suggestion (1) below]
+20.Changed ExeEO to return ExeNYI() for "nEO".
+21.Changed DoEI().  DoEI() calls PshMac(), ExeCSt(), and PopMac().  If the
+   ExeCSt() failed, it would do a return(FAILURE) without doing the PopMac(),
+   leaving the macro stack off and CBfPtr pointing into the EI buffer.  DoEI()
+   was changed so that it does a PopMac() even if ExeCSt() fails.  This same
+   type of logic was changed in ExeM().
+   This problem didn't appear unless you tried executing a macro from a file
+   or from a Q-register which failed miserably.
+22.Changed ReadEI() <again>.  When ReadEI() finds a line containing double
+   <ESC>'s, it returns to DoEI(), which then executes everything up to that
+   point.  DoEI() then re-calls ReadEI() to finish reading the EI file.  The
+   problem was that if there were any commands *after* the two <ESC>'s on
+   the last line read, they would be lost in the shuffle because ReadEI()
+   would start reading into the beginning of ZBf.  The SQU.TEC macro had
+   a line with commands after a double <ESC>.
+23.Fixed ExeO().  ExeO() wasn't completely comparing the desired tag with
+   the tag in the command string.  So, if the command string had two tag
+   names which start out the same way, for example:
+	!aa!
+	!a!
+   "Oa" would goto !aa!.
+24.Changed the way some of the colon-modified commands work.  I ran into a
+   situation in SQU where "Y<:A;>" was used.  If the yank read in the entire
+   buffer, ExeA() would fail immediately, without clearing the colon-modified
+   bit in CmdMod, thus "passing" CmdMod to ";" converting it to ":;".  "n;"
+   breaks if n is zero or positive, "n:;" breaks if n is negative.  "Passing"
+   CmdMod to ExeSCl() this way completely altered the sense of the ";" break.
+25.Fixed case flagging in TypBuf() and made it faster by not doing the
+   Is_Lower() and Is_Upper() checking if EuFlag() is set to EU_NONE.
+26.Rewrote ZCpyBl() in ZMSDOS.C to use memmove() and memcpy().  They
+   both use 80x86 string instructions and make things much faster.
+27.PopMac() was clearing the contents of the local Q-register table,
+   but wasn't de-allocating the table itself.
+28.Changed PshMac(), PopMac(), FindQR(), and Init() to use pointers into
+   the MStack[] and MStack[].QRgstr tables instead of doing redundant array
+   references.  Changed Reduce() in PUSHEX.C to use pointers into EStack[]
+   for the same reason.  Using pointers should be faster?
+29.The digit buffer (DBfBeg) was initialized in TECOC.C as:
+		charptr *DBfBeg = "      ";
+   then digits were poked into this statically allocated string which really
+   isn't kosher.  Changed it so DBfBeg is initialized in MemIni() in INIT.C.
+06-Dec-1989 version 120
+1. Changed ExeEO() in EXEE.C to make the version number 120.
+2. Fixed bug in ZDspBf caused by "length" wrapping when unsigned.
+3. various little fixups.
+07-Dec-1989 version 121
+1. Changed ExeEO() in EXEE.C to make the version number 121.
+2. Made EC clear the edit buffer after writing files.  Thanks, Phil.
+3. Fixed ZFWrite in ZMSDOS.C to handle files > 64k better.
+20-Dec-1989 version 122
+1. Changed ExeEO() in EXEE.C to make the version number 122.
+2. Added TVERSION (version number of TECOC-C) to TECOC.C
+3. Fixed ZRdLin in ZVMS.C to make EI commands work.
+4. Removed the ZInit function.  It was being called late (after MemIni),
+   and turned out to be unused anyway.
+04-Feb-1990 version 123
+1. Changed ExeEO() in EXEE.C to make the version number 123.
+2. Removed funny handling of lines terminated with <ESC><CR><LF> do let
+   MS-DOS users edit macros without funnyness.
+3. Regularized the "debugging level" numbers documented with DbgDMs in
+   TECOC.C.
+4. Fixed looping logic in SrcLop to make "n_text$" commands work.
+5. Fixed bug in ClTrEx in ZVMS.C so running from batch works.
+20-Feb-1990 version 124
+1. Changed TVERSION in TECOC.H to 124.
+2. Rewrote MakDBf to make it more portable.
+2-Mar-1990 version 125
+1. Changed TVERSION in TECOC.H to 125.
+2. Fixed so HP with an empty buffer doesn't cause an error message.
+3. Moved the decision about whether to add/remove CR/LF pairs to/from the end
+   of lines when doing file I/O into the system-dependent functions.  This
+   was needed to make MD-DOS happy,  and is really where this stuff should
+   be anyway.
+4. Defined GotCtC as "volatile".
+5. Rewrote ZRdLin in ZVMS.C to do what TECO-11 really does with all the
+   special characters.
+6. Put a check for an open output file into ExeEC,  so the command HKEFEX
+   will work even if there's more pages in the input file.
+7. Merged WrBufr and ZWrLin into a singl function called ZWrBfr.  Deleted
+   WRBUFR.C and updated the build files.  This was needed to provide system
+   dependent control over output so MS-DOS I/O could be cleaned up.
+22-May-1990     version 126
+1. Changed TVERSION in TECOC.H to 126.
+2. Removed code that adds a CR/LF to each record read by ReadEI.
+3. Fixed VMS output code in ZWrBfr broken in version 125.
+4. Changed TypBuf so it is interruptable by ^C after displaying a line.
+5. Defined ChkCtC() so that ^C's work better under MS-DOS.
+6. Changed ZSWild & ZPWild to work better under CHANGE.TEC.
+7. Folded wildcard filename buffer (WBf) into "normal" filename buffer (FBf)
+   so G* after ENfilespec$ returns "filespec".
+1-June-1990 version 127
+1. Changed TVERSION in TECOC.H to 127.
+2. Modified ZDoCmd() in ZMSDOS.C so you can EGfilename.BAT$.
+3. Added EBfFul to avoid "?MEM memory overflow" messages when reading large
+   files.  Now TECO-C quietly stops reading.
+4. Reduced number of times ChkCtC() is called to speed display up.
+5. renamed AAAREADME.TXT to AAREADME.TXT,  needed by MS-DOS
+8-June-1990 version 128
+1. Changed TVERSION in TECOC.H to 128.
+2. Fixed loops that initialize IsOpnI, IsEofI and IsOpnO in Memini.  Thanks
+   to Chuck Cranor.
+3. Added ZExit, ZClnUp and ClenUp and replaced ZAbort with TAbort.  This
+   modularizes exit handling.
+4. Applied lots of fixes to zunix.c suggested by Chuck Cranor.  These include
+   terminal initialization and use of termcap for terminal sequences.
+5. Added a type cast to FindQR to prevent a compiler warning.
+13-June-1990    version 129
+1. Changed TVERSION in TECOC.H to 129.
+2. Made n^T display n modulo 256 instead of generating an error when n
+   is out-of-range.  Now it matches documentation.
+3. Worked on file I/O in ZUNIX.C.
+20-June-1990 version 130
+1. Changed TVERSION in TECOC.H to 130.
+2. Applied Tom Almy's MS-DOS fixes to prevent conversions of line feeds
+   written to the terminal to carriage-return/line-feed pairs.
+3. Applied Tom Almy's fixes to the search code.  Now backwards searches
+   work better.
+4. Applied Tom Almy's fixes so eight-bit characters are better supported.
+5. Minor fixes to ExeW.
+6. Replaced ZRdLin in ZMSDOS.C with Tom Almy's superior version.
+7. EBfFul was a global used only by RdLine, ExeA and RdPage.  I made it
+   an argument.  Seemed like the right thing to do.
+8. Changed the type of the length argument to InsStr from LONG to ptrdiff_t.
+9. Applied Tom Almy's fixes to DoEvEs and ReadCS.
+10. Fixed up PG.RNO and created a new PG.MEM.
+11. Removed BYTE identifier from ZPORT.H and did related fixups.
+12. Started (by no means complete) supporting 8-bit characters throughout
+    the code.  In most cases,  this means changing things declared "char"
+    to be declared "unsigned char".
+13. Deleted DSPCHR.C, which wasn't even compiled.
+17-July-1990 version 131 (Manfred)
+0. Changed TVERSION in TECOC.H to 131
+1. In TECOC.C, ChrMsk[], changed 128 RCS_DEL entries Pete added to RCS_DEF.
+2. In ZMSDOS.C, added #include <fcntl.h> to get O_BINARY #define.  In
+   ZTrmnl(), added "setmode(fileno(stdout),O_BINARY)" per Tom Almy.
+3. In MAKEFILE.TC, added -K (default to unsigned char) to TCC so string
+   literals which are signed char ptr's don't conflict with the unsigned
+   char ptr's now used all over to get eight-bit chars per Tom Almy.
+   Also added tabort.obj to TECOC_OBJS macro.  Also added -DTCPP100 macro.
+4. In ZPORT.H, changed EBFEXP, EBFINIT, IBFEXP, IBFINIT from 64000
+   to 64000L to get rid of TC++'s "Constant is long" warnings.
+5. In ERR.C, ToErr(), got rid of TC++'s "Conversion may lose significant
+   digits" in Sbuf[DBfPtr-DBfBeg] line by using SLen to hold DBf length;
+   changed bogus compare "> '\126'" to "> '\177'"; also, the final ']'
+   was overwriting last digit in SBuf.
+6. In RDLINE.C, changed function return type of expand_ibf from an
+   "static" to "static void".  Also added prototype.
+7. In TECOC.H, added prototype for errprt().
+8. In RDLINE.C, expand_ibf(), added #if DEBUGGING lines so DbgFNm is declared.
+9. In ZMSDOS.C, ZRdLin(), fixed typo in #if DEBUGGING "FAILURE" section.
+10. In ZMSDOS.C, ZRaloc(), added test for TC++ v1.00 since the heap layout
+    has changed.  In TC v2.0? mimic farrealloc(), in TC++ v1.00 call
+    farrealloc() directly.
+18-July-1990 version 132
+0. Changed TVERSION in TECOC.H to 132
+1. lots more work to resolve type mismatches,  so lint and gcc don't
+   complain so much.
+2. fixed the ? immediate-mode command.
+3. used GAPMIN in RdLine to fix wasteful memory use.
+4. removed superflous parentheses from return statements.
+5. to test that identifiers defined in ZPORT.H are minimally consistent,
+   added some tests in TECOC.C
+6. To finish up eightbit handling,  added ZSetTT,  a function to let TECO set
+   terminal characteristics.  Since it's there,  added code so the 1:W and
+   2:W commands change screen size.  Not video yet,  but a little closer.
+7. Changed ZMkOFN into a macro named ZMKOFN.
+8. Fixed ZChIn to handle NoWait correctly.
+9. Fixed handling of 0,32et bit.
+    (8-August-1990 Manfred)
+10. In TECOC.C, changed "\n" to "\r\n" in debugging displays since stdout
+    is now in binary mode.
+11. In INIT.C, in MemIni(), added Tom Almy's suggestion to temporarily
+    allocate a small chunk of memory to be used as a small-allocation
+    memory pool which may help keep memory fragmentation down.
+12. In ZPORT.H, removed unused UWORD typedef.
+13. In ZMSDOS.C, in ZVrBos(), changed old style function definition.
+14. In ZMSDOS.C, propagated MPtrs[] dynamic allocation tracking to ZRaloc(),
+    added TC++'s new heapcheck() routines to check the heap on every alloc,
+    realloc, and free.  We *are* DEBUGGING and don't care about speed
+    penalties, right?
+15. In ERR.C, the one-line error messages for ERR_PES and ERR_PDO were
+    switched (Argh!).
+16. In ZPORT.H, expanded EXS_SIZE, LPS_SIZE, MCS_SIZE, and QRS_SIZE so
+    SQU.TEC has some breathing room.  Should these expand themselves?
+17. Some of the .TEC and .TES files supplied with TECO-C were padded with
+    NUL's and some lines ending with ESC had an extra CR.
+18. In ZMSDOS.C, ZDspCH() called write().  should call fwrite() or we're
+    mixing calls to write/fwrite on stdout which is bad.  also, the code
+    which directly set stdout->flags'_F_BIN bit after setmode(stdout) in
+    ZTrmnl() somehow was lost between Pete's version and mine (?)
+19. In ZMSDOS.C, in ZRdLin(), iBuf was cast as "char far *", should have
+    been cast simply as a "char *" otherwise compiling w/small data model
+    doesn't work.
+20. In CHANGE.TES, changed some ^U constructs so it's now SQUishable.
+21. In ZMSDOS.C, added ff_path[] to save ENfilespec$ wildcard lookup
+    filename since we can't be sure FBf will still contain the wildcard
+    lookup filename between ENfilespec$ and EN$.
+22. Changed CLPARS.TES so when you MUNG there's no leftover trash in
+    q-register 0. (Pete)
+19-August-1990 version 133 (Manfred)
+0. Changed TVERSION in TECOC.H to 133
+1. In EXEO.C, added support for computed gotos (nOtag0,tag1...$)
+2. In INIT.C, in MemIni(), the digit buffer was being overrun on -1== since
+   the calculation to allocate the digit buffer either: a) didn't take into
+   account that 32-bits-per-long/3-bits-per-octal-digit doesn't divide evenly
+   (loses 2 bits), or b) didn't take into account that ExeEqu() might append
+   <CR><LF> to the digit buffer for =, ==, or === display purposes.
+3. In ZMSDOS.C, fixed MPtrs[] tracking in ZRaloc, didn't work correctly
+   when farrealloc() eventually returns NULL.
+4. In TECOC.C, added Turbo C's heapcheck() routine to check_consistency().
+5. In RDLINE.C, in RdLine(), after expand_ibf(), was calling ZRdLin() even
+   if EBfFul was set TRUE.  I don't think it should, even though we might be
+   able to read a line less than IBFMIN bytes long.
+9-September-1990 version 134 (Pete)
+0. Changed TVERSION in TECOC.H to 134
+1. Changed the way I handle conditional inclusion of debugging code.
+   Borrowing from the way the ANSI assert macro works,  all the debugging
+   functions are now macros,  which don't produce any code if DEBUGGING
+   is FALSE.
+2. Added TECOC.OPT so the VAX linker puts literal text strings into a
+   non-writeable PSECT.
+3. Fixed ExeBSl so it will read a numeric string from the edit buffer even
+   if it's preceded by a minus-sign or plus-sign,  and fixed TSTBSL.TEC
+   so it tests for these cases.
+18-October-1990 version 135 (Pete)
+0. Changed TVERSION in TECOC.H to 135.
+1. Updated PG.RNH/PG.MEM again.
+2. Fixed define of DBGFEX in TECOC.H so DEBUGGING works again.
+3. Fixed FindQR and ExeM to make TECO-C handle :M commands correctly.
+21-November-1990 version 136
+0. Changed TVERSION in TECOC.H to 136.
+1. Fixed DBGFEX syntax bug on line 1118 of ZMSDOS.C
+2. Removed extra close parenthesis in EXEW.C
+3. Fixed BLDSTR.C to allow searching for nulls.  Thanks to Tom Almy.
+4. Fixed ExeFGt to work correctly.  Bug found by Richard Graham.
+5. Added missing enblosing braces in InsStr. Thanks to Mark Henderson.
+6. Added Mark Henderson's additional code to BldStr to provide ^EQ* (file
+   spec buffer) and ^EQ_ (search string buffer) support.  Then broke BldStr
+   into functions for readability.
+7. Inserted Mark Henderson's time and date code into ZUNIX.C.  Testing with
+   DATE.TEC revealed a slight bug,  fixed.
+8. Added ZAMIGA.C and some mods to ZPORT.H from Ben Mesander to support
+   TECO-C under Amiga-DOS.  Thanks Ben!
+9. Fixed ExeEQ so it preserves the state of FFPage when reading files.
+   Thanks to Mark Henderson.
+10. Added ZBell function to make the bell sound better under MS-DOS.
+   Thanks to Steve Freyder.
+11. Added Mark Henderson's code (he got glob.c from Berkeley stuff)
+   to do wild-carding of file names.  Reorganized it some.  Thanks, Mark.
+12. Added Mark's code to name backup files sort of like VMS.  Not sure I
+   like this yet,  because I haven't tried it.  ED bit 4 controls it,  like
+   so (from Mark:)
+	ED&4 now specifies the mechanism for backup files
+	if ED&4 is set then we use the foo foo.bak mechanism (as originally)
+	if ED&4 is clear the first backup file will be named foo;1, the
+		second foo;2, ...&c. Sort of VMS like, but the most recent
+		version will be known by the name foo.
+13. Mark added TECFILES environment variable.
+	If for ei commands and TECO.INI the file is not found in the
+	current directory the directory $(TECFILES) will be searched.
+	I've been keeping my teco startup files in ~/.teco
+26-December-1990 version 137
+0. Changed TVERSION in TECOC.H to 137.
+1. Minor fixups to get ZUNIX.C to compile.
+2. Moved the line that resets FFPage to zero.  It was in RdPage,  now it's
+   in RdLine so a 1:a command now correctly resets flag.  Thanks to Richard
+   Graham for reporting this one.
+3. Modified ExeCtE so you can now set the flag as well as get its value,
+   like in TECO-11 and TECO-32.
+4. Fixed ExeBSl so it sets RefLen when it converts a digit string in the
+   edit buffer into a binary value.  Thanks to Mark Henderson.
+5. Merged in new Amiga support files from Ben Mesander.  There's a new
+   ZAMIGA.C, which now has time and date support.  Ben supplied files
+   MAKEFILE.AMI and TECOC.LNK for building on the Amiga.
+29-December-1990 version 138
+0. Changed TVERSION in TECOC.H to 138.
+1. Rewrote the TSTO.TEC macro,  which pointed out a bug in TECO-32!
+2. Added "smallcode smalldata" to LFLAGS vlue in MAKEFILE.AMI to make TECO-C
+   smaller (for faster startup) under AmigaDOS. Thanks to Ben Mesander.
+3. Moved OpnInp and OpnOut into ExeE because only ExeE functions call them.
+4. Changed ZOpInp function in ZVMS to do the right thing with the default
+   macro library directory.  ZAMIGA.C, ZUNIX.C and ZMSDOS.C need to be
+   changed.
+10-January-1991 version 139
+0. Changed TVERSION in TECOC.H to 139.
+1. Fixed ZUNIX.C so it handles default EI file names correctly.  Still needs
+   ZClnEG to be implemented.
+2. Applied Mark Henderson's patch to ZChIn to fix Control-C handling.
+3. Applied Mark Henderson's patch to ExeEQ to fix EBFEnd pointer screw-up
+   when reading a large file with EQ.  Thanks again, Mark!
+4. Applied Ben Masander's patch to ZAMIGA.C to correctly call isatty.
+5. Implemented "SYM" part of :EG command for VAX/VMS,  so TECO-C can set DCL
+   symbols like DEC's TECO.
+20-January-1991 version 140
+0. Changed TVERSION in TECOC.H to 140.
+1. Reworked ExeEG and ZClnEG to make it work under Unix and to do the
+   system dependent stuff in the right places.
+2. Modified GENCLP to make it create clpars as "unsigned char" instead of
+   "signed char" to remove a gcc warning.  Made GENCLP compile/link/run under
+   SunOS and modified MAKEFILE.SUN to include processing of GENCLP.
+3. Changed GENCLP.C to define clpars as "const" for ANSI compilers.
+4. Received another ZAMIGA.C from Ben Mesander.  He is now using RCS to
+   control revisions,  so there'll be version numbers for ZAMIGA.C from now
+   on.  This is version 1.4.
+5. Implemented Mark Henderson's suggestion to make the size of error
+   message buffers a #define'd identifier. I named it ERBFSIZ.
+6. Merged in Mark Henderson's video support.  This involved a LOT of
+   changes,  including:
+	a. Merged MOVE.C into ZUNIX.C
+	b. changed VOID to VVOID to avoid clashing with CURSES.H
+	c. lots of added code with "#if CURSES" control
+	d. created VIDEO.TXT
+	e. created an EZ mode control flag for Mark's bits.
+	f. added exetil.c
+23-February-1991 version 141
+0. Changed TVERSION in TECOC.H to 141.
+1. Some slight changes to make lint happy.
+2. From Manfred: added DBGFEN calls to DoCtVW and DoCtE in BldStr,  fixed
+   DbgFNm in ExeF, removed extra "#include <dos.h>" from ZMSDOS.C, added
+   "fclose(fp)" to init_code_checksums in ZMSDOS.C, and some other minor
+   fixups in ZMSDOS.C.  Changed MAKEFILE.TC to avoid "Abnormal Program
+   Termination".
+3. Added check of terminal width & height to ExeW for 0,1:w error.
+4. Added Mark Henderson's fix to let ZUNIX.C compile under SunOS 4.0.
+15-March-1991 version 142
+0. Changed TVERSION in TECOC.H to 142.
+1. Added Ben's fixes to slight build problems on AmigaDOS.
+2. Fixed makefile.sun to make it handle SunOS 4.1 as well as 4.0.  Still
+   needs hand-editing to the makefile before running it.  Defaults to 4.1.
+3. Added some fixes to ZUNIX.C to reduce gcc warnings.
+4. Repaired makefile.sun,  which was broken.
+5. Fixed EXEFTIL.C and EXEF.C so they compile when DEBUGGING is defined.
+20-April-1991 version 143
+0. Changed TVERSION in TECOC.H to 143.
+1. Changed CLPARS.TEC to parse Unix command lines with "-" for options
+   instead of "/".
+2. Under Unix, changed ZClnEg to implement last-file-edited memory using
+   files in /tmp instead of gawdawful TECF00.TMP files in the current
+   directory.
+3. Slight include file #ifdef changes to let it compile under SunOS 4.1.1.
+4. Changed makefile.sun to not use a library.  It's much faster this way.
+5. Added case for tilde command to SkpCmd.c.
+6. Those C files that directly include curses.h needed to have the
+   #include moved above zport.h.
+7. Fixed ExeW so if we're not compiled with video,  it returns nothing
+   instead of FAILURE,  like TECO32.  Returning FAILURE causes the current
+   macro to fail,  and the current macro might be CLPARS!
+8. Fixed ZUNIX.C so ET_UNIXNL is correctly defined.
+9. Added Jerry Leichter's fixes to port to Ultrix,  including makefile.ulx.
+10. Fixed bug in ZUNIX.C where ZDspCh was being called with a string instead
+    of a character.  Thanks Jerry!
+2-June-1991 version 144
+0. Changed TVERSION in TECOC.H to 144.
+1. For the ^P command (for debugging,  must compile with DEBUGGING set)
+   to work,  each function that starts with a call to DBGFEN needs to have
+   a call to DBGFEX before every exit point,  or the pretty nesting gets
+   screwed up.  Added some DBGFEX calls to BldStr and ZOClos (in ZUNIX.C)
+   to fix the display when 4,0 is used.
+2. Fixed DoFlag, ExeCtR, ExeCtT, ExeW and ExeBSl so they check the expression
+   stack correctly.  They can now be used in expressions without problems.
+   Thanks to Mark Henderson and Jerry Leichter for reporting this.
+3. Moved the check for "negative argument to comma" from ExeCom to GetAra,
+   where it belongs.  This allows -1,5:w commands to work.  Thanks to Jerry
+   Leichter.
+4. Instead of "unterminated command",  GetNmA now returns "ill-formed
+   expression",  an new error message,  when the stack is bogus.
+5-June-1991 version 145
+0. Changed TVERSION in TECOC.H to 145.
+1. Modified PshMac to test set NumArg correctly,  so a command like
+   ^UA1$2+MA=$$ will work.
+2. The "#else" on line 122 of ZUNIX.C should be a "#endif".
+5-June-1991 to 18-June-1993 version 146
+0. Changed TVERSION in TECOC.H to 146.
+1. Removed the ~ and F~ commands (the EXETIL.C file and the ExeFTi function)
+   They were temporary commands used by Mark Henderson.
+3. Added makefile.cct, fixed various minor nits suggested by CodeCenter.
+4. Fixed error in the way the EI command reads files.  If the file being
+   read was too large for the buffer, memory was getting stomped.  Thanks
+   to Mark Henderson for reporting the bug in detail and suggesting a fix.

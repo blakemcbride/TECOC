@@ -1,0 +1,212 @@
+NULL	ignored
+^A	output message to terminal
+^B	current date
+^C	interrupt
+^D	set radix to decimal
+^E	form feed flag
+^E<n>	(match char) match ASCII code n
+^E[]	(match char) match one of list
+^EA	(match char) match alphabetics
+^EB	(match char) match separator character
+^EC	(match char) match symbol constituent
+^ED	(match char) match digit
+^EGq	(match char) match contents of q-register
+^EL	(match char) match line terminators
+^EMx	(match char) match any number of x
+^EQq	(string build char) use contents of q-register q
+^ER	(match char) match alphanumerics
+^ES	(match char) match spaces and/or tabs
+^EUq	(string build char) use ASCII code in q-register
+^EV	(match char) match lowercase
+^EW	(match char) match uppercase
+^EX	(match char) match anything
+^F	not implemented
+^G^G	kill command string
+^G<SP>	retype current command line
+^G*	retype entire current command line
+^H	current time
+BS	immediate mode: back up one line and type one line
+TAB	insert tab and text
+LF	ignored in commands
+LF	immediate mode: advance one line and type one line
+VT	not a TECO command
+FF	output a form feed to terminal
+CR	ignored
+^N	end of file flag
+^Nx	(match char) match any character but x
+^O	set radix to octal
+^P	not a TECO command
+n^Q	convert line offset to character offset
+^Qx	(string char) use x literally
+^R	value of current radix
+n^R	set radix to n
+^Rx	(string char) use x literally
+^S	-(length of last inserted string or found search string)
+^S	immediate mode: not yet implemented
+^S	(match char) match any separator character
+^T	ASCII value of next character typed in
+n^T	output character whose ASCII value is n to the terminal screen
+^U	(command line) erase current command line
+^Uq	put string into q-register
+:^Uq	append string to q-register
+n^Uq	put ASCII character "n" into q-register
+n:^Uq	append ASCII "n" to q-register
+^V	convert search strings to lowercase
+^Vx	(string char) convert x to lowercase
+^W	convert search strings to uppercase
+^Wx	(string char) convert x to uppercase
+^X	search mode flag
+^X	(match char) match any character
+^Y	equivalent to ".+^S,."
+^Z	size of text in all q-registers, plus command line
+^Z^Z^Z	quit TECO, leave everything as it was before TECO was entered
+ESC	command and string terminator
+^[	like ESC
+^\	not a TECO command
+^]	not a TECO command
+^^x	ASCII value of x
+n^_	ones complement of n
+SP	ignored
+!	define tag
+n"<	test for less than zero
+n"=	test for equal to zero
+n">	test for greater than zero
+n"A	test for alphabetic
+n"C	test for symbol constituent
+n"D	test for digit
+n"E	test for equal to zero
+n"F	test for false
+n"G	test for greater than zero
+n"L	test for less than zero
+n"N	test for not equal to zero
+n"R	test for alphanumeric
+n"S	test for successful
+n"T	test for true
+n"U	test for unsuccessful
+n"V	test for lowercase
+n"W	test for uppercase
+#	logical OR
+$	separate TECO commands
+n%q	add n to q-register q, return the result
+&	logical AND
+'	end of conditional
+(	numeric expression grouping
+)	numeric expression grouping
+*	multiplication
+*q	immediate mode: save last command string in q-register q
++	addition
+,	numeric argument separator
+-	subtraction or negation
+.	current pointer position
+/	division
+/	immediate mode: type detailed explanation of error
+0-9	numeric argument constructors
+:	modify next command
+n;	exit iteration of n is greater than or equal to zero
+n:;	exit iteration if n is less than or equal to zero
+n<	iterate n times
+n=	type n in decimal
+n==	type n in octal
+n===	type n in hexadecimal
+n:=	type n in decimal, no carriage return
+n:==	type n in octal, no carriage return
+n:===	type n in hexadecimal, no carriage return
+>	end iteration
+?	toggle trace mode
+?	immediate mode: type out erroneous command string
+@	modify next text argument
+A	append next input page to edit buffer
+nA	ASCII value of character at .+n
+n:A	append n lines to input buffer
+B	always zero. represents beginning of edit buffer
+nC	advance n characters
+nD	delete n characters
+m,nD	delete between m and n (same as m,nK)
+E%q	write q-register to file
+nE_	destructive search without page protection
+EA	select secondary output stream
+EB	open input and output files
+EC	copy input file to output file and close files
+nEC	not yet implemented
+ED	edit mode flag
+EF	close output file
+EH	help level flag
+EI	open indirect command file
+EK	kill output file
+EL	open log file
+EN	wildcard lookup
+EO	return version number of TECO
+EP	select secondary input stream
+EQq	read from file into q-register
+ER	open input file
+ES	search verification flag
+ET	type out control flag
+EU	case flagging flag
+EV	edit verify flag
+EW	open output file
+EX	close files and exit
+EY	read without yank protection
+nF_	destructive search and replace
+F'	flow to end of conditional
+F<	flow to start of iteration
+F>	flow to end of iteration
+F|	flow to ELSE part of conditional
+m,nFB	search between locations m and n
+nFB	search, bounded by n lines
+m,nFC	search and replace between m and n
+nFC	search and replace over n lines
+nFD	search for and delete string
+nFK	search for string and delete intervening text
+nFN	paged search and replace
+FR	replace last string
+nFS	search and replace
+Gq	get string from q-register into edit buffer
+G*	get string from filespec buffer into edit buffer
+G_	get string from search buffer into edit buffer
+:Gq	type text in q-register q
+:G*     type filespec
+:G_     type search string
+H	equivalent to B,Z
+I	insert text
+nI	insert character whose ASCII value is n
+nJ	move pointer to J
+nK	kill n lines
+m,nK	delete between m and n (same as m,nD)
+nL	advance n lines
+Mq	execute commands in q-register
+nN	paged search
+O	go to label
+nO	goto selected label in list
+nP	advance n pages
+m,nP	write out characters m to n
+nPW	write edit buffer n times
+m,nPW	write out characters m to n
+Qq	number in q-register q
+:Qq	size of text in q-register q
+nR	back up n characters
+nS	search for nth occurrence of a string
+::S	compare string
+nT	type n lines
+m,nT	type characters between m and n
+nUq	put n into q-register q
+nV	view n lines
+m,nV	view m lines before, n lines after pointer
+W	not yet implemented
+nXq	put n lines into q-register q
+m,nXq	put character m through n into q-register q
+n:Xq	append n lines to q-register q
+m,n:Xq	append characters m through n to q-register q
+Y	yank a page into the edit buffer
+Z	end of buffer (number of characters in the edit buffer)
+[q	push q-register q onto q-register stack
+\	value of string in edit buffer
+n\	convert n to digits in edit buffer
+]q	pop q-register stack into q-register q
+n_	destructive paged search
+`	not a TECO command
+a-z	treated as uppercase equivalents
+{	not a TECO command
+|	start of ELSE part of conditional
+}	not a TECO command
+~	not a TECO command
+DEL	not a TECO command

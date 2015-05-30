@@ -1,0 +1,544 @@
+
+
+	This file tests search commands.
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test some simple searches
+
+
+hk iabcdefghi j
+forward search for 1st char  sa .-1"e passed
+ | failed!!!
+ '
+forward search for 4th char  sd .-4"e passed
+ | failed!!!
+'
+forward search for last char  si .-9"e passed
+ | failed!!!
+'
+backwards search for 4th char  -sd .-4"e passed
+ | failed!!!
+'
+backwards search for 1st char  -sa .-1"e passed
+ | failed!!!
+'
+
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^Ea match construct
+
+
+test 1  jsa .-1"e passed
+ | failed!!!
+'
+test 2  jsba .-3"e passed
+ | failed!!!
+'
+test 3  jsha .-9"e passed
+ | failed!!!
+'
+test 4  jsbad .-4"e passed
+ | failed!!!
+'
+test 5  jsbaaa .-5"e passed
+ | failed!!!
+'
+test 6  jsaaaaaaaaa .-9"e passed
+ | failed!!!
+'
+hk
+0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#$%&'()*+,-./0123456789:;<=>?@[\]^_`{|}~127iiA
+test 7  jsa .-77"e passed
+ | failed!!!
+'
+
+	Test the ^Eb match construct
+
+
+hki!@#$%&*()
+jsb.-1"etest 1 passed
+|test 1 failed!!!
+'
+js!b.-2"etest 2 passed
+|test 2 failed!!!
+'
+js(b.-9"etest 3 passed
+|test 3 failed!!!
+'
+js!b#.-3"etest 4 passed
+|test 4 failed!!!
+'
+js!bbb.-4"etest 5 passed
+|test 5 failed!!!
+'
+jsbbbbbbbbb.-9"etest 6 passed
+|test 6 failed!!!
+'
+hkiABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!
+jsb.-63"etest 7 passed
+|test 7 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^Ec match construct
+
+
+hkiabcdefghi
+jsc.-1"etest 1 passed
+|test 1 failed!!!
+'
+jsbc.-3"etest 2 passed
+|test 2 failed!!!
+'
+jshc.-9"etest 3 passed
+|test 3 failed!!!
+'
+jsbcd.-4"etest 4 passed
+|test 4 failed!!!
+'
+jsbccc.-5"etest 5 passed
+|test 5 failed!!!
+'
+jsccccccccc.-9"etest 6 passed
+|test 6 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#%&'()*+,-/:;<=>?@[\]^`{|}~127iiA
+jsc.-64"etest 7 passed
+|test 7 failed!!!
+'
+hki0123456789$.
+jscccccccccccc.-12"etest 8 passed
+|test 8 failed!!!
+'
+
+	Test the ^Ed match construct
+
+
+hki0123456789
+jsd.-1"etest 1 passed
+|test 1 failed!!!
+'
+js1d.-3"etest 2 passed
+|test 2 failed!!!
+'
+js8d.-10"etest 3 passed
+|test 3 failed!!!
+'
+js2d4.-5"etest 4 passed
+|test 4 failed!!!
+'
+js2ddd.-6"etest 5 passed
+|test 5 failed!!!
+'
+jsdddddddddd.-10"etest 6 passed
+|test 6 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#$%&'()*+,-./:;<=>?@ABCDEFGHIJKLMNOPQRSTU
+iVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~127ii0
+jsd.-119"etest 7 passed
+|test 7 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^Eg match construct
+
+
+^Uadef
+hkiabcdefghi
+jsGa.-4"etest 1 passed
+|test 1 failed!!!
+'
+0^Ua1:^Ua2:^Ua3:^Ua4:^Ua5:^Ua6:^Ua7:^Ua8:^Ua9:^Ua10:^Ua11:^Ua
+12:^Ua13:^Ua14:^Ua15:^Ua16:^Ua17:^Ua18:^Ua19:^Ua20:^Ua21:^Ua
+22:^Ua23:^Ua24:^Ua25:^Ua26:^Ua27:^Ua28:^Ua29:^Ua30:^Ua31:^Ua
+:^Ua !"#$%&'()*+,-./0123456789:;<=>?@JKLMNOPQRSTU
+:^UaVWXYZ[\]^_`jklmnopqrstuvwxyz{|}127i
+j:sga"ftest 2 passed
+|test 2 failed!!!
+'
+hkiabcdefghi@
+jsga.-10"etest 3 passed
+|test 3 failed!!!
+'
+hki@
+jsga.-1"etest 4 passed
+|test 4 failed!!!
+'
+
+	Test the ^El match construct
+
+
+
+!10 is line feed, 11 is vertical tab, 12 is form feed!
+
+hk10i10i10i10i10i10i10i10i11i12i
+jsl.-1"etest 1 passed
+|test 1 failed!!!
+'
+hkixx10i10i10i10i10i10i10i11i12i
+jsxxl.-3"etest 2 passed
+|test 2 failed!!!
+'
+hkixxxxxxxx11i12i
+jsl.-10"etest 3 passed
+|test 3 failed!!!
+'
+hk10i10i10i10i10i10i10i10i11i12i
+jsllllllllll.-10"etest 4 passed
+|test 4 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i13i14i15i16i17i18i19i20i21i22i
+23i24i25i26i27i28i29i30i31i
+i !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTU
+iVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~127i12i
+jsl.-126"etest 5 passed
+|test 5 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^Er match construct
+
+
+hki0123456789
+jsr.-1"etest 1 passed
+|test 1 failed!!!
+'
+js1r.-3"etest 2 passed
+|test 2 failed!!!
+'
+js8r.-10"etest 3 passed
+|test 3 failed!!!
+'
+js2r4.-5"etest 4 passed
+|test 4 failed!!!
+'
+js2rrr.-6"etest 5 passed
+|test 5 failed!!!
+'
+jsrrrrrrrrrr.-10"etest 6 passed
+|test 6 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~127iia
+jsr.-67"etest 7 passed
+|test 7 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^Es match construct
+
+
+hki 
+jss.-1"etest 1 passed
+|test 1 failed!!!
+'
+hkiab cde
+jsbs.-3"etest 2 passed
+|test 2 failed!!!
+'
+hkiab     de
+jss.-7"etest 3 passed
+|test 3 failed!!!
+'
+hkiab	de
+jsbsd.-4"etest 4 passed
+|test 4 failed!!!
+'
+hkiab  		  		de
+jsbsd.-11"etest 5 passed
+|test 5 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i10i11i12i13i14i15i16i17i18i
+19i20i21i22i23i24i25i26i27i28i29i30i31i
+i!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ
+i[\]^_`abcdefghijklmnopqrstuvwxyz{|}~127ii 
+jss.-127"etest 6 passed
+|test 6 failed!!!
+'
+
+	Test the ^Ev match construct
+
+
+hkiabcdefghij
+jsv.-1"etest 1 passed
+|test 1 failed!!!
+'
+jsabv.-3"etest 2 passed
+|test 2 failed!!!
+'
+jsiv.-10"etest 3 passed
+|test 3 failed!!!
+'
+jsbvd.-4"etest 4 passed
+|test 4 failed!!!
+'
+jsbvvv.-5"etest 5 passed
+|test 5 failed!!!
+'
+jsvvvvvvvvvv.-10"etest 6 passed
+|test 6 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#$%&'()*+,-./:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`{|}~127iia
+jsv.-93"etest 7 passed
+|test 7 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^Ew match construct
+
+
+hkiABCDEFGHIJ
+jsw.-1"etest 1 passed
+|test 1 failed!!!
+'
+jsabw.-3"etest 2 passed
+|test 2 failed!!!
+'
+jsiw.-10"etest 3 passed
+|test 3 failed!!!
+'
+jsbwd.-4"etest 4 passed
+|test 4 failed!!!
+'
+jsbwww.-5"etest 5 passed
+|test 5 failed!!!
+'
+jswwwwwwwwww.-10"etest 6 passed
+|test 6 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#$%&'()*+,-./:;<=>?@[\]^_`abcdefghijklmnopqrstuvwxyz{|}~127iiA
+jsw.-93"etest 7 passed
+|test 7 failed!!!
+'
+
+	Test the ^Ex match construct
+
+
+hki0123456789
+jsx.-1"etest 1 passed
+|test 1 failed!!!
+'
+js1x.-3"etest 2 passed
+|test 2 failed!!!
+'
+js8x.-10"etest 3 passed
+|test 3 failed!!!
+'
+js2x4.-5"etest 4 passed
+|test 4 failed!!!
+'
+js2xxx.-6"etest 5 passed
+|test 5 failed!!!
+'
+jsxxxxxxxxxx.-10"etest 6 passed
+|test 6 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^N match construct
+
+
+hkiaaaaaaaaab
+jsa.-10"etest 1 passed
+|test 1 failed!!!
+'
+jsa^Na.-10"etest 2 passed
+|test 2 failed!!!
+'
+hkiAAAbAAA
+jsaaa.-5"etest 3 passed
+|test 3 failed!!!
+'
+hki0123456789x9876543210
+jsd.-11"etest 4 passed
+|test 4 failed!!!
+'
+hkiABCDEFGHIJKLMNOPQRSTUVWXYZaZZZZZ
+js^N^EW.-27"etest 5 passed
+|test 5 failed!!!
+'
+hkiabcdefghijklmnopqrstuvwxyz#oooo
+jsv.-27"etest 6 passed
+|test 6 failed!!!
+'
+
+	Test the ^S match construct
+
+
+hki!@#$%&*()
+js^S.-1"etest 1 passed
+|test 1 failed!!!
+'
+js!^S.-2"etest 2 passed
+|test 2 failed!!!
+'
+js(^S.-9"etest 3 passed
+|test 3 failed!!!
+'
+js!^S#.-3"etest 4 passed
+|test 4 failed!!!
+'
+js!^S^S^S.-4"etest 5 passed
+|test 5 failed!!!
+'
+js^S^S^S^S^S^S^S^S^S.-9"etest 6 passed
+|test 6 failed!!!
+'
+hkiABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!
+js^S.-63"etest 7 passed
+|test 7 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^X match construct
+
+
+hki0123456789
+js^X.-1"etest 1 passed
+|test 1 failed!!!
+'
+js1^X.-3"etest 2 passed
+|test 2 failed!!!
+'
+js8^X.-10"etest 3 passed
+|test 3 failed!!!
+'
+js2^X4.-5"etest 4 passed
+|test 4 failed!!!
+'
+js2^x^x^x.-6"etest 5 passed
+|test 5 failed!!!
+'
+js^X^x^x^X^X^X^X^X^X^X.-10"etest 6 passed
+|test 6 failed!!!
+'
+
+	The remaining tests test features not found in TECO-11.
+
+eo-99"lexiting.
+oexit'
+
+	Test the ^Em match construct
+
+
+hkiabcdefghi
+jsma.-1"etest 1 passed
+|test 1 failed!!!
+'
+jsmd.-4"etest 2 passed
+|test 2 failed!!!
+'
+jsmi.-9"etest 3 passed
+|test 3 failed!!!
+'
+hkiabbbbbc
+jsmb.-6"etest 4 passed
+|test 4 failed!!!
+'
+jsa^Embc.-7"etest 5 passed
+|test 5 failed!!!
+'
+jsabbbbb^Emc.-7"etest 6 passed
+|test 6 failed!!!
+'
+
+	Test the ^E<nnn> match construct
+
+
+hkiabcdefghi
+js<141>.-1"etest 1 passed
+|test 1 failed!!!
+'
+jsb<143>.-3"etest 2 passed
+|test 2 failed!!!
+'
+jsh<151>.-9"etest 3 passed
+|test 3 failed!!!
+'
+jsb<143>d.-4"etest 4 passed
+|test 4 failed!!!
+'
+jsb<143><144><145>.-5"etest 5 passed
+|test 5 failed!!!
+'
+js<141><142><143><144><145><146><147><150><151>.-9"etest 6 passed
+|test 6 failed!!!
+'
+hk0i1i2i3i4i5i6i7i8i9i10i11i12i13i14i15i16i17i
+18i19i20i21i22i23i24i25i26i27i28i29i30i31i
+i !"#$&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTU
+iVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~127ii%
+js<45>.-128"etest 7 passed
+|test 7 failed!!!
+'
+
+	Please press the space bar to continue, or CTRL-A to exit
+
+-1"eex'
+
+	Test the ^E[a,b,c...] match construct ???
+
+
+hki!@#$%&*()
+js[a,b,%,d].-5"etest 1 passed
+|test 1 failed!!!
+'
+js![a,b,c,@].-2"etest 2 passed
+|test 2 failed!!!
+'
+js([)].-9"etest 3 passed
+|test 3 failed!!!
+'
+js![a,b,c,d,e,f,g,h,i,j,k,l,m,@]#.-3"etest 4 passed
+|test 4 failed!!!
+'
+js!^S^S^S.-4"etest 5 passed
+|test 5 failed!!!
+'
+js^S^S^S^S^S^S^S^S^S.-9"etest 6 passed
+|test 6 failed!!!
+'
+hkiABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!
+js^S.-63"etest 7 passed
+|test 7 failed!!!
+'
+!exit!
+ex
