@@ -4,7 +4,7 @@
 	This file contains most of the definitions needed by TECO-C files.
 *****************************************************************************/
 
-#define TVERSION 146		/* version number of TECO-C */
+#define TVERSION 147		/* version number of TECO-C */
 
 /*****************************************************************************
 	Bit masks for ED mode control flag.  The ones that are commented out
