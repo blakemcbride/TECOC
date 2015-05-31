@@ -35,7 +35,7 @@ teco macros.  Also, "emacs" actually means "Editing Macros".
 ### TECOC
 
 The original versions of Teco were written in the machine languages of
-the machines it operated on.  As newer machines and editor arose, teco
+the machines they operated on.  As newer machines and editors arose, teco
 fell into increasing disuse and obscurity.
 
 In the early '80's Pete Siemsen, a long-time teco user, created a
