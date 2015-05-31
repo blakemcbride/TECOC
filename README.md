@@ -32,6 +32,7 @@ However, teco is highly programmable.  Programs that you write are
 called macros.  In fact, the original version of Emacs was written as
 teco macros.  Also, "emacs" actually means "Editing Macros".
 
+### TECOC
 
 The original versions of Teco were written in the machine languages of
 the machines it operated on.  As newer machines and editor arose, teco
