@@ -206,7 +206,7 @@ Power C v1.3.0 compiler, for example, supports ANSI string concatenation, but
 does not like the 3 Kbyte clpars[] string.
 ****************************************************************************/
 
-#if defined(__TURBOC__) || defined(__GNUC__)
+#if defined(__TURBOC__) || defined(__GNUC__) || defined(WIN32)
 #define USE_ANSI_CLPARS TRUE
 #else
 #define USE_ANSI_CLPARS FALSE
@@ -337,7 +337,7 @@ ZBFMIN	minimum size of the EI file buffer before it is expanded.
 #define MCS_SIZE	32	/* size of macro stack */
 #define QRS_SIZE	32	/* size of q-register stack */
 
-#elif defined(__TURBOC__) || defined(__POWERC) || defined(unix) || defined(AMIGA) || defined(OSX)
+#elif defined(__TURBOC__) || defined(__POWERC) || defined(unix) || defined(AMIGA) || defined(OSX)  ||  defined(WIN32)
 
 #define EXTERN	extern		/* to reference an external symbol */
 #define GLOBAL	/**/		/* to define an external symbol */
@@ -349,7 +349,7 @@ ZBFMIN	minimum size of the EI file buffer before it is expanded.
 #define GLOBALV	volatile	/* to define an external volatile symbol */
 #endif
 
-#if defined(__TURBOC__) || defined(__POWERC) || defined(__GNUC__) || defined(AMIGA) || defined(OSX)
+#if defined(__TURBOC__) || defined(__POWERC) || defined(__GNUC__) || defined(AMIGA) || defined(OSX) || defined(WIN32)
 #define VVOID		void	/* Void function return */
 #else
 #define VVOID		/**/	/* Void function return */

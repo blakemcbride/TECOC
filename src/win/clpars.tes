@@ -29,7 +29,7 @@
 		64	/NOPAGE
 		128	/SCROLL
 		256	/NOCREATE
-		512	/NORENAME
+		512	unused
 		1024	unused
 		2048	input file is open
 		4096	/NOINI
@@ -48,8 +48,6 @@
 
 	6.  Q-register F holds the name of the file used to save file names.
 
-	7.  Q-register 4 holds the line number to go to.
-
 ****************************************************************************!
 
 !+ save the q-registers that we'll be changing !
@@ -66,8 +64,8 @@ ETU0[032768#32#8#1,0ET   !+ ^C trap, read nowait and noecho, image typeout !
 Q1U0                     !+ Q0 = Q1 !
 0U1[1
 0,0X1
-0U4
 -1EJ-25600"E             !+ if Unix !
+    0u4
     ^^-UY                !+ Unix command lines delimit options with '-' !
 |
     ^^/UY                !+ VMS command lines delimit options with '/' !
@@ -278,20 +276,6 @@ Q1#64U1
 
 
 !+***************************************************************************
-  If there's a /NORENAME switch, (-NORENAME under Unix), delete it, compact
-  any trailing whitespace, and set the 512 bit of q-register 1.
-****************************************************************************!
-
-J:S^ES^EUYNOR"SONORENAME'
-J:S^EUYNOR"FONONORENAME'
-!NORENAME!
-^SD::SA"S-D::SG"S-D::SE"S-D'''
-::S^ES"S^SD0A"AI ''
-Q1#512U1
-!NONORENAME!
-
-
-!+***************************************************************************
   If we're not under RSTS/E,  and the command is "TECO @file", then change
   it to "MUNG file".
 ****************************************************************************!
@@ -380,13 +364,11 @@ J:S^EUYVT"FONOVTEDIT'
   feeds) and put the number in Q-register 4.
 ****************************************************************************!
 
-!+ -1EJ-25600"E               if Unix !
+-1EJ-25600"E              !+ if Unix !
     J:S^ES+"S
         ^SD\U40,128EZ^sd::ss"S^sD0A"AI ''
     '
-!+ ' !
-!+Set EZ flag if nopage!
-Q1&64"N0,128ez'
+'
 
 !+***************************************************************************
   If there's a /SCROLL switch (-SCROLL under Unix),  delete it,  get the
@@ -455,10 +437,7 @@ J::STE"S-2D                          !+ if it's a TE command !
         0A-9"EDF<'
         0A-32"EDF<'
         C
-        -1A-""E:S""S
-        -1EJ-25857"E             !+ If OS/2 then delete quotes !
-           0J2<@FS/"//>ZJ'|
-           ZJ''                  !+ if no second quote, go to end !
+        -1A-""E:S""UZJ''
     >
 
 !+ Get the remembered file specification into the edit buffer. !
@@ -467,11 +446,11 @@ J::STE"S-2D                          !+ if it's a TE command !
         :EGMEM"S                !+ if :EGMEM is supported !
             G*J                  !+ get it into the edit buffer !
             ::S$"S^SD           !+ if leading dollar sign, delete and... !
-            |OGOTIT'           !+ otherwise got it and get outa here !
+                F|               !+ ??? !
+            '
         |                        !+ else :EGMEM isn't supported !
             M.T                  !+ generate file name in F !
-            GF                   !+ and get it !
-        '
+            GF
             HX0HK                !+ save filename in Q0 and clear buffer !
             EPEA                 !+ select secondary I-O streams !
             EF                   !+ close current output file !
@@ -487,12 +466,12 @@ J::STE"S-2D                          !+ if it's a TE command !
             '
             EREW               !+ select primary I-O streams !
             0,0X0
-        !GOTIT!
+        '
+
 
 !+ If there's a file specification,  then delete preceding whitespace and
    if the remainder of the filespec contains a quoted string,  do a ZJ. !
-!+ However there shouldn't be any whitespace -- don't do this step 
-   because it messes up names with embedded spaces 
+
         J
         <
             .-Z;
@@ -501,7 +480,7 @@ J::STE"S-2D                          !+ if it's a TE command !
             C
             -1A-""E:S""UZJ''
         >
-!       ZJ                        !+ but move to end just in case !
+
         Z"N
             Q1#32768#16384U1
         '
@@ -548,11 +527,6 @@ J::STE"S-2D                          !+ if it's a TE command !
             Q1#2048U1                    !+ remember: input file is open !
             OREMEM
         '
-        :ERQ0"S                      !+ TAA Added -- try to open for read !
-            Q1#2048U1
-            %Can't write to file -- opening for input only1310
-            OREMEM
-        '
         Q1&256"N                         !+ EB failed, so if -NOCREATE !
             Q1&32768"E
                 ONOTFND
@@ -594,10 +568,7 @@ J::SMA"S-2D
         0A-9"EDF<'
         0A-32"EDF<'
         C
-        -1A-""E:S""S
-        -1EJ-25857"E             !+ If OS/2 then delete quotes !
-           0J2<@FS/"//>ZJ'|
-           ZJ''                  !+ if no second quote, go to end !
+        -1A-""E:S""UZJ''
     >
 
     Z"E?How can I MAKE nothing?1310'
@@ -627,22 +598,14 @@ Q1&8192"E                              !+ if 8192 bit is off in Q1 !
 
 :EGMEM"S                             !+ if :EGMEM is supported !
     ZJG*C                            !+ append remembered spec to buffer !
-    ::S$"U                           !+ no leading $ !
-      ZK:EGMEM ^EQ0                  !+ set remembered filespec to Q0 !
-      OSCOPES                        !+ Goto SCOPES !
-    |
-      -1D                              !+ delete dollar !
-      ZXFZK                            !+ Save in q reg F !
+    ZK:EGMEM ^EQ0                    !+ set remembered filespec to Q0 !
+|                                      !+ else (:EGMEM is not supported) !
+    EA                                 !+ switch to secondary output stream !
+    :EW^EQF"S                        !+ open the file !
+        G0 HPW HK EF                   !+ and write the filespec into it !
     '
-|
-    M.T                            !+ Generate file name !
+    EW                               !+ switch to primary output stream !
 '
-EA                                 !+ switch to secondary output stream !
-:EW^EQF"S                        !+ open the file !
-    G0 HPW HK EF                   !+ and write the filespec into it !
-    '
-    EW                           !+ switch to primary output stream !
-
 
 !+***************************************************************************
 ****************************************************************************!
@@ -787,11 +750,10 @@ Q1&128"N                                   !+ if -SCROLL !
 q4-1"G                  !+ if q4 greater than 1 !
     q4-1:s^J"U0J'      !+ search for q4th line feed !
 '
-q1&64"N                 !+ NOPAGE switch? !
-    0,128EZ
-'
-q1&512"N                !+ NORENAME switch? !
-    0,2EZ
+q1&64"N                 !+ no NOPAGE switch? !
+    1u8
+|
+    0u8
 '
 ]1
 ]0Q0ET
@@ -804,5 +766,5 @@ q1&512"N                !+ NORENAME switch? !
 ]0
 ]9
 ]F
-0U.10U.L0U40UY0,0X.T    !+ reset q registers !
+q8"N0,128ez'
 

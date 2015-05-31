@@ -36,8 +36,8 @@ open_clpars_tec(ifile)
 FILE **ifile;
 #endif
 {
-#ifdef MSDOS
-	*ifile = fopen("clpars.tec","rb");
+#if defined(MSDOS)  ||  defined(WIN32)
+	*ifile = fopen("win\\clpars.tec","rt");
 #else
 	*ifile = fopen("clpars.tec","r");
 #endif
@@ -56,7 +56,7 @@ open_clpars_h(ofile)
 FILE **ofile;
 #endif
 {
-#ifdef MSDOS
+#if defined(MSDOS)  ||  defined(WIN32)
 	*ofile = fopen("clpars.h","wt");
 #else
 	*ofile = fopen("clpars.h","w");

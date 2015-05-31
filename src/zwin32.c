@@ -32,9 +32,7 @@
 #include "deferr.h"		/* define identifiers for error messages */
 #include "dchars.h"		/* define identifiers for characters */
 #include "dscren.h"		/* define identifiers for screen i/o */
-#if USE_PROTOTYPES
 static void CntrlC(int sig);
-#endif
 #if	VIDEO
 static	HANDLE	PrevScreen, Screen;
 static	COORD	Cursor;
