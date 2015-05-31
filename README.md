@@ -58,7 +58,7 @@ Most recently, Blake McBride:
 
 This latest work is available on github at:
 
-https://github.com/blakemcbride/Tecoc
+https://github.com/blakemcbride/TECOC
 
 Other documents in the "doc" directory provide complete documentation.
 See the following files in the "doc" directory:
