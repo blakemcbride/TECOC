@@ -5,7 +5,7 @@ TECOC - TECO Editor
 Teco is a text editor written by Dan Murphy in 1962.  It differs from
 other editors in several ways as follows:
 
-1.  Character oriented
+### Character oriented
 
 Vi and Emacs are screen oriented editors.  You view the text on the whole
 window or screen, and you edit the text right where you see it.  Changes take
@@ -24,7 +24,7 @@ commands on a character basis.  The screen is simply updated once a
 command is completed to give the user a visual representation of where
 they are.  Text is not edited in the screen view area.
 
-2.  Macros
+### Macros
 
 In general, vi, ed, and edlin are not programmable.  This means you
 have the functions the editor provides and that is all you can do.
