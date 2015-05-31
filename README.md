@@ -64,7 +64,7 @@ Other documents in the "doc" directory provide complete documentation.
 See the following files in the "doc" directory:
 
 File | Description
------------------------
-BUILD.txt        |	Build and setup instructions
-INTRO.txt	 |	Introduction to using the tecoc
-teco-manual.txt	 |	Complete manual
+:------- | :----------------
+BUILD.txt | Build and setup instructions
+INTRO.txt | Introduction to using the tecoc
+teco-manual.txt | Complete manual
