@@ -1,0 +1,145 @@
+
+Introduction to using tecoc
+
+Evocation
+---------
+As stated in BUILD.txt, tecoc can either be executed directly, or a
+file link can be created, or a batch file or shell script can be
+created.  For example, if you want to edit a file name MyFile.txt,
+if you have a link setup like:
+
+teco -> tecoc
+
+then you could execute:
+
+	teco MyFile.txt
+
+However, if you want to run tecoc directly, you'd have to do:
+
+	tecoc teco MyFile.txt
+
+The extra, and first, argument, "teco", tells tecoc what mode to run
+under.  The remainder of this document will assume you have the link
+setup.
+
+If you have video mode configured, tecoc nevertheless starts in non-video
+mode by default.  To start tecoc in video mode you could do:
+
+	teco -scroll:5 MyFile.txt
+
+This would make the bottom 5 lines used for commands, and the remaining
+lines above to be the video display area.
+
+Additionally, video mode can be turned on or off while editing a file,
+regardless of the startup parameters.  See "video.txt"
+
+Importantly, the command to save the file and exit is:
+
+	EX followed by two escape key presses
+
+To exit the edit session without saving, do:
+
+	-1EX followed by two escape key presses
+
+Commands
+--------
+
+Teco is a character based editor.  This means that teco keeps track of
+what character you are at, and not what line you are on.  One normally
+edits a file by positioning the point and editing there.
+
+The "$" character functions as the "escape key".  A single $ is used
+to separate multiple commands.  Two consecutive escapes, $$, cause
+teco to execute all of the commands up to that point.
+
+Other characters, besides $, each have a meaning to teco.  Some
+commands consist of more than one character.  Teco commands are
+case-insensitive.  This means that "m" and "M" mean the same thing.
+In this text I will show the commands in uppercase simply to avoid
+confusion between such letters as ell and one.
+
+For example, the "L" command causes teco to move its pointer to the
+following line.  If you type "L", nothing happens until you tell teco
+to execute is by following the "L" with "$$". So,
+
+L$$
+
+will cause teco to go to the next line.
+
+You may have any number of commands specified before executing them,
+for example:
+
+LLL$$
+
+will go down three lines.
+
+Also, commands may take numeric arguments.  For example,
+
+3L$$
+
+will go down 3 lines.
+
+Commands may also be negative, so the following:
+
+-4L$$
+
+will cause teco to go up 4 lines.  Also, since the default argument is one,
+
+-L$$
+
+is the same as -1L$$
+
+In video mode, you will see the changes occur as soon as you execute $$.
+In non-video mode, you see nothing unless you ask teco to display a
+portion of the text.  For example, if you type:
+
+V$$
+
+you will see the line you are on.
+
+The current character position is always available vie the "." command.
+There is also the "=" command that causes teco to display a value, thus:
+
+.=$$
+
+causes teco to display the current character position.
+
+Teco has many, many powerful commands.  It has loops, conditionals,
+variables, etc..  Each letter has a different function.  See the
+included documentation.
+
+
+Macros
+------
+
+A series of commands, since they are only letters, may be entered into
+a text file.  A user may tell teco to read and execute the commands in
+one of those files.  The name associated to that set of commands is the name of
+the file they are located in (minus the .tec extension).  The command
+used to execute a macro file is "EI", thus, for example, if you have a
+macro file named "ab.tec" located in the TEC_LIBRARY directory,
+executing:
+
+EIab$$
+
+will cause teco to execute the commands located in that file.
+
+In this example, the command is "EI".  It takes a trailing string argument
+"ab", and the "$$" means execute it.
+
+
+Moving On
+---------
+
+To learn more, I suggest you read the following, included, documents in
+the order shown:
+
+	Summary.pdf
+	blake-notes.txt
+	teco-manual.txt
+	wchart.txt
+	
+Many of the other documentation files are either historical or provide
+greater, tecoc specific, information.
+
+

@@ -1,0 +1,101 @@
+
+
+				TECO COMMANDS
+				-------------
+
+
+File Commands
+------------------------------------
+EX	save file - exit
+EBfile	open file for input/output with backup
+ERfile	open input file for reading
+EWfile	open output file for writing
+EC	save buffer - clear buffer - close input/output files
+EF	close output file
+EK	kill current output file (abort edit)
+Y	read the next page
+P	save page - read next page
+nP	perform n Ps
+
+
+Positioning Commands
+------------------------------------
+J	jump to beginning of buffer
+nJ	jump to character position n
+L	beginning of next line
+nL	move n relative lines (0 means beginning of line)
+C	move forward one character
+nC	move n characters
+R	move reverse one character
+nR	move n relative characters
+Stext$	search buffer for text (position after search string)
+	(if no text use previous search text)
+Ntext$	search entire file from current position
+nS	search for the nth occurance (negative n means reverse)
+nN	search for the nth occurance (all pages)
+
+
+Type Commands
+-------------------------------------
+T	type current position to EOL
+nT	type n relative lines (0 means from BOL)
+HT	type whole buffer
+V	view whole current line
+nV	view n lines around current line
+
+
+Text modification commands
+-----------------------------------------
+Itext$	insert text
+@I/txt/	insert txt (may contain escapes)
+K	kill to EOL
+nK	kill n relative lines (0 meands BOL to current position)
+HK	kill whole buffer
+D	delete one character
+nD	delete n relative characters
+FDtext$	find and delete text
+FKtext$	find and kill from initial location to final location
+FRtext$	replace last found text with text
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Constants & Misc. Commands
+------------------------------------
+Z	number of characters in the buffer
+B	0
+H	B,Z
+.	current position
+=	display value
+n<cmd>	execute command string cmd n times
+n^Q	convert line offset (from 0) to character offset
+	(only works when starting from beginning of buffer)
+
+
+Command Line
+--------------------------------------
+^U	erase command line
+*q	put last command line into q register q
+
+
+Q Register Commands
+----------------------------------------
+nUq	put n into q register q
+Qq	get value from q register q
+^Uqstr	put string str into q register q
+nXq	copy next n (default 1) lines into q register q
+n:Xq	append next n lines into q register q
+Gq	get text in q register q and insert into buffer
+Mq	execute macro commands in q register q
+

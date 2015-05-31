@@ -1,0 +1,48 @@
+
+Blake's Tecoc notes
+
+.TES	Teco source file
+.TEC	Teco macro file (compressed .TES file)
+
+The distribution has a lib directory that has some teco macros.  The
+SQU macro used to squeze / compress teco source files is included
+there.
+
+=	display value
+
+Use /nomemory to avoid memory files
+
+mung is just a link to teco
+
+To compile / compress a teco macro file do (np.tes to np.tec):
+
+mung squ np.tec=np.tes/D:N/L:Y/B:Y/T:Y/C:Y/W:N/A:Y/E:N
+
+My macros
+
+bl	beginning of line
+bw	beginning of word
+cls	clear screen
+dw	delete word
+el	end of line
+ew	end of word
+jmp	jump to line
+np	next page - display and move forward one screen
+pp	previous page - display and move back one screen
+
+0^X	case insensitive search mode (default)
+-1^X	case sensitive search mode
+
+----------------------------------------------------------------------
+
+Video mode of tecoc
+
+5,7:w	to evoke video display (5 command lines at bottom)
+0,7:w	video mode off
+-4:w	to redraw screen
+^w	put current line at top of screen
+
+
+A file can be started in video mode with:
+
+	teco -scroll:5 myfile        on linux or Mac
