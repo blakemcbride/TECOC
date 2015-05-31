@@ -67,5 +67,5 @@ See the following files in the "doc" directory:
 File | Description
 :------- | :----------------
 BUILD.txt | Build and setup instructions
-INTRO.txt | Introduction to using the tecoc
+INTRO.txt | Introduction to using tecoc
 teco-manual.txt | Complete manual
