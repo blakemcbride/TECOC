@@ -7,6 +7,7 @@
 File Commands
 ------------------------------------
 EX	save file - exit
+-1EX	exit without saving
 EBfile	open file for input/output with backup
 ERfile	open input file for reading
 EWfile	open output file for writing
@@ -22,20 +23,24 @@ Positioning Commands
 ------------------------------------
 J	jump to beginning of buffer
 nJ	jump to character position n
+ZJ	jump to end of file
 L	beginning of next line
-nL	move n relative lines (0 means beginning of line)
+nL	move n relative lines
+0L	go to beginning of line
+L-2C	go to end-of-line
 C	move forward one character
 nC	move n characters
 R	move reverse one character
-nR	move n relative characters
+nR	move n reverse characters
 Stext$	search buffer for text (position after search string)
 	(if no text use previous search text)
+-Stext$	search reverse
 Ntext$	search entire file from current position
 nS	search for the nth occurance (negative n means reverse)
 nN	search for the nth occurance (all pages)
 
 
-Type Commands
+Type Commands (non-video mode only)
 -------------------------------------
 T	type current position to EOL
 nT	type n relative lines (0 means from BOL)
@@ -48,8 +53,10 @@ Text modification commands
 -----------------------------------------
 Itext$	insert text
 @I/txt/	insert txt (may contain escapes)
+0LK	delete entire line
+0LnK	delete n lines
 K	kill to EOL
-nK	kill n relative lines (0 meands BOL to current position)
+nK	kill n relative lines (0 means BOL to current position)
 HK	kill whole buffer
 D	delete one character
 nD	delete n relative characters

@@ -60,9 +60,17 @@ You should set that environment variable to the directory (full path)
 where the macros are to exist.  Note that TEC_LIBRARY must contain a
 trailing slash.
 
+When teco starts up, it is capable of running a start-up file to set
+initial preferences.  The file must be specified by the TEC_INIT
+environment variable.  The value of that variable must start with a
+dollar sign ($) followed by the complete path to the start-up file.
+For example, on a Unix like system you could use:
+
+	export TEC_INIT=\$/home/me/teco/teco.ini
+
 Lastly, the "tec" file extension means "teco macro".  There is also a
 file type "tes".  That stands for "teco macro source".  Generally, if you
 have a small macro, you'd just put it in a .tec file.  Larger macros
 would be written in a .tes file allowing comments and space.  Later
-the squeeze function can be used to convery a .tes file into a .tec
+the squeeze function can be used to convert a .tes file into a .tec
 file.
