@@ -90,7 +90,7 @@ TECO Summary
 status open
 
 \begin_layout Plain Layout
-Blake McBride (blake@mcbride.name), rev 11/20/2020
+Blake McBride (blake@mcbride.name), rev 11/3/2020
 \end_layout
 
 \end_inset
@@ -1067,7 +1067,7 @@ Scroll screen n lines
 \begin_inset Text
 
 \begin_layout Plain Layout
-1^X
+-1^X
 \end_layout
 
 \end_inset
@@ -1693,7 +1693,7 @@ Display value of variable x
 \end_layout
 
 \begin_layout Standard
-Cut & Paste
+Copy & Paste
 \end_layout
 
 \begin_layout Standard
