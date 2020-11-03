@@ -90,7 +90,7 @@ TECO Summary
 status open
 
 \begin_layout Plain Layout
-Blake McBride (blake@mcbride.name), rev 8/26/2020
+Blake McBride (blake@mcbride.name), rev 11/20/2020
 \end_layout
 
 \end_inset
@@ -131,7 +131,7 @@ Interestingly, the original emacs editor was written as a series of teco
 In what follows the $ character is the Escape key.
  $ is used to separate one command from another.
  $$ is used to cause teco to execute the entire command.
- Therefore, teco doesn't actually do anything until $$ is hit.
+ Therefore, teco doesn't actually do anything until $$ is encountered.
 \end_layout
 
 \begin_layout Standard
@@ -444,7 +444,7 @@ Open file
 \begin_inset Text
 
 \begin_layout Plain Layout
-Y
+P
 \end_layout
 
 \end_inset
@@ -1018,7 +1018,7 @@ Search again
 \begin_inset Text
 
 \begin_layout Plain Layout
-Search backwords for text
+Search backwards for text
 \end_layout
 
 \end_inset
@@ -1067,7 +1067,7 @@ Scroll screen n lines
 \begin_inset Text
 
 \begin_layout Plain Layout
--1^X
+1^X
 \end_layout
 
 \end_inset
@@ -1515,7 +1515,7 @@ FKtext$
 \begin_inset Text
 
 \begin_layout Plain Layout
-Delete from point to beginning of text
+Delete from point to end of text
 \end_layout
 
 \end_inset
