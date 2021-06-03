@@ -1,5 +1,5 @@
 
-Notes from Blake McBride (blake@mcbride.name)
+Notes from Blake McBride (blake@mcbridemail.com)
 Video support under Linux & Mac OS/X has been restored.  Getting it to
 work under Windows would probably be easy (given ncurses support).
 See the makefile's for instructions on enabling or disabling video
