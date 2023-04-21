@@ -66,8 +66,10 @@ static DEFAULT SkpCtU()		/* skip control-U command */
 			ErrUTC();		/* unterminated command */
 			return FAILURE;
 			}
-		else
+		else {
 			return SUCCESS;
+
+		}
 	++CBfPtr;
 	TTrace = TraceM;			/* save trace mode flag */
 	TraceM = FALSE;				/* keep FindES from tracing */
@@ -115,8 +117,10 @@ static DEFAULT SkpDqu()		/* skip a " (double quote) command */
 			ErrUTC();		/* unterminated command */
 			return FAILURE;
 			}
-		else
+		else {
 			return SUCCESS;
+
+		}
 	++CBfPtr;
 	switch (To_Upper(*CBfPtr)) {
 		case 'A':
@@ -182,8 +186,10 @@ static DEFAULT SkpF()			/* skip one of the F commands */
 			ErrUTC();		/* unterminated command */
 			return FAILURE;
 			}
-		else
+		else {
 			return SUCCESS;
+
+		}
 	++CBfPtr;
 	switch (To_Upper(*CBfPtr)) {
 		case 'S':
@@ -252,8 +258,9 @@ static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 			ErrUTC();		/* unterminated command */
 			return FAILURE;
 			}
-		else
+		else {
 			return SUCCESS;
+		}
 	++CBfPtr;
 	if ((*CBfPtr >= 'A') && (*CBfPtr <= '_'))
 		CDummy = *CBfPtr - 'A';
@@ -286,8 +293,9 @@ static DEFAULT SkpE()			/* skip one of the E commands */
 			ErrUTC();		/* unterminated command */
 			return FAILURE;
 			}
-		else
+		else {
 			return SUCCESS;
+		}
 	++CBfPtr;
 	TmpChr = To_Upper(*CBfPtr);
 	if (TmpChr == '%')
