@@ -68,4 +68,5 @@ File | Description
 :------- | :----------------
 BUILD.txt | Build and setup instructions
 INTRO.txt | Introduction to using tecoc
+tecoc-summary.pdf | Command summary
 teco-manual.txt | Complete manual
