@@ -2298,8 +2298,12 @@ do_seetog()		/* toggle SeeAll mode */
 void
 keypad_on()
 {
-    keypad(stdscr, (KeyPad & 1));
-    keypad(stdscr, (KeyPad & 2));
+/*
+ * This used to call keypad() twice on the same window,  so the second call
+ * always won and the first had no effect at all:  "1,9:W" asked for the keypad
+ * and got nothing.  Any non-zero 9:W value turns it on.
+ */
+    keypad(stdscr, (KeyPad != 0));
 }
 void
 keypad_off()
