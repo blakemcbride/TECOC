@@ -108,6 +108,14 @@ static DEFAULT SkpDAr()		/* skip "double text argument" command */
 		return FAILURE;
 		}
 	TraceM = TTrace;			/* restore trace mode flag */
+/*
+ * Every other Skp* function that consumes a text argument clears CmdMod here.
+ * This one did not,  so an @-modified FS/FN/FC/F_ in skipped code left ATSIGN
+ * set and FindES took the FOLLOWING command's first text character as its
+ * delimiter -- mis-parsing the rest of a null loop body,  of the untaken arm of
+ * a conditional,  or of an O command's tag search.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 	return SUCCESS;
 }
 /*****************************************************************************
