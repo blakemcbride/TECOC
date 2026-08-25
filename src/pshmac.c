@@ -23,7 +23,10 @@ charptr End;			/* end of new command string, plus one */
 		DBGFEX(1,DbgFNm,"FAILURE, macro stack is full");
 		return FAILURE;
 	}
-	++MStTop;
+/*
+ * Collect the argument BEFORE advancing MStTop:  a failure here means nothing
+ * has been pushed,  and the caller treats a PshMac failure as exactly that.
+ */
 	NumArg = (EStTop != EStBot) &&		/* if numeric arg and */
 	    (EStack[EStTop].ElType == OPERAND);	/* not a partial expression */
 	if (NumArg) {				/* if numeric argument */
@@ -32,6 +35,7 @@ charptr End;			/* end of new command string, plus one */
 			return FAILURE;
 		}
 	}
+	++MStTop;
 /*
  * save current environment
  */
@@ -53,6 +57,13 @@ charptr End;			/* end of new command string, plus one */
 	LStBot = LStTop;		/* set new loop stack bottom */
 	if (NumArg) {			/* if we had a numeric argument */
 		if (PushEx(NArgmt, OPERAND) == FAILURE) {
+/*
+ * The environment has already been switched over to the macro,  so put it back
+ * rather than leaving CStBeg/CStEnd pointing into the macro's text with the
+ * caller none the wiser.  (GetNmA popped an entry a moment ago,  so there is
+ * always room for this push and the branch should be unreachable.)
+ */
+			(VVOID)PopMac();
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
 		}
