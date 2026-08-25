@@ -29,6 +29,12 @@ DEFAULT ExeU()					/* execute U command */
 	}
 	QR->Number = NArgmt;
 	if (CmdMod & MARGIS) {			/* if m,nUq */
+/*
+ * "m,nUq" returns m as a plain single value.  Leaving MARGIS set made the NEXT
+ * command think it had been given an m,n pair (with a stale MArgmt),  so the
+ * manual's own "UAUB" idiom for saving two macro arguments did the wrong thing.
+ */
+		CmdMod = '\0';			/* clear modifiers flags */
 		DBGFEX(1,DbgFNm,"PushEx()");
 		return PushEx(MArgmt, OPERAND);
 	}
