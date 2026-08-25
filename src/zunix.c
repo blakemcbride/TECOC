@@ -2572,6 +2572,18 @@ int	*statusp;
 	return  rc;
 }
 #endif
+/*
+ * These used to be vfork() children that,  if the exec failed,  wrote move_err
+ * and "return"ed.  A vfork child shares the parent's address space AND its
+ * stack frame and may only call _exit() or an exec function,  so that
+ * corrupted the parent's frame.  Worse,  neither execlp was NULL-terminated:
+ * execlp reads its variadic argument list until it sees a null pointer,  so
+ * with none supplied it walked whatever followed on the stack and handed it to
+ * "cp -pr" and -- more alarmingly -- to "rm -rf".  argv[0] was "mv" for both.
+ *	The parent already inspects the child's exit status,  so the child now
+ * just _exit()s and the message is built out here;  every failure path sets
+ * move_err,  which ZOClos passes straight to ErrStr().
+ */
 static int
 copy(from, to, move_err)
 char *from, *to, *move_err;
@@ -2582,33 +2594,49 @@ char *from, *to, *move_err;
 #else
 	int pid, status;
 #endif
-	if (!(pid = vfork())) {
-		execlp("/bin/cp", "mv", "-pr", from, to);
-		strcpy(move_err, "can't execute /bin/cp, ");
+	if ((pid = fork()) == -1) {
+		strcpy(move_err, "can't fork, ");
 		strcat(move_err, strerror(errno));
 		return 1;
 	}
+	if (pid == 0) {				/* child */
+		execlp("/bin/cp", "cp", "-pr", from, to, (char *)NULL);
+		_exit(127);			/* exec failed */
+	}
 #ifdef SUNOS4_0
 	(void)waitpid(pid, (union wait *) &status, 0);
-	if (!WIFEXITED(status) || WEXITSTATUS(status))
-		return 1;
 #else
 	(void)waitpid(pid, &status, 0);
-	if (!WIFEXITED(status) || WEXITSTATUS(status))
-		return 1;
 #endif
-	if (!(pid = vfork())) {
-		execlp("/bin/rm", "mv", "-rf", from);
-		strcpy(move_err, "can't execute /bin/rm, ");
+	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
+		strcpy(move_err, "/bin/cp failed, ");
+		strcat(move_err, from);
+		strcat(move_err, " --> ");
+		strcat(move_err, to);
+		strcat(move_err, "\n");
+		return 1;
+	}
+	if ((pid = fork()) == -1) {
+		strcpy(move_err, "can't fork, ");
 		strcat(move_err, strerror(errno));
 		return 1;
+	}
+	if (pid == 0) {				/* child */
+		execlp("/bin/rm", "rm", "-rf", from, (char *)NULL);
+		_exit(127);			/* exec failed */
 	}
 #ifdef SUNOS4_0
 	(void)waitpid(pid, (union wait *)&status, 0);
 #else
 	(void)waitpid(pid, &status, 0);
 #endif
-	return !WIFEXITED(status) || WEXITSTATUS(status);
+	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
+		strcpy(move_err, "/bin/rm failed, ");
+		strcat(move_err, from);
+		strcat(move_err, "\n");
+		return 1;
+	}
+	return 0;
 }
 static int
 movefile(from, to, move_err)
