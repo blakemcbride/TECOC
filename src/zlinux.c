@@ -748,8 +748,8 @@ DEFAULT ZExeEJ()			/* execute an EJ command */
 		return PushEx((LONG)25858, OPERAND);	/* means "PC Linux" */
 	}
 	if (NArgmt == 0) {
-		DBGFEX(1,DbgFNm,"PushEx(getppid())");
-		return PushEx((LONG)getppid(), OPERAND);
+		DBGFEX(1,DbgFNm,"PushEx(getpid())");
+		return PushEx((LONG)getpid(), OPERAND);
 	}
 	DBGFEX(1,DbgFNm,"ExeNYI()");
 	return ExeNYI();
