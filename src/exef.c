@@ -107,8 +107,18 @@ static DEFAULT ExeFGt()			/* execute an F> command */
 {
 	DBGFEN(1,"ExeFGt",NULL);
 	if (LStTop == LStBot) {			/* if not in a loop */
-		DBGFEX(1,DbgFNm,"FAILURE");
-		return FAILURE;
+/*
+ * "If this command is encountered outside of an iteration,  it has the same
+ * effect as the <DELIM><DELIM> command." -- Standard TECO manual.  This used
+ * to just return FAILURE,  which also abandoned the command string but did it
+ * as an error with no message and no LstErr set,  so nothing was printed and a
+ * following "/" showed the PREVIOUS error's paragraph.
+ */
+		CmdMod = '\0';			/* clear modifiers flags */
+		EStTop = EStBot;		/* clear expression stack */
+		CBfPtr = CStEnd;		/* exit this command string */
+		DBGFEX(1,DbgFNm,"SUCCESS, F> outside a loop");
+		return SUCCESS;
 	}
 	if (FlowEL() == FAILURE) {		/* flow to end-of-loop */
 		DBGFEX(1,DbgFNm,"FAILURE");
