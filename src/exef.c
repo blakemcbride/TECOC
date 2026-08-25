@@ -20,6 +20,7 @@
 #include "tecoc.h"		/* define general identifiers */
 #include "defext.h"		/* define external global variables */
 #include "chmacs.h"		/* define character processing macros */
+#include "dchars.h"		/* define identifiers for characters */
 #include "deferr.h"		/* define identifiers for error messages */
 #if USE_PROTOTYPES
 static DEFAULT ExeFBr(void);
@@ -263,6 +264,26 @@ static DEFAULT ExeFS()			/* execute an FS command */
 			return FAILURE;
 		}
 		if (GapEnd == EBfEnd) {		/* if nothing to search */
+/*
+ * The answer is 0,  but the two text arguments still have to be consumed the
+ * way Search() would have consumed them.  This shortcut did not consume them,
+ * and ExeF leaves CBfPtr on the "S",  so ExeCSt's "++CBfPtr" landed on the
+ * first character of the search text and the command scanner read the user's
+ * data as commands: "::FSa$IZZZ$" inserted ZZZ into the edit buffer.  The
+ * --CBfPtr between the two FindES calls cancels the IncCBP the second one
+ * starts with,  exactly as Search() does for a two-argument command.
+ */
+			if (FindES(ESCAPE) == FAILURE) { /* end of search text */
+				DBGFEX(1,DbgFNm,"FAILURE, FindES() failed");
+				return FAILURE;
+			}
+			if (CmdMod & ATSIGN) {	/* if it's at-sign modified */
+				--CBfPtr;
+			}
+			if (FindES(ESCAPE) == FAILURE) { /* end of replace text */
+				DBGFEX(1,DbgFNm,"FAILURE, FindES() failed");
+				return FAILURE;
+			}
 			CmdMod = '\0';		/* clear modifiers flags */
 			DBGFEX(1,DbgFNm,"PushEx(0)");
 			return PushEx(0L,OPERAND);
