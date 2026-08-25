@@ -46,7 +46,7 @@ LONG Flag;
     }
     TypBuf(GapBeg+Ln2Chr((LONG)1 - (LONG)VLines), GapBeg);
 #if CURSES
-    if (GapEnd+1 < EBfEnd) {
+    if (GapEnd+1 <= EBfEnd) {
 	unsigned char c = *(GapEnd + 1);
 	standout();
 	if (c=='\b') {
