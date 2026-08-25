@@ -70,7 +70,26 @@ DEFAULT SSerch()		/* search for 1 occurrence of a string */
 			}
 			if (++EBPtr2 > RhtSid) { /* inc and check for eob */
 			    if (SIncrm == -1) {
-				if (EBPtr2 < GapEnd) EBPtr2 = GapEnd+1;
+/*
+ * For a backwards search RhtSid is the last character BEFORE the edit buffer
+ * gap,  so passing it just means EBPtr2 has walked into the gap and has to be
+ * stepped over it.  RhtSid says nothing about the end of the edit buffer in
+ * that case,  so the end has to be tested separately.  Without this test the
+ * match walked off the end of the edit buffer and could "succeed" against
+ * memory outside it,  after which SrcLop moved the gap to a position beyond
+ * Z and wrecked the buffer.
+ *	Running out of buffer only rules out THIS candidate,  not the whole
+ * search:  a backwards search carries on from the next character to the left,
+ * which has more room in front of it,  not less.  So break out of the match
+ * loop and let the FOREVER loop try again.  (The forward case can give up
+ * outright,  since every later candidate would run out even sooner.)
+ */
+				if (EBPtr2 < GapEnd) {
+					EBPtr2 = GapEnd+1;
+				}
+				if (EBPtr2 > EBfEnd) {
+					break;	/* this one can't match */
+				}
 			    } else {
 				Matchd = FALSE;
 				DBGFEX(3,DbgFNm,"SUCCESS, Matchd = FALSE");
