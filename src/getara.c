@@ -35,6 +35,18 @@ DEFAULT GetAra()		/* get m,n addresses */
 		NArgmt = MArgmt;
 		MArgmt = TmpLng;
 	}
+/*
+ * Check the range in integer arithmetic BEFORE turning it into a pointer.
+ * "EBfBeg + MArgmt" for a huge MArgmt overflows the pointer,  which is
+ * undefined behaviour and can make the bounds tests below give the wrong
+ * answer.  Z is the number of characters in the edit buffer.
+ */
+	TmpLng = (GapBeg - EBfBeg) + (EBfEnd - GapEnd);	/* Z */
+	if ((MArgmt > TmpLng) || (NArgmt > TmpLng)) {
+		ErrStr(ERR_POP, ErrTxt);	/* POP = pointer off page */
+		DBGFEX(4,DbgFNm,"FAILURE, m or n too large");
+		return FAILURE;
+	}
 	AraBeg = EBfBeg + MArgmt;		/* compute area beginning */
 	if (AraBeg > GapBeg-1) {		/* if past start of gap */
 		AraBeg += (GapEnd-GapBeg) + 1;	/* correct for gap */
