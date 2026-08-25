@@ -255,6 +255,13 @@ BOOLEAN *SamChr;		/* returned match indicator */
 		    }
 		}
 	    }
+/*
+ * Nothing in the list matched.  Every other case in this function stores a
+ * result;  this one only ever stored TRUE,  so on failure it left the caller's
+ * flag untouched -- and SSerch's and ZFrSrc's copies of it are uninitialised
+ * locals,  which made a failing "^E[...]" match on whatever the stack held.
+ */
+	    *SamChr = FALSE;
 	    break;
 	default:
 	    ErrMsg(ERR_ICE);

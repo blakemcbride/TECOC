@@ -13,7 +13,7 @@ the search area.
 #include "defext.h"		/* define external global variables */
 DEFAULT SSerch()		/* search for 1 occurrence of a string */
 {
-	BOOLEAN	SamChr;		/* same character indicator */
+	BOOLEAN	SamChr = FALSE;	/* same character indicator */
 #if DEBUGGING
 	static char *DbgFNm = "SSerch";
 	sprintf(DbgSBf,"SIncrm = %ld, EBPtr1 = %ld, EndSAr = %ld",
