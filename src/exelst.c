@@ -20,11 +20,14 @@ DEFAULT ExeLst()				/* execute a  < command */
 		NArgmt = INFINITE;		/* make it an infinite loop */
 	} else {
 		if (GetNmA() == FAILURE) {	/* get numeric argmument */
+			--LStTop;		/* nothing was pushed */
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
 		}
 		if (NArgmt <= 0) {		/* if null loop */
 			if (FlowEL()== FAILURE) { /* flow to end of loop */
+				--LStTop;	/* FlowEL pops on success */
+						/* ...only */
 				DBGFEX(1,DbgFNm,"FAILURE");
 				return FAILURE;
 			}
