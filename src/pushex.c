@@ -45,10 +45,17 @@ static DEFAULT Reduce()		/* reduce the expression stack */
 			    ESp2->Elemnt != '(') {
 				x = ESp3->Elemnt;
 				y = ESp1->Elemnt;
+/*
+ * TECO's arithmetic wraps on overflow.  Do +, - and * in an unsigned type so
+ * that wrap is defined rather than undefined behaviour.
+ */
 				switch ((char)ESp2->Elemnt) {
-				case '+':	x += y;		break;
-				case '-':	x -= y;		break;
-				case '*':	x *= y;		break;
+				case '+':	x = (LONG)((ULONG)x + (ULONG)y);
+						break;
+				case '-':	x = (LONG)((ULONG)x - (ULONG)y);
+						break;
+				case '*':	x = (LONG)((ULONG)x * (ULONG)y);
+						break;
 				case '/':
 /*
  * Dividing by zero raises SIGFPE on most machines,  which killed TECO outright
@@ -98,7 +105,7 @@ static DEFAULT Reduce()		/* reduce the expression stack */
 			    (ESp2->Elemnt == '+' || ESp2->Elemnt == '-')) {
 				x = ESp1->Elemnt;
 				if (ESp2->Elemnt == '-') {
-					x = -x;
+					x = (LONG)(0 - (ULONG)x);
 				}
 				ESp2->Elemnt = x;
 				ESp2->ElType = OPERAND;

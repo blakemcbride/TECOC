@@ -11,7 +11,12 @@ the current radix,  and pushes the value onto the expression stack.
 #include "chmacs.h"		/* define character processing macros */
 DEFAULT ExeDgt()		/* execute a digit command */
 {
-	LONG	TmpLng;
+/*
+ * Accumulate in an unsigned type.  A number too big for a LONG is not an
+ * error in TECO -- it just wraps, the same way +, - and * do -- but doing
+ * the arithmetic in a signed type makes that overflow undefined behaviour.
+ */
+	ULONG	TmpLng;
 	DBGFEN(1,"ExeDgt",NULL);
 	if ((Radix == 8) && (*CBfPtr > '7')) {	/* if bad octal digit */
 		ErrMsg(ERR_ILN);		/* ILN = "illegal number" */
@@ -20,20 +25,20 @@ DEFAULT ExeDgt()		/* execute a digit command */
 	}
 	TmpLng = 0;
 	do {
-		TmpLng *= Radix;
+		TmpLng *= (ULONG)Radix;
 		if (Is_Digit(*CBfPtr)) {
-			TmpLng += *CBfPtr - '0';
+			TmpLng += (ULONG)(*CBfPtr - '0');
 		} else if (Is_Upper(*CBfPtr)) {
-			TmpLng += *CBfPtr - '\67';
+			TmpLng += (ULONG)(*CBfPtr - '\67');
 		} else {
-			TmpLng += *CBfPtr - '\127';
+			TmpLng += (ULONG)(*CBfPtr - '\127');
 		}
 		if (CBfPtr == CStEnd) {
 #if DEBUGGING
-			sprintf(DbgSBf,"PushEx(%ld,OPERAND)", TmpLng);
+			sprintf(DbgSBf,"PushEx(%ld,OPERAND)", (LONG)TmpLng);
 			DbgFEx(1,DbgFNm,DbgSBf);
 #endif
-			return PushEx(TmpLng, OPERAND);
+			return PushEx((LONG)TmpLng, OPERAND);
 		}
 		++CBfPtr;
 		if (IsRadx(*CBfPtr) && TraceM) {
@@ -42,8 +47,8 @@ DEFAULT ExeDgt()		/* execute a digit command */
 	} while (IsRadx(*CBfPtr));
 	--CBfPtr;			/* cancel ExeCSt's ++CBfPtr */
 #if DEBUGGING
-	sprintf(DbgSBf,"PushEx(%ld,OPERAND)", TmpLng);
+	sprintf(DbgSBf,"PushEx(%ld,OPERAND)", (LONG)TmpLng);
 	DbgFEx(1,DbgFNm,DbgSBf);
 #endif
-	return PushEx(TmpLng, OPERAND);
+	return PushEx((LONG)TmpLng, OPERAND);
 }
