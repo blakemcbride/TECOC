@@ -13,9 +13,23 @@ DEFAULT ExeCtZ()		/* execute a ^Z (control-Z) command */
 	LONG	TmpLng;
 	WORD	TmpWrd;
 	DBGFEN(1,"ExeCtZ",NULL);
+/*
+ * All of them:  QRgstr[0..35] are the globals,  QRgstr[36..71] the main level's
+ * locals,  and each macro level on the stack has a table of its own.  Only the
+ * globals used to be counted.
+ */
 	TmpLng = (CStEnd - CStBeg) + 1;
-	for (TmpWrd = 0; TmpWrd < 36; ++TmpWrd) {
+	for (TmpWrd = 0; TmpWrd < 72; ++TmpWrd) {
 		TmpLng += QRgstr[TmpWrd].End_P1 - QRgstr[TmpWrd].Start;
+	}
+	for (TmpWrd = 0; TmpWrd <= MStTop; ++TmpWrd) {
+		QRptr QRp = MStack[TmpWrd].QRgstr;
+		if (QRp != NULL) {
+			WORD i;
+			for (i = 0; i < 36; ++i, ++QRp) {
+				TmpLng += QRp->End_P1 - QRp->Start;
+			}
+		}
 	}
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld)", TmpLng);
