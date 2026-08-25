@@ -59,10 +59,12 @@ VVOID ClenUp (VVOID)		/* cleanup for TECO-C abort */
 #if DEBUGGING
 {
 /*
- * at this point, there shouldn't be any block malloc'ed by TECO-C.
- * except if we're here because we EX'ed out of a macro, and we can't
- * get to the ZBf buffer allocated in ExeEI,  so the ZBf buffer is
- * left hanging.
+ * at this point, there shouldn't be any block malloc'ed by TECO-C, except
+ * when we are here because we EX'ed (or EG'ed, or ^C^C'ed) out of a macro or
+ * a command file.  Two blocks are unreachable from here in that case: the
+ * copy of the macro text ExeM is executing from, and the ZBf buffer ExeEI
+ * allocated.  Both are locals of frames that are still on the stack, so they
+ * cost nothing -- the process is on its way out -- but they are not freed.
  */
 }
 #endif
