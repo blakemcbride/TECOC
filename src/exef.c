@@ -208,7 +208,14 @@ static DEFAULT ExeFR()			/* execute an FR command */
 		return FAILURE;
 	}
 	GapBeg += RefLen;			/* delete */
-	CmdMod = (CmdMod & COLON);		/* retain only colon bit */
+/*
+ * ExeI parses FR's OWN text argument,  so it needs FR's delimiter convention:
+ * masking CmdMod down to COLON threw the ATSIGN bit away and ExeI then called
+ * FindES(ESCAPE),  which inserted "@FR/text/"'s delimiters literally and ran
+ * the scan on to the next real ESC.  SkpF already routes FR to SkpArg,  which
+ * does honour @,  so the skipper and the executor disagreed as well.
+ */
+	CmdMod &= (COLON | ATSIGN);		/* retain colon and at-sign bits */
 	EStTop = EStBot;			/* clear expression stack */
 	DBGFEX(1,DbgFNm,"ExeI()");
 	return ExeI();
