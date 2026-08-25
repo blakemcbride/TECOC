@@ -244,11 +244,12 @@ kludge:		    break;
  * "^E<nnn>" is an OCTAL character code,  so "8" and "9" end the number rather
  * than being folded into it.  CMatch and both copies in ZFrSrc were fixed;
  * this fourth copy was not,  so "^E<19>" was an error going forwards and
- * silently meant "^E<21>" going backwards.
+ * silently meant "^E<21>" going backwards.  The limit is 255,  not 127,
+ * because that is CMatch's:  TECO-C is eight-bit clean everywhere else.
  */
 		    while ((*SStPtr >= '0') && (*SStPtr <= '7')) {  /* octal */
 		        TmpLng = (TmpLng * 8) + (*SStPtr - '0');
-			if (TmpLng > 127) {
+			if (TmpLng > 255) {
 			    ErrMsg(ERR_ICE);
 			    DBGFEX(3,DbgFNm,"FAILURE");
 			    return FAILURE;

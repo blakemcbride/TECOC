@@ -44,6 +44,15 @@ This function does not modify EndSAr.
 	^E<nnn>		match character with ASCII code nnn (octal)
 	^E[x1,x2,...xn]	match any of the match constructs x1, x2, etc.
 	else		match the character itself
+	This function handles the FIRST match construct in the search string;
+CMatch handles every one after it.  The two used to disagree about how big an
+"^E<nnn>" code may be -- CMatch allowed 377 octal,  this function and BakSrc
+only 177 -- so whether "^E<200>" worked depended on where in the search string
+it happened to sit.  TECO-C is eight-bit clean otherwise (ET_EIGHTBIT is on by
+default,  nI inserts any code 0-255,  CMatch matches it),  so 255 is the limit
+both copies below now use.  Charac has to be an unsigned char for that: it is
+compared against *EBPtr1,  which is one,  and as a plain (signed) char a code
+of 128-255 goes negative and can never compare equal.
 *****************************************************************************/
 #include "zport.h"		/* define portability identifiers */
 #include "tecoc.h"		/* define general identifiers */
@@ -56,7 +65,7 @@ This function does not modify EndSAr.
 int	lib$scanc();		/* scan for characters */
 DEFAULT ZFrSrc()		/* forward search for 1st search charptr */
 {
-	char	Charac;		/* holds a character */
+	unsigned char Charac;	/* holds a character */
 	int	indx;		/* returned by lib$scanc */
 	charptr	LstBeg;		/* beginning of ^E[x,x,x] list */
 	char	mask;
@@ -365,7 +374,7 @@ kludge:			break;
 			while ((*SStPtr >= '0') && (*SStPtr <= '7')) {
 				TmpLng *= 8;
 				TmpLng += *SStPtr - '0';
-				if (TmpLng > 127) {
+				if (TmpLng > 255) {
 					ErrMsg(ERR_ICE);
 					DBGFEX(3,DbgFNm,"FAILURE");
 					return FAILURE;
@@ -381,7 +390,7 @@ kludge:			break;
 				DBGFEX(3,DbgFNm,"FAILURE");
 				return FAILURE;
 			}
-			Charac = (char)TmpLng;
+			Charac = (unsigned char)TmpLng;
 			for (; EBPtr1 <= EndSAr; ++EBPtr1) {
 				if (*EBPtr1 == Charac) {
 					break;
@@ -490,7 +499,7 @@ scanc:	real_length = EndSAr - EBPtr1;
 #else
 DEFAULT ZFrSrc()		/* forward search for 1st search charptr */
 {
-	char	Charac;		/* holds a character */
+	unsigned char Charac;	/* holds a character */
 	charptr	LstBeg;		/* beginning of ^E[x,x,x] list */
 	char	OtCase;		/* "other" case character */
 	charptr	QTPtr;		/* pointer into q-register text */
@@ -674,7 +683,7 @@ kludge:				break;
 					{
 					TmpLng *= 8;
 					TmpLng += *SStPtr - '0';
-					if (TmpLng > 127)
+					if (TmpLng > 255)
 						{
 						ErrMsg(ERR_ICE);
 						DBGFEX(3,DbgFNm,"FAILURE");
@@ -693,7 +702,7 @@ kludge:				break;
 					DBGFEX(3,DbgFNm,"SUCCESS");
 					return FAILURE;
 					}
-				Charac = (char)TmpLng;
+				Charac = (unsigned char)TmpLng;
 				for (;EBPtr1<=EndSAr;++EBPtr1)
 					if (*EBPtr1 == Charac)
 						break;
