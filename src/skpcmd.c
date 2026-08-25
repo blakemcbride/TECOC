@@ -38,6 +38,17 @@ static DEFAULT SkpArg()		/* skip command with text argument */
 	return SUCCESS;
 }
 /*****************************************************************************
+	The Skp* functions below all have to stop when they reach the last
+character of the command string.  They used to return SUCCESS -- without
+advancing -- when that happened inside a macro,  on the theory that the caller
+would notice.  That is the same trap IncCBP used to have: it hands a command
+back to a scanning loop that has already consumed everything, and the loop's
+"++CBfPtr" then steps past CStEnd.  The Standard TECO manual requires a
+command sequence in a Q-register to be complete within the Q-register,  and
+ErrUTC() already reports ?UTC or ?UTM according to MStTop,  so failing here is
+both correct and one iteration earlier than the callers would have managed.
+*****************************************************************************/
+/*****************************************************************************
 	SkpCtA()
 *****************************************************************************/
 static DEFAULT SkpCtA()		/* skip control-A command */
@@ -60,16 +71,10 @@ static DEFAULT SkpCtA()		/* skip control-A command */
 static DEFAULT SkpCtU()		/* skip control-U command */
 {
 	BOOLEAN	TTrace;		/* temp: holds trace flag */
-	if (CBfPtr == CStEnd)
-		if (MStTop < 0)			/* if not in a macro */
-			{
-			ErrUTC();		/* unterminated command */
-			return FAILURE;
-			}
-		else {
-			return SUCCESS;
-
-		}
+	if (CBfPtr == CStEnd) {
+		ErrUTC();			/* unterminated command */
+		return FAILURE;
+	}
 	++CBfPtr;
 	TTrace = TraceM;			/* save trace mode flag */
 	TraceM = FALSE;				/* keep FindES from tracing */
@@ -111,16 +116,10 @@ static DEFAULT SkpDAr()		/* skip "double text argument" command */
 static DEFAULT SkpDqu()		/* skip a " (double quote) command */
 {
 	DBGFEN(3,"SkpDqu",NULL);
-	if (CBfPtr == CStEnd)			/* if end of command string */
-		if (MStTop < 0)			/* if not in a macro */
-			{
-			ErrUTC();		/* unterminated command */
-			return FAILURE;
-			}
-		else {
-			return SUCCESS;
-
-		}
+	if (CBfPtr == CStEnd) {			/* if end of command string */
+		ErrUTC();			/* unterminated command */
+		return FAILURE;
+	}
 	++CBfPtr;
 	switch (To_Upper(*CBfPtr)) {
 		case 'A':
@@ -180,16 +179,10 @@ static DEFAULT SkpSkp()		/* */
 *****************************************************************************/
 static DEFAULT SkpF()			/* skip one of the F commands */
 {
-	if (CBfPtr == CStEnd)
-		if (MStTop < 0)			/* if not in a macro */
-			{
-			ErrUTC();		/* unterminated command */
-			return FAILURE;
-			}
-		else {
-			return SUCCESS;
-
-		}
+	if (CBfPtr == CStEnd) {
+		ErrUTC();			/* unterminated command */
+		return FAILURE;
+	}
 	++CBfPtr;
 	switch (To_Upper(*CBfPtr)) {
 		case 'S':
@@ -220,14 +213,9 @@ static DEFAULT SkpOne()		/* skip one command character */
 	DbgFEn(3,DbgFNm,DbgSBf);
 #endif
 	if (CBfPtr == CStEnd) {
-		if (MStTop < 0) {		/* if not in a macro */
-			ErrUTC();		/* unterminated command */
-			DBGFEX(3,DbgFNm,"FAILURE");
-			return FAILURE;
-		} else {
-			DBGFEX(3,DbgFNm,"SUCCESS");
-			return SUCCESS;
-		}
+		ErrUTC();			/* unterminated command */
+		DBGFEX(3,DbgFNm,"FAILURE");
+		return FAILURE;
 	}
 	++CBfPtr;
 #if DEBUGGING
@@ -252,15 +240,10 @@ static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ SkpSkp
 	};
 	WORD	CDummy;
-	if (CBfPtr == CStEnd)			/* if end of command string */
-		if (MStTop < 0)			/* if macro stack empty */
-			{
-			ErrUTC();		/* unterminated command */
-			return FAILURE;
-			}
-		else {
-			return SUCCESS;
-		}
+	if (CBfPtr == CStEnd) {			/* if end of command string */
+		ErrUTC();			/* unterminated command */
+		return FAILURE;
+	}
 	++CBfPtr;
 	if ((*CBfPtr >= 'A') && (*CBfPtr <= '_'))
 		CDummy = *CBfPtr - 'A';
@@ -287,15 +270,10 @@ static DEFAULT SkpE()			/* skip one of the E commands */
 /* U */ SkpSkp,    /* V */ SkpSkp,    /* W */ SkpArg,    /* X */ SkpSkp,
 /* Y */ SkpSkp,    /* Z */ SkpSkp
 	};
-	if (CBfPtr == CStEnd)
-		if (MStTop < 0)			/* if not in a macro */
-			{
-			ErrUTC();		/* unterminated command */
-			return FAILURE;
-			}
-		else {
-			return SUCCESS;
-		}
+	if (CBfPtr == CStEnd) {
+		ErrUTC();			/* unterminated command */
+		return FAILURE;
+	}
 	++CBfPtr;
 	TmpChr = To_Upper(*CBfPtr);
 	if (TmpChr == '%')
