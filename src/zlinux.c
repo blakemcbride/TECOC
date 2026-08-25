@@ -910,12 +910,15 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				ZClnUp();
 				exit(EXIT_FAILURE);
 			} else {				/* ver > 0 */
-				int ln = strlen(TmpFsp);
 				ver++;
 				strcat(TmpFsp, ";");
 				MakDBf((LONG)ver, 10);
+/*
+ * strncat has already terminated the string.  The explicit store that used to
+ * follow put a second NUL one byte PAST that terminator,  which is off the
+ * end of TmpFsp when the name runs to the size of the buffer.
+ */
 				strncat(TmpFsp, DBfBeg, DBfPtr-DBfBeg);
-				*(TmpFsp+ln+(1+DBfPtr-DBfBeg)+1) = '\0';
 			}
 		}
 #if DEBUGGING
