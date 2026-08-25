@@ -27,7 +27,7 @@ following meaning:
 #include "defext.h"		/* define external global variables */
 #include "dchars.h"		/* define identifiers for characters */
 VVOID DoEvEs(Flag)		/* EV or ES flag code */
-WORD Flag;
+LONG Flag;
 {
     unsigned char PtChar;		/* special "CP" character */
     unsigned char VLines;		/* argument to V command */

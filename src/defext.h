@@ -24,18 +24,18 @@ EXTERN	charptr	EBfBeg;		/* edit buffer beginning */
 EXTERN	charptr	EBfEnd;		/* edit buffer end */
 EXTERN	charptr	EBPtr1;		/* pointer to start of found string */
 EXTERN	charptr	EBPtr2;		/* pointer to end of found string */
-EXTERN	WORD	EdFlag;		/* ED mode control flag */
-EXTERN	WORD	EhFlag;		/* EH mode control flag */
+EXTERN	LONG	EdFlag;		/* ED mode control flag */
+EXTERN	LONG	EhFlag;		/* EH mode control flag */
 EXTERN	charptr	EndSAr;		/* end of search area */
 EXTERN	char	ErrTxt[];	/* holds part of error message */
-EXTERN	WORD	EsFlag;		/* ES mode control flag */
+EXTERN	LONG	EsFlag;		/* ES mode control flag */
 EXTERN	WORD	EStBot;		/* expression stack bottom */
 EXTERN	struct	EStck EStack[]; /* expression stack */
 EXTERN	WORD	EStTop;		/* expression stack top */
-EXTERN	WORD	EtFlag;		/* ET mode control flag */
-EXTERN	WORD	EuFlag;		/* EU mode control flag */
-EXTERN	WORD	EvFlag;		/* EV mode control flag */
-EXTERN	WORD	EzFlag;		/* EZ mode control flag */
+EXTERN	LONG	EtFlag;		/* ET mode control flag */
+EXTERN	LONG	EuFlag;		/* EU mode control flag */
+EXTERN	LONG	EvFlag;		/* EV mode control flag */
+EXTERN	LONG	EzFlag;		/* EZ mode control flag */
 EXTERN	charptr	FBfBeg;		/* beginning of filename buffer */
 EXTERN	charptr	FBfEnd;		/* end of filename buffer */
 EXTERN	charptr	FBfPtr;		/* pointer into filename buffer */
@@ -71,7 +71,7 @@ EXTERN	charptr	SBfBeg;		/* search string buffer beginning */
 EXTERN	charptr	SBfEnd;		/* search string buffer end */
 EXTERN	charptr	SBfPtr;		/* end of search string, plus one */
 EXTERN	LONG	SIncrm;		/* search increment, 1 (forward), -1 (back) */
-EXTERN	WORD	SMFlag;		/* search mode flag */
+EXTERN	LONG	SMFlag;		/* search mode flag */
 EXTERN	WORD	SrcTyp;		/* type of search (E_SEARCH, N_SEARCH, etc) */
 EXTERN	charptr	SStPtr;		/* pointer into search string */
 EXTERN	BOOLEAN	TraceM;		/* trace mode flag */

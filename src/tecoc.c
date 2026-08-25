@@ -144,13 +144,13 @@ GLOBAL	charptr	EBPtr2;
         16   preserve dot on failing searches
         64   only move dot by one on multiple occurrence searches
 *****************************************************************************/
-GLOBAL	WORD	EdFlag = 0;		/* ED mode control flag */
+GLOBAL	LONG	EdFlag = 0;		/* ED mode control flag */
 /*****************************************************************************
 	Bits within EhFlag have the following meanings:
         3    how much error message to display
         4    display failing command string after errors
 *****************************************************************************/
-GLOBAL	WORD	EhFlag = 0;		/* EH mode control flag */
+GLOBAL	LONG	EhFlag = 0;		/* EH mode control flag */
 /*****************************************************************************
 	EndSAr is used by search code to point to the end of the area to be
 searched.
@@ -177,7 +177,7 @@ successful search command completes.  EsFlag has the following meanings:
                   of lines above and below the found string to be
                   displayed.
 *****************************************************************************/
-GLOBAL	WORD	EsFlag = 0;		/* ES mode control flag */
+GLOBAL	LONG	EsFlag = 0;		/* ES mode control flag */
 /*****************************************************************************
 	The expression stack contains the components of TECO's numeric
 expressions.  Each entry on the expression stack is either an OPERAND or
@@ -192,7 +192,7 @@ of masks for each bit and the meaning of each bit can be found in TECOC.H.
 Bits in EtFlag are initialized when the terminal is set up in the ZTrmnl
 function.
 *****************************************************************************/
-GLOBAL	WORD	EtFlag = 0;		/* ET mode control flag */
+GLOBAL	LONG	EtFlag = 0;		/* ET mode control flag */
 /*****************************************************************************
 	The EuFlag is TECO's case mode control flag.  This flag allows TECO to
 be used to input and output upper and lower case characters even if the
@@ -203,7 +203,7 @@ preceded by a ' character.  If the EU flag is 1, then lowercase characters
 are converted to uppercase on type-out,  but uppercase characters are
 preceded by a ' character.
 *****************************************************************************/
-GLOBAL	WORD	EuFlag = EU_NONE;	/* EU mode control flag */
+GLOBAL	LONG	EuFlag = EU_NONE;	/* EU mode control flag */
 /*****************************************************************************
 	The EV mode control flag controls what is displayed on the terminal
 after every successful command string completes.  By default, nothing is
@@ -219,7 +219,7 @@ displayed (EV is 0).  EV has the following meanings:
                   of lines above and below the character position to be
                   displayed.
 *****************************************************************************/
-GLOBAL	WORD	EvFlag = 0;		/* EV mode control flag */
+GLOBAL	LONG	EvFlag = 0;		/* EV mode control flag */
 /*****************************************************************************
 	These variables point to the filename buffer.
 *****************************************************************************/
@@ -231,7 +231,7 @@ GLOBAL	charptr	FBfPtr;			/* pointer into file spec buffer */
 file for each operating system (like ZVMS.C, ZUNIX.C, etc) for the meanings
 of these bits.
 *****************************************************************************/
-GLOBAL	WORD	EzFlag = 0;		/* EZ mode control flag */
+GLOBAL	LONG	EzFlag = 0;		/* EZ mode control flag */
 /*****************************************************************************
 	FFPage is the value which is returned by the ^E command.  It is -1 if
 the buffer currently contains a page of text that was terminated by a form
@@ -387,7 +387,7 @@ GLOBAL	LONG	SIncrm;			/* search increment */
 	SMFlag is TECOC's search mode flag,  and controls case sensitivity
 during searches.  This variable holds the value of the ^X command.
 *****************************************************************************/
-GLOBAL	WORD	SMFlag = 0;		/* search mode control flag (^X) */
+GLOBAL	LONG	SMFlag = 0;		/* search mode control flag (^X) */
 /*****************************************************************************
 	SrcTyp is used to "remember" the kind of search command that we're
 working on.  The same search code is used by all the search commands,  but

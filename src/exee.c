@@ -1203,7 +1203,7 @@ static DEFAULT ExeES()			/* execute an ES command */
 static DEFAULT ExeET()			/* execute an ET command */
 {
         DEFAULT status;
-        WORD TmpET;
+        LONG TmpET;
 
 	DBGFEN(1,"ExeET",NULL);
 

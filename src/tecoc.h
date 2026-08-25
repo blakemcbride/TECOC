@@ -278,9 +278,9 @@ VVOID	DbgFMs(			/* debugging, function message */
 DEFAULT	DoCJR(			/* do C, J or R stuff */
 	LONG HowFar);		/* positive or negative displacement */
 VVOID	DoEvEs(			/* do an EV or ES mode control flag function */
-	WORD Flag);
+	LONG Flag);
 DEFAULT	DoFlag(			/* handle mode control flag */
-	WORD *Flag);
+	LONG *Flag);
 VVOID	EchoIt(			/* echo a character to to terminal */
 	unsigned char Charac);
 VVOID	ErrChr(			/* display error message with character arg */
