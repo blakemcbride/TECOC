@@ -650,10 +650,12 @@ char c;
 		    }
 		    waddch(curwin, '\n');
 		    waddch(curwin, '\r');
-		    /* note that this goes on to emit the character a
-		       second time.  That may not be what was meant,  but
-		       it is what this has always done. */
-		    /* FALLTHROUGH */
+/*
+ * This used to fall through to the default arm,  which wrote the character a
+ * second time.  Everything else that displays a vertical tab or a form feed --
+ * EchoIt, TypBuf, ReadCS -- writes it once.
+ */
+		    break;
 		default:
 		    waddch(curwin,c);
 	    }
