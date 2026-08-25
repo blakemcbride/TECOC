@@ -35,10 +35,55 @@ function.
 #if USE_PROTOTYPES
 static DEFAULT DoCtVW(charptr EndArg, unsigned char TmpChr);
 static DEFAULT DoCtE(charptr EndArg, charptr XBfEnd);
+static DEFAULT SavSrc(charptr BufBeg, charptr BufPtr);
 #endif
 static charptr BBfPtr;			/* pointer into XBf */
 static int CaseCv;			/* case conversion */
 static unsigned char WVFlag;		/* ^W or ^V flag */
+/*
+ * ^EQ_ expands to the last search string and ^EQ* to the last filespec,  but
+ * the search commands call BldStr(SBfBeg, SBfEnd, &SBfPtr) and the file
+ * commands call BldStr(FBfBeg, FBfEnd, &FBfPtr) -- they build the NEW string
+ * in place, on top of the OLD one.  BldStr writes forward from XBfBeg,  so by
+ * the time DoCtE reaches the construct the string it is being asked to copy
+ * has already been partly overwritten:  "S1^EQ_$" after "Sxyz$" searched for
+ * "11yz" instead of "1xyz".  SavSrc takes a copy of the source buffer before
+ * the build starts and DoCtE reads that copy instead.  A ^EQq naming a real
+ * Q-register is unaffected -- Q-register text is a separate allocation.
+ */
+static charptr SavBeg = NULL;		/* copy of an aliased source buffer */
+static SIZE_T  SavLen = 0;		/* length of the copy */
+static SIZE_T  SavSiz = 0;		/* bytes allocated at SavBeg */
+static charptr AlsBeg = NULL;		/* buffer SavBeg was copied from */
+static DEFAULT SavSrc(BufBeg, BufPtr)	/* copy a source buffer aside */
+charptr BufBeg;				/* beginning of the buffer */
+charptr BufPtr;				/* one past its last character */
+{
+    SIZE_T Length;
+    DBGFEN(3,"SavSrc",NULL);
+    Length = (SIZE_T)(BufPtr - BufBeg);
+    if ((SavBeg == NULL) || (Length > SavSiz)) {
+	charptr NewBuf;
+	SIZE_T NewSiz;
+	NewSiz = (Length > 0) ? Length : 1;	/* never ask for 0 bytes */
+	NewBuf = (charptr)((SavBeg == NULL) ? ZAlloc(NewSiz)
+					   : ZRaloc(SavBeg, NewSiz));
+	if (NewBuf == NULL) {
+	    ErrMsg(ERR_MEM);		/* MEM = memory overflow */
+	    DBGFEX(3,DbgFNm,"FAILURE, no memory");
+	    return FAILURE;
+	}
+	SavBeg = NewBuf;
+	SavSiz = NewSiz;
+    }
+    if (Length > 0) {
+	MEMMOVE(SavBeg, BufBeg, Length);
+    }
+    SavLen = Length;
+    AlsBeg = BufBeg;
+    DBGFEX(3,DbgFNm,"SUCCESS");
+    return SUCCESS;
+}
 static DEFAULT DoCtVW(EndArg, TmpChr)	/* do a control-V or control-W */
 charptr EndArg;				/* ptr to end of string argument */
 unsigned char TmpChr;			/* temporary character */
@@ -112,6 +157,10 @@ charptr XBfEnd;				/* end of build-string buffer */
 	    } else {
 		BufPtr=SBfPtr;
 		BufBeg=SBfBeg;
+	    }
+	    if (BufBeg == AlsBeg) {	/* if we are overwriting it */
+		BufBeg = SavBeg;	/* use the copy taken on entry */
+		BufPtr = SavBeg + SavLen;
 	    }
 	    if ((BufPtr-BufBeg) > (XBfEnd-BBfPtr)) {
 		ErrMsg(ERR_STL);
@@ -189,6 +238,18 @@ charptr (*XBfPtr);		/* pointer into build-string buffer */
     BBfPtr = XBfBeg;		/* initialize ptr into build-string buffer */
     EndArg = CBfPtr;		/* save pointer to end of argument */
     CBfPtr = ArgPtr;		/* reset to beginning of argument */
+    AlsBeg = NULL;		/* nothing saved aside yet */
+    if (XBfBeg == SBfBeg) {	/* if building over the search string */
+	if (SavSrc(SBfBeg, SBfPtr) == FAILURE) {
+	    DBGFEX(2,DbgFNm,"FAILURE, SavSrc() failed");
+	    return FAILURE;
+	}
+    } else if (XBfBeg == FBfBeg) { /* if building over the filespec */
+	if (SavSrc(FBfBeg, FBfPtr) == FAILURE) {
+	    DBGFEX(2,DbgFNm,"FAILURE, SavSrc() failed");
+	    return FAILURE;
+	}
+    }
     while (CBfPtr < EndArg) {
 	if ((*CBfPtr == '^') && ((EdFlag & ED_CARET_OK) == 0)) {
 	    if (++CBfPtr == EndArg) {
