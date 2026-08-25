@@ -296,12 +296,22 @@ charptr HlpEnd;				/* end of help command */
 	DBGFEX(3, DbgFNm, "FALSE");
 	return FALSE;
     }
-    if (((HlpEnd - CBfBeg) < 6) ||	/* too short to be "HELP/S..." */
-	((*(CBfBeg+4) != '/') &&
-	 (*(CBfBeg+5) != 'S') && (*(CBfBeg+5) != 's'))) {
-	ZHelp(CBfBeg+4, HlpEnd-1, FALSE, TRUE);
-    } else {
+/*
+ * Written positively:  it is "HELP/S..." only if it is long enough AND the fifth
+ * character is a "/" AND the sixth is an S.  The negated form this used to have
+ * joined those last two tests with && instead of ||,  so "HELP/LIBRARY=x" took
+ * the system-library branch (losing two characters of the argument) and "HELPXS"
+ * took it as well despite having no "/" at all.
+ *
+ * Note that a bare "HELP" gives HlpBeg > HlpEnd,  which is how an empty request
+ * reaches ZHelp.
+ */
+    if (((HlpEnd - CBfBeg) >= 6) &&
+	(*(CBfBeg+4) == '/') &&
+	((*(CBfBeg+5) == 'S') || (*(CBfBeg+5) == 's'))) {
 	ZHelp(CBfBeg+6, HlpEnd-1, TRUE, TRUE);
+    } else {
+	ZHelp(CBfBeg+4, HlpEnd-1, FALSE, TRUE);
     }
     DBGFEX(3, DbgFNm, "TRUE");
     return TRUE;
