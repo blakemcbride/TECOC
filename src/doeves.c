@@ -63,7 +63,7 @@ LONG Flag;
 	    if (i==0)
 		a='8';
 	    else if (i==1)
-		a=9;
+		a='9';
 	    else
 		a = i - 2  + 'A';
 	    i = (c % 16);
