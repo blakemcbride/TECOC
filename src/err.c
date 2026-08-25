@@ -15,7 +15,9 @@
 #include <string.h>		/* prototype for strlen() */
 #if USE_PROTOTYPES
 static	VVOID	ErrDsp(WORD ErrNum, unsigned char *ELine);
-static	VVOID	ToErr(unsigned char Charac, charptr *PtrPtr);
+static	VVOID	ToErr(unsigned char Charac, charptr *PtrPtr, charptr PtrEnd);
+static	VVOID	StrErr(char *Str, charptr *PtrPtr, charptr PtrEnd);
+static	char *	PctErr(char *Str, charptr *PtrPtr, charptr PtrEnd);
 #endif
 /****
    IMPORTANT: if you change this list,  you must also change DEFERR.H,
@@ -144,9 +146,10 @@ displayable representation for the character into the buffer and updates
 the buffer position.  For most characters,  the displayable representation
 is the character itself.
 *****************************************************************************/
-static VVOID ToErr(Charac, PtrPtr)
+static VVOID ToErr(Charac, PtrPtr, PtrEnd)
 unsigned char Charac;
 charptr *PtrPtr;
+charptr PtrEnd;			/* first byte we may NOT write */
 {
 	char SBuf[5];
 	char *SPtr;
@@ -178,8 +181,66 @@ charptr *PtrPtr;
 				}
 				break;
 	}
+/*
+ * Never write past the end of the caller's buffer.  If the representation
+ * doesn't fit,  store as much of it as there is room for.
+ */
+	if (PtrEnd <= *PtrPtr) {
+		return;
+	}
+	if (SLen > (size_t)(PtrEnd - *PtrPtr)) {
+		SLen = (size_t)(PtrEnd - *PtrPtr);
+	}
 	MEMMOVE(*PtrPtr, SPtr, SLen);
 	*PtrPtr += SLen;
+}
+/*****************************************************************************
+
+	StrErr()
+
+	Append a NUL-terminated string to an error message buffer,  stopping
+at PtrEnd so the buffer can never be overrun.
+
+*****************************************************************************/
+
+static VVOID StrErr(Str, PtrPtr, PtrEnd)
+char *Str;
+charptr *PtrPtr;
+charptr PtrEnd;			/* first byte we may NOT write */
+{
+	while ((*Str != '\0') && (*PtrPtr < PtrEnd)) {
+		*(*PtrPtr)++ = *Str++;
+	}
+}
+/*****************************************************************************
+
+	PctErr()
+
+	Copy the leading part of an error message text (everything up to the
+"%" substitution marker) into an error message buffer,  stopping at PtrEnd so
+the buffer can never be overrun.  Returns a pointer to the "%",  or to the
+terminating NUL if the message contains no "%" at all.
+
+*****************************************************************************/
+
+static char *PctErr(Str, PtrPtr, PtrEnd)
+char *Str;
+charptr *PtrPtr;
+charptr PtrEnd;			/* first byte we may NOT write */
+{
+	while ((*Str != '\0') && (*Str != '%')) {
+		if (*PtrPtr < PtrEnd) {
+			*(*PtrPtr)++ = *Str;
+		}
+		++Str;
+	}
+	if (*Str == '%') {		/* skip the "%" and the letter after it */
+		++Str;
+		if (*Str != '\0') {
+			++Str;
+		}
+	}
+	return Str;
 }
 /*****************************************************************************
 *****************************************************************************/
@@ -190,17 +251,11 @@ unsigned char EChr;		/* character to imbed in message */
 	char *TmpPtr;
 	unsigned char ErrBuf[ERBFSIZ];
 	charptr	EPtr = ErrBuf;
+	charptr ELim = ErrBuf + ERBFSIZ - 1;	/* leave room for the NUL */
 	*EPtr++ = '?';
-	TmpPtr = Errors[ErrNum];
-	while (*TmpPtr != '%') {	/* copy up to "%" */
-		*EPtr++ = *TmpPtr++;
-	}
-	ToErr(EChr, &EPtr);		/* copy the %c character */
-	TmpPtr++;			/* skip % */
-	TmpPtr++;			/* skip c */
-	while (*TmpPtr) {		/* copy rest of string */
-		*EPtr++ = *TmpPtr++;
-	}
+	TmpPtr = PctErr(Errors[ErrNum], &EPtr, ELim);	/* copy up to "%" */
+	ToErr(EChr, &EPtr, ELim);	/* copy the %c character */
+	StrErr(TmpPtr, &EPtr, ELim);	/* copy rest of string */
 	*EPtr = '\0';
 	ErrDsp(ErrNum, ErrBuf);
 }
@@ -209,14 +264,11 @@ unsigned char EChr;		/* character to imbed in message */
 VVOID ErrMsg(ErrNum)		/* display error message */
 WORD ErrNum;			/* the error number */
 {
-	char *TmpPtr;
 	unsigned char ErrBuf[ERBFSIZ];
 	charptr EPtr = ErrBuf;
+	charptr ELim = ErrBuf + ERBFSIZ - 1;	/* leave room for the NUL */
 	*EPtr++ = '?';
-	TmpPtr = Errors[ErrNum];
-	while (*TmpPtr) {		/* copy rest of string */
-		*EPtr++ = *TmpPtr++;
-	}
+	StrErr(Errors[ErrNum], &EPtr, ELim);	/* copy the message */
 	*EPtr = '\0';
 	ErrDsp(ErrNum, ErrBuf);
 }
@@ -229,19 +281,13 @@ char *EStr;			/* string to imbed in message */
 	char *TmpPtr;
 	unsigned char ErrBuf[ERBFSIZ];
 	charptr EPtr = ErrBuf;
+	charptr ELim = ErrBuf + ERBFSIZ - 1;	/* leave room for the NUL */
 	*EPtr++ = '?';
-	TmpPtr = Errors[ErrNum];
-	while (*TmpPtr != '%') {	/* copy up to "%" */
-		*EPtr++ = *TmpPtr++;
-	}
+	TmpPtr = PctErr(Errors[ErrNum], &EPtr, ELim);	/* copy up to "%" */
 	while (*EStr) {			/* copy %s string */
-		ToErr((unsigned char)*EStr++, &EPtr);
+		ToErr((unsigned char)*EStr++, &EPtr, ELim);
 	}
-	TmpPtr++;			/* skip % */
-	TmpPtr++;			/* skip s */
-	while (*TmpPtr) {		/* copy rest of string */
-		*EPtr++ = *TmpPtr++;
-	}
+	StrErr(TmpPtr, &EPtr, ELim);	/* copy rest of string */
 	*EPtr = '\0';
 	ErrDsp(ErrNum, ErrBuf);
 }
@@ -255,19 +301,13 @@ charptr EEnd;			/* ptr to char after last char */
 	char *TmpPtr;
 	unsigned char ErrBuf[ERBFSIZ];
 	charptr EPtr = ErrBuf;
+	charptr ELim = ErrBuf + ERBFSIZ - 1;	/* leave room for the NUL */
 	*EPtr++ = '?';
-	TmpPtr = Errors[ErrNum];
-	while (*TmpPtr != '%') {	/* copy up to "%" */
-		*EPtr++ = *TmpPtr++;
-	}
+	TmpPtr = PctErr(Errors[ErrNum], &EPtr, ELim);	/* copy up to "%" */
 	while (EBeg < EEnd) {		/* copy %s string */
-		ToErr(*EBeg++, &EPtr);
+		ToErr(*EBeg++, &EPtr, ELim);
 	}
-	TmpPtr++;			/* skip % */
-	TmpPtr++;			/* skip s */
-	while (*TmpPtr) {		/* copy rest of string */
-		*EPtr++ = *TmpPtr++;
-	}
+	StrErr(TmpPtr, &EPtr, ELim);	/* copy rest of string */
 	*EPtr = '\0';
 	ErrDsp(ErrNum, ErrBuf);
 }

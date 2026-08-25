@@ -393,7 +393,7 @@ ZBFMIN	minimum size of the EI file buffer before it is expanded.
 #define CBFINIT		20000	/* command buffer initial size */
 #define EBFEXP		64000L	/* edit buffer expansion value */
 #define EBFINIT		64000L	/* edit buffer initial size */
-#define ERBFSIZ		128	/* error message buffer */
+#define ERBFSIZ		1024	/* error message buffer */
 #define GAPMIN		64000L	/* edit buffer gap minimum size */
 #define IBFEXP		64000L	/* input buffer expansion size */
 #define IBFINIT		64000L	/* input buffer initial size */
