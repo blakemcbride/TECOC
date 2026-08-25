@@ -207,17 +207,40 @@ VVOID ZBell(VVOID)
 DEFAULT ZChIn(NoWait)			/* input a character from terminal */
 BOOLEAN NoWait;				/* return immediately? */
 {
-	char Charac;
+/*
+ * Charac has to be wider than a char.  In the CURSES build getch() returns an
+ * int:  ERR is -1 and every KEY_* code is 0400 or more,  so narrowing the result
+ * threw the function keys away -- (char)KEY_UP is 3, a control-C, which aborted
+ * the command string,  and FirstChar's whole keypad section could never match.
+ * In either build a plain char is signed on most machines,  so an eight-bit
+ * character came back negative:  "^T" returned -23 for the byte 0xE9,  and 0xFF
+ * came back as -1,  which is also the "no character available" indicator.  And
+ * where char is UNsigned the "== ERR" test below could never be true at all,  so
+ * end-of-input and hang-up were never noticed.
+ *
+ * Read into an int,  keep the byte unsigned,  and use "< 0" for the error case:
+ * a real character is now always >= 0.
+ */
+	int Charac;
 	static	BOOLEAN	LastLF = FALSE;
 	if (LastLF) {
 		LastLF = FALSE;
 		return (DEFAULT)LINEFD;
 	}
 #if CURSES
-	if ((Charac = getch()) == ERR) {
+	Charac = getch();
+	if (Charac == ERR) {
+		Charac = -1;
+	}
 #else
-	if (read(fileno(stdin), &Charac, 1) != 1) {
+	{
+		unsigned char InByte;
+		Charac = (read(fileno(stdin), &InByte, 1) == 1)
+				? (int)InByte
+				: -1;
+	}
 #endif
+	if (Charac < 0) {
 		if (GotHUp)			/* terminal went away */
 			TAbort(EXIT_FAILURE);	/* ...safe to do it here */
 		if (GotCtC || SupGotCtC)
