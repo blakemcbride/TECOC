@@ -1757,7 +1757,18 @@ char *ErMnem;
 	char **TmpPtr;
 #include "vrbmsg.h"
 	ZDspBf("\r\n",2);
-	for (TmpPtr = &ParaTx[StartP[LstErr]]; *TmpPtr; ++TmpPtr) {
+/*
+ * Use the error number we were passed.  This used to index StartP[] with the
+ * global LstErr,  which ErrDsp does not set until AFTER it has called us and
+ * which ReadCS resets to ERR_XXX (-1) at the start of every command string --
+ * so StartP[-1] was read out of bounds and the paragraph shown was never the
+ * one belonging to the error being reported.
+ */
+	if ((ErrNum < 0) ||
+	    (ErrNum >= (WORD)(sizeof(StartP) / sizeof(StartP[0])))) {
+		return;
+	}
+	for (TmpPtr = &ParaTx[StartP[ErrNum]]; *TmpPtr; ++TmpPtr) {
 		ZDspBf((charptr)*TmpPtr, strlen(*TmpPtr));
 		ZDspBf("\r\n",2);
 	}
