@@ -62,14 +62,21 @@ DEFAULT FindQR()		/* find q-register index */
 	    QR = &QRgstr[QIndex+36];		/* use QRgstr[36..71] */
 	} else {				/* else (we're in a macro) */
 	    WORD TMIndx;
-	    QRptr QRp;
-	    for (TMIndx=MStTop; TMIndx>0; TMIndx--) {
+	    QRptr QRp = NULL;
+/*
+ * Find the innermost macro level that owns a local Q-register table.  The
+ * loop used to stop at TMIndx > 0,  so level 0 -- the outermost macro -- was
+ * never examined and its table,  allocated by ExeM,  went unused: ".A" inside
+ * a top-level macro silently referred to the main level's ".A" and clobbered
+ * the caller's value.  Deeper macros were unaffected.
+ */
+	    for (TMIndx=MStTop; TMIndx>=0; TMIndx--) {
 		if (MStack[TMIndx].QRgstr != NULL) {
 		    QRp = MStack[TMIndx].QRgstr;
 		    break;
 		}
 	    }
-	    QR = (TMIndx != 0) ?		/* if we found one */
+	    QR = (QRp != NULL) ?		/* if we found one */
 		    &QRp[QIndex]:		/* use the one we found */ 
 		    (QRptr) &QRgstr[QIndex+36];	/* else use main level ones */
 	}
