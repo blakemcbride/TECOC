@@ -1354,8 +1354,14 @@ DEFAULT *retlen;		/* returned length of string */
 		/* TAA Mod 5/04 -- must allow for extra character if
 		 * UNIXNL since LF becomes CRLF */
 		if (--charsLeft == ((EzFlag&EZ_UNIXNL) ? 0 : 1)) {
-			/* no more room, so return */
-			*retlen = shortBuf;
+/*
+ * No more room, so return what we have.  When EZ_UNIXNL is clear one byte is
+ * held back for the CR that would be inserted in front of a LF, so only
+ * shortBuf-1 characters were actually stored; reporting shortBuf appended an
+ * uninitialised byte to the edit buffer.  "shortBuf - charsLeft" is the count
+ * actually stored in either case.
+ */
+			*retlen = shortBuf - charsLeft;
 #if DEBUGGING
 			sprintf(DbgSBf,"SUCCESS, retlen = %d", *retlen);
 			DbgFEx(3,DbgFNm,DbgSBf);
