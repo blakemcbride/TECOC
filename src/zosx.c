@@ -1458,19 +1458,35 @@ function.
 /* Rewritten 05/04 by TAA */
 DEFAULT ZSWild()		/* search for next wildcard filename */
 {
-	int filename_length;
+	size_t filename_length;
+	char *pathname;
 	if (pglob.gl_pathc == 0)
 		return FAILURE;
+/*
+ * Skip the directories.  GLOB_MARK put a "/" on the end of each of those,
+ * so it is the LAST character of the pathname we have to look at.  The "-1"
+ * used to be inside the strlen(),  which took the length of whatever happened
+ * to precede the string and then indexed the pathname with it -- an
+ * out-of-bounds read,  and the directory test never worked.  ZPWild has this
+ * same test written correctly.
+ */
 	do {
-		if (globindex >= pglob.gl_pathc) return FILENF;
-		if (pglob.gl_pathv[globindex][strlen(pglob.gl_pathv[globindex]-1)] != '/') break;
+		if (globindex >= (int)pglob.gl_pathc) return FILENF;
+		pathname = pglob.gl_pathv[globindex];
+		filename_length = strlen(pathname);
+		if ((filename_length == 0) ||
+		    (pathname[filename_length-1] != '/')) {
+			break;
+		}
 		globindex++;
 	} while (1);
 /*
  * we really have a file name now
  */
-	filename_length = strlen(pglob.gl_pathv[globindex]);
-	MEMMOVE(FBfBeg, pglob.gl_pathv[globindex], filename_length);
+	if (filename_length > (size_t)(FBfEnd - FBfBeg)) {
+		return FAILURE;			/* won't fit in FBf */
+	}
+	MEMMOVE(FBfBeg, pathname, (SIZE_T)filename_length);
 	FBfPtr = FBfBeg + filename_length;
 	globindex++;
 	return SUCCESS;
