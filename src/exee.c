@@ -752,6 +752,16 @@ static DEFAULT EIIndx = EIFL-1;
 static DEFAULT ExeEI()			/* execute an EI command */
 {
     int	status;
+/*
+ * ZBfBeg/ZBfEnd/ZBfRdP are single globals,  but EI files nest (see EIIndx
+ * below).  A nested EI used to overwrite them with its own buffer and then
+ * free that buffer,  which left the OUTER DoEI holding a dangling pointer:  it
+ * MEMMOVEd through it, ZRaloc'd it, and finally freed it a second time,  while
+ * the outer buffer leaked.  Save them across the nested call.
+ */
+    charptr SvZBfB;
+    charptr SvZBfE;
+    charptr SvZBfR;
 
     DBGFEN(1,"ExeEI",NULL);
 
@@ -776,6 +786,10 @@ static DEFAULT ExeEI()			/* execute an EI command */
 	return FAILURE;
     }
 
+    SvZBfB = ZBfBeg;				/* save the caller's buffer */
+    SvZBfE = ZBfEnd;
+    SvZBfR = ZBfRdP;
+
     if (OpnEI(EIIndx) != SUCCESS) {		/* open EI file */
 	status = FAILURE;
     } else {
@@ -790,6 +804,11 @@ static DEFAULT ExeEI()			/* execute an EI command */
 	}
 	ZIClos(EIIndx);
     }
+
+    ZBfBeg = SvZBfB;				/* restore it */
+    ZBfEnd = SvZBfE;
+    ZBfRdP = SvZBfR;
+
     EIIndx--;					/* decrement nesting count */
     CmdMod = '\0';				/* clear modifiers flags */
     EStTop = EStBot;				/* clear expression stack */
