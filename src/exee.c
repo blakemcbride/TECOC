@@ -467,7 +467,16 @@ static DEFAULT ExeEG()		/* perform operating system function */
 		    return PushEx(0L,OPERAND);
 		}
 		EGOper = CLEAR_VAL;
-	    } else if (GBfLen != 3) {		/* it it's not "get" */
+	    } else if (GBfLen != 3) {		/* if it's not "get" */
+/*
+ * The "clear" arm above insists on a space after the three-letter name.  This
+ * one used to step over four characters without looking,  so ":EGINIxfoo$" was
+ * accepted as a request to set the INI file name to "foo".
+ */
+	        if (*(TmpPtr+3) != ' ') {
+		    DBGFEX(1,DbgFNm,"PushEx(0)");
+		    return PushEx(0L,OPERAND);
+		}
 	        EGOper = SET_VAL;
 		TmpPtr += 4;
 	    }
