@@ -104,6 +104,21 @@ int	tputs();		/* send termcap string to a given function */
 int	tgetent();		/* load a terminal capability buffer */
 char 	*tgetstr();		/* get str value of a terminal capability */
 static int vernum();		/* see bottom of this file */
+#if CURSES
+/*
+ * movedot takes a LONG.  It is defined K&R-style further down, which is not a
+ * prototype, so every call that passed a plain int -- do_up and do_down both
+ * did -- was undefined behaviour: the callee read 64 bits of a register only
+ * 32 of which had been set.  In practice a small negative displacement arrived
+ * as a huge positive one and the arrow keys jumped to the end of the buffer
+ * instead of moving a line.
+ */
+#if USE_PROTOTYPES
+static void movedot(LONG HowFar);
+#else
+static void movedot();
+#endif
+#endif
 static	int SupGotCtC = 0;
 static glob_t pglob;
 static int globindex = 0;
@@ -2046,7 +2061,8 @@ draw_all:
 	if ((intabs(olddot - DOT) > HtSize * (VtSize - ScroLn))
 		|| HldFlg) {
 		/* admittedly a heuristic ! */
-		int linedisp, disp;
+		int linedisp;
+		LONG disp;
 		int siz = VtSize - ScroLn - 1 - winline;
 		linedisp = siz/2-2;
 		if (linedisp > 0) {
@@ -2191,7 +2207,8 @@ l1:	olddot = DOT; move(0,0);
 void
 centre()
 {
-	int linedisp, disp;
+	int linedisp;
+	LONG disp;
 	int siz = VtSize - ScroLn - 1 - winline;
 	linedisp = siz/2-2;
 	if (linedisp > 0) {
@@ -2254,7 +2271,7 @@ do_sr()
 void
 do_up()
 {
-    int disp = Ln2Chr(-1); int ll; int dist;
+    LONG disp = Ln2Chr(-1); LONG ll; LONG dist;
     if (colsave < 0) {
 	colsave = -Ln2Chr(0);
     }
@@ -2273,8 +2290,8 @@ do_up()
 void
 do_down()
 {
-    int disp = Ln2Chr(1);
-    int ll, dist;
+    LONG disp = Ln2Chr(1);
+    LONG ll, dist;
     if (colsave < 0) {
 	colsave = -Ln2Chr(0);
     }
