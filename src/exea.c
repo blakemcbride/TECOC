@@ -78,14 +78,21 @@ DEFAULT ExeA()			/* execute an A command */
 /*
  * it's nA
  */
+/*
+ * NArgmt comes straight from the user,  so the range test has to be done in
+ * integer arithmetic.  Forming "GapBeg+NArgmt" first,  as this used to,
+ * overflows the pointer for a large argument -- which is undefined behaviour,
+ * and in practice made the test give the wrong answer and the read below
+ * fault.
+ */
 	if (NArgmt < 0) {
-	    if ((GapBeg+NArgmt) < EBfBeg) {
+	    if (NArgmt < -(GapBeg - EBfBeg)) {		/* out of range */
 	        DBGFEX(1,DbgFNm,"PushEx(-1)");
 		return PushEx(-1L, OPERAND);
 	    }
 	    TmpChr = *(GapBeg+NArgmt);
 	} else {
-	    if ((GapEnd+NArgmt+1) > EBfEnd) {
+	    if (NArgmt > (EBfEnd - GapEnd) - 1) {	/* out of range */
 	        DBGFEX(1,DbgFNm,"PushEx(-1)");
 		return PushEx(-1L, OPERAND);
 	    }

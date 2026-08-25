@@ -26,14 +26,18 @@ DEFAULT ExeD()			/* execute a D command */
 		}
 	}
 	Status = -1;					/* -1 means success */
+/*
+ * Do the range tests in integer arithmetic:  adding the user's argument to a
+ * pointer first overflows the pointer for a large argument.
+ */
 	if (NArgmt > 0) {
-		if ((GapEnd+NArgmt) > EBfEnd) {		/* if out of range */
+		if (NArgmt > (EBfEnd - GapEnd)) {	/* if out of range */
 			Status = 0;			/* 0 means failure */
 		} else {
 			GapEnd += NArgmt;		/* delete */
 		}
 	} else {
-		if ((GapBeg+NArgmt) < EBfBeg) {		/* if out of range */
+		if (NArgmt < -(GapBeg - EBfBeg)) {	/* if out of range */
 			Status = 0;			/* 0 means failure */
 		} else {
 			GapBeg += NArgmt;		/* delete */

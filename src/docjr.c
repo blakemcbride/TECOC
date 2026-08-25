@@ -20,8 +20,14 @@ LONG HowFar;			/* positive or negative displacement */
 	ColonMod = (CmdMod & COLON);		/* is it :C, :J, or :R? */
 	CmdMod &= ~COLON;			/* clear : flag */
 	InRange = -1;				/* -1 means SUCCESS in TECO */
+/*
+ * HowFar is derived from the user's numeric argument,  so the range test is
+ * done in integer arithmetic.  Adding it to a pointer first overflows the
+ * pointer for a large argument,  which is undefined behaviour and can make
+ * the test give the wrong answer.
+ */
 	if (HowFar > 0) {
-		if ((GapEnd+HowFar) > EBfEnd) {
+		if (HowFar > (EBfEnd - GapEnd)) {
 			InRange = 0;		/* 0 means FAILURE in TECO */
 		} else {
 			MEMMOVE(GapBeg, GapEnd+1, HowFar);
@@ -29,7 +35,7 @@ LONG HowFar;			/* positive or negative displacement */
 			GapEnd += HowFar;
 		}
 	} else {
-		if ((GapBeg+HowFar) < EBfBeg) {
+		if (HowFar < -(GapBeg - EBfBeg)) {
 			InRange = 0;		/* 0 means FAILURE in TECO */
 		} else {
 			GapBeg += HowFar;
