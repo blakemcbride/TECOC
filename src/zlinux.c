@@ -1486,7 +1486,14 @@ DEFAULT *retlen;		/* returned length of string */
 		}
 		/* TAA Mod 5/04 -- must allow for extra character if
 		 * UNIXNL since LF becomes CRLF */
-		if (--charsLeft == ((EzFlag&EZ_UNIXNL) ? 0 : 1)) {
+/*
+ * The test used to be "==",  so the loop stopped only if charsLeft landed
+ * exactly on the sentinel.  A caller with a buffer too small to reach it -- one
+ * byte with EZ_UNIXNL clear -- would step straight past and keep storing to EOF
+ * beyond the end of the buffer.  Both callers guarantee far more room than that
+ * today,  so this is a landmine rather than a live bug,  but "<=" removes it.
+ */
+		if (--charsLeft <= ((EzFlag&EZ_UNIXNL) ? 0 : 1)) {
 /*
  * No more room, so return what we have.  When EZ_UNIXNL is clear one byte is
  * held back for the CR that would be inserted in front of a LF, so only

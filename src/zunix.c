@@ -1485,7 +1485,14 @@ DEFAULT *retlen;		/* returned length of string */
 #endif
 			return SUCCESS;
 		}
-		if (--charsLeft == 0) {
+/*
+ * The test used to be "==",  so the loop stopped only if charsLeft landed
+ * exactly on the sentinel.  A caller with a buffer too small to reach it -- one
+ * byte with EZ_UNIXNL clear -- would step straight past and keep storing to EOF
+ * beyond the end of the buffer.  Both callers guarantee far more room than that
+ * today,  so this is a landmine rather than a live bug,  but "<=" removes it.
+ */
+		if (--charsLeft <= 0) {
 			/* no more room, so return */
 			*retlen = shortBuf;
 #if DEBUGGING
