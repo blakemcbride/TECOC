@@ -95,7 +95,11 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
 		ZDspBf("\t11\t= VT200 in VT200 mode\r\n", 27);
 		ZDspBf("\t12\t= VT200 in ANSI (VT100) mode\r\n", 34);
 		ZDspBf("\t13\t= VT200 in VT52 mode\r\n", 26);
-		CrType = (DEFAULT)MArgmt;
+/*
+ * Do NOT store the rejected value:  this arm reports failure,  and CrType is
+ * what ZScrOp (and,  on VMS,  a table lookup) uses to decide how to drive the
+ * terminal.
+ */
 		return FAILURE;
 	    }
 	    CrType = (DEFAULT)MArgmt;
