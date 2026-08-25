@@ -214,7 +214,7 @@ BOOLEAN *SamChr;		/* returned match indicator */
 		return FAILURE;
 	    }
 	    TmpChr = 0;
-	    while (Is_Digit(*SStPtr)) {
+	    while ((*SStPtr >= '0') && (*SStPtr <= '7')) {  /* octal */
 		TmpChr *= 8;
 		TmpChr += *SStPtr - '0';
 		if (TmpChr > 255) {

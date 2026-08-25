@@ -362,7 +362,7 @@ kludge:			break;
 				return FAILURE;
 			}
 			TmpLng = 0;
-			while (Is_Digit(*SStPtr)) {
+			while ((*SStPtr >= '0') && (*SStPtr <= '7')) {
 				TmpLng *= 8;
 				TmpLng += *SStPtr - '0';
 				if (TmpLng > 127) {
@@ -670,7 +670,7 @@ kludge:				break;
 					return FAILURE;
 					}
 				TmpLng = 0;
-				while (Is_Digit(*SStPtr))
+				while ((*SStPtr >= '0') && (*SStPtr <= '7'))
 					{
 					TmpLng *= 8;
 					TmpLng += *SStPtr - '0';
