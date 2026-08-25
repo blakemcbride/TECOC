@@ -94,7 +94,7 @@ int	tputs();		/* send termcap string to a given function */
 int	tgetent();		/* load a terminal capability buffer */
 char 	*tgetstr();		/* get str value of a terminal capability */
 #endif
-static char tbuf[1024];		/* store TERMCAP entry here */
+// static char tbuf[1024];	/* store TERMCAP entry here */
 // static char tarea[1024];	/* store decoded TERMCAP stuff here */
 // static char *ce;		/* TERMCAP sequence: clear to end-of-line */
 // static char *up;		/* TERMCAP sequence: cursor up */
@@ -860,7 +860,6 @@ DEFAULT	OfIndx;			/* index into OFiles array */
  * FILENAME_MAX, so the appends below could run off the end.
  */
 	char TmpFsp[FILENAME_MAX+32];
-	char move_err[1024];
 	DBGFEN(2,"ZOClos",NULL);
 	if (!IsOpnO[OfIndx]) {				/* if it's not open */
 		DBGFEX(2,DbgFNm,NULL);

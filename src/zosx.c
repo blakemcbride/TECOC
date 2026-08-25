@@ -861,7 +861,6 @@ DEFAULT	OfIndx;			/* index into OFiles array */
  * FILENAME_MAX, so the appends below could run off the end.
  */
 	char TmpFsp[FILENAME_MAX+32];
-	char move_err[1024];
 	DBGFEN(2,"ZOClos",NULL);
 	if (!IsOpnO[OfIndx]) {				/* if it's not open */
 		DBGFEX(2,DbgFNm,NULL);
