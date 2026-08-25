@@ -846,7 +846,14 @@ VVOID ZOClos(OfIndx)		/* close output file */
 DEFAULT	OfIndx;			/* index into OFiles array */
 {
 	int ver;
-	char TmpFsp[FILENAME_MAX];
+/*
+ * TmpFsp holds a copy of the output file name with ".bak", ";1" or ";<n>"
+ * appended.  The name it is copied from is a FILENAME_MAX byte array, so the
+ * buffer needs room for FILENAME_MAX-1 characters plus the longest suffix
+ * (";" and a full-width decimal number) plus the NUL.  It used to be exactly
+ * FILENAME_MAX, so the appends below could run off the end.
+ */
+	char TmpFsp[FILENAME_MAX+32];
 	char move_err[1024];
 	DBGFEN(2,"ZOClos",NULL);
 	if (!IsOpnO[OfIndx]) {				/* if it's not open */
