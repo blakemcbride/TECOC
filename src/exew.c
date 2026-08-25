@@ -129,6 +129,16 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
 	    break;
 	case 6:
 #if CURSES
+/*
+ * m is a character position in the edit buffer,  and p_scope_start is a
+ * pointer built from it that redraw() then dereferences.  Without this test
+ * any value at all could be turned into a pointer to anywhere.
+ */
+	    if ((MArgmt < 0) ||
+		(MArgmt > ((GapBeg-EBfBeg) + (EBfEnd-GapEnd)))) {
+		ErrMsg(ERR_ARG);
+		return FAILURE;
+	    }
 	    scope_start = (int)MArgmt;
 	    p_scope_start = (scope_start > GapBeg - EBfBeg)
 				? (scope_start - (GapBeg - EBfBeg)) + GapEnd
@@ -138,6 +148,18 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
 #endif
 	    break;
 	case 7:
+#if CURSES
+/*
+ * m is the number of command lines to reserve at the bottom of the screen.
+ * It has to leave at least one line for the text window,  or the
+ * "VtSize - ScroLn - 1 - winline" arithmetic all through redraw() goes
+ * negative and setscrreg() is handed a bogus region.
+ */
+	    if ((MArgmt < 0) || (MArgmt >= VtSize)) {
+		ErrMsg(ERR_ARG);
+		return FAILURE;
+	    }
+#endif
 	    ScroLn = (DEFAULT)MArgmt;
 #if CURSES
 	    Scope(ScroLn);
