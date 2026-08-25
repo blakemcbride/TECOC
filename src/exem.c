@@ -16,6 +16,8 @@ DEFAULT ExeM()			/* execute an M command */
 {
     DEFAULT status;
 	BOOLEAN islocal;
+    charptr MacTxt;		/* private copy of the macro text */
+    ptrdiff_t MacLen;		/* length of the macro text */
 
     DBGFEN(1,"ExeM",NULL);
 
@@ -36,12 +38,38 @@ DEFAULT ExeM()			/* execute an M command */
 	return SUCCESS;
     }
 
+    MacLen = QR->End_P1 - QR->Start;
+    if (MacLen <= 0) {			/* nothing to execute */
+	DBGFEX(1,DbgFNm,"SUCCESS, Q-register is empty");
+	return SUCCESS;
+    }
+
 /*
- * Save the current execution state and make the text in the Q-register be
- * the command string to execute.
+ * Execute a COPY of the Q-register text,  not the Q-register text itself.
+ * PshMac points CStBeg/CBfPtr/CStEnd at whatever we hand it,  and a macro is
+ * free to write its own Q-register while it runs: "^Uq" frees the block,  and
+ * ":^Uq", "n^Uq", "Xq", "]q" and "EQq" all reach MakRom,  which ZRalocs it and
+ * can move it.  Either way the command string being executed was left dangling
+ * and the interpreter carried on reading freed memory.  Copying costs one
+ * allocation per macro call and makes the running macro immune to whatever it
+ * does to the Q-register.
  */
 
-    if (PshMac(QR->Start, QR->End_P1) == FAILURE) {
+    MacTxt = (charptr)ZAlloc((SIZE_T)MacLen);
+    if (MacTxt == NULL) {
+	ErrMsg(ERR_MEM);		/* MEM = memory overflow */
+	DBGFEX(1,DbgFNm,"FAILURE, ZAlloc() failed");
+	return FAILURE;
+    }
+    MEMMOVE(MacTxt, QR->Start, (SIZE_T)MacLen);
+
+/*
+ * Save the current execution state and make the copy be the command string
+ * to execute.
+ */
+
+    if (PshMac(MacTxt, MacTxt + MacLen) == FAILURE) {
+	ZFree((voidptr)MacTxt);
         DBGFEX(1,DbgFNm,"FAILURE, PshMac() failed");
 	return FAILURE;
     }
@@ -56,6 +84,14 @@ DEFAULT ExeM()			/* execute an M command */
 	QRp = (QRptr)ZAlloc(36 * sizeof(struct QReg));
 	if (QRp == NULL) {
 	    ErrMsg(ERR_MEM);
+/*
+ * PshMac has already switched the command-string environment over to the
+ * macro.  Returning without undoing that left CStBeg/CStEnd pointing into the
+ * macro text with nothing to re-establish them,  so the next command string
+ * would have been executed against it.  Unwind before giving up.
+ */
+	    (VVOID)PopMac();
+	    ZFree((voidptr)MacTxt);
 	    DBGFEX(3,DbgFNm,"FAILURE");
 	    return FAILURE;
 	}
@@ -82,9 +118,12 @@ DEFAULT ExeM()			/* execute an M command */
  */
 
     if (PopMac() == FAILURE) {
+	ZFree((voidptr)MacTxt);
         DBGFEX(1,DbgFNm,"FAILURE, PopMac() failed");
 	return FAILURE;
     }
+
+    ZFree((voidptr)MacTxt);
 
     DBGFEX(1,DbgFNm,(status == FAILURE) ? "FAILURE" : "SUCCESS");
     return status;
