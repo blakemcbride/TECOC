@@ -18,5 +18,22 @@ DEFAULT ExeJ()			/* execute J command */
 		}
 	}
 	DBGFEX(1,DbgFNm,"DoCJR()");
-	return DoCJR(EBfBeg-GapBeg+NArgmt);
+/*
+ * NArgmt is a user-supplied LONG,  so "EBfBeg-GapBeg+NArgmt" -- dot subtracted
+ * from it -- overflows for an extreme value,  which is undefined behaviour and
+ * hands DoCJR a displacement that has already wrapped.  Compare against Z first
+ * and,  when the position is out of range,  pass a displacement that is just
+ * outside the buffer so DoCJR reports it the way it always did.
+ */
+	{
+		LONG Dot = GapBeg - EBfBeg;
+		LONG Zed = Dot + (EBfEnd - GapEnd);
+		if (NArgmt < 0) {
+			return DoCJR(-(Dot + 1));
+		}
+		if (NArgmt > Zed) {
+			return DoCJR((Zed - Dot) + 1);
+		}
+		return DoCJR(NArgmt - Dot);
+	}
 }
