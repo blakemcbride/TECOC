@@ -366,7 +366,7 @@ SIZE_T Length;
 		}
 	}
 }
-#if DEBUGGING
+#if DEBUGGING || CONSISTENCY_CHECKING
 ULONG Zcp2ul(cp)		/* convert charptr to ULONG */
 voidptr cp;
 {
@@ -935,7 +935,17 @@ DEFAULT	OfIndx;			/* index into OFiles array */
         if (OFiles[OfIndx].forBackup) {
 		(void)strcpy(TmpFsp, OFiles[OfIndx].OTNam);/* copy to TmpFsp */
 		if ((EzFlag&EZ_NO_STRIP)==0) {
-			char *DotPtr = strchr(TmpFsp, '.');	/* find the "." */
+/*
+ * Look for the extension in the NAME,  not in the whole filespec.  Searching
+ * from the start meant that a dot in the directory part -- "./foo.c",
+ * "src.d/bar.c" -- was taken for the extension,  so the backup was named from
+ * the truncated path and written outside the file's own directory,  over
+ * whatever was already there.  This is the same bug ZOpInp had.
+ */
+			char *NamPtr = strrchr(TmpFsp, '/');
+			char *DotPtr;
+			NamPtr = (NamPtr == NULL) ? TmpFsp : NamPtr + 1;
+			DotPtr = strchr(NamPtr, '.');	/* find the "." */
 			if (DotPtr != NULL) {		/* if "." exists */
 				*DotPtr = '\0';			/* make it null */
 			}

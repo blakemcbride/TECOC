@@ -120,7 +120,7 @@ VVOID ZClnUp(void)			/* clean up for exit */
 	Zcp2ul()
 	This function converts a pointer to an unsigned long.
 *****************************************************************************/
-#if DEBUGGING
+#if DEBUGGING || CONSISTENCY_CHECKING
 ULONG Zcp2ul(voidptr cp)		/* convert charptr to ULONG */
 {
 	return ((ULONG)(cp));

@@ -131,9 +131,9 @@ static readonly char table_1[256] =
 		SEPARATOR,				/* ! */
 		SEPARATOR,				/* " */
 		SEPARATOR,				/* # */
-		SYMBOL & SEPARATOR,			/* $ */
+		SYMBOL | SEPARATOR,			/* $ */
 		SEPARATOR,				/* % */
-		SEPARATOR,				/* | */
+		SEPARATOR,				/* & */
 		SEPARATOR,				/* ' */
 		SEPARATOR,				/* ( */
 		SEPARATOR,				/* ) */
@@ -323,8 +323,24 @@ kludge:			break;
 			if (EBPtr1 > EndSAr) {	/* if not found */
 				break;
 			}
-			while (EBPtr2 < EndSAr) {
+/*
+ * EndSAr is the last place a match may START;  RhtSid is the last character
+ * that may be EXAMINED.  These greedy extensions move the END of the match,
+ * so they belong to RhtSid -- CMatch, which handles ^EM and ^ES in every
+ * position but the first, uses RhtSid for exactly this.  Bounding them by
+ * EndSAr made "^EMx" mean "one or more x, but not past n" as the first
+ * construct of an FB/FC search and "one or more x" everywhere else.  RhtSid
+ * can lie beyond the edit buffer gap,  so step over it as CMatch does.
+ */
+			while (EBPtr2 < RhtSid) {
 				SavEP2 = EBPtr2++;
+				if ((EBPtr2 >= GapBeg) && (EBPtr2 <= GapEnd)) {
+					EBPtr2 = GapEnd + 1;
+				}
+				if (EBPtr2 > EBfEnd) {
+					EBPtr2 = SavEP2;
+					break;
+				}
 				SStPtr = SavSSP;
 				if (CMatch(&SamChr) == FAILURE) {
 					DBGFEX(3,DbgFNm,"FAILURE");
@@ -344,10 +360,17 @@ kludge:			break;
 			for (;EBPtr1<=EndSAr;++EBPtr1) {
 				if ((*EBPtr1 == SPACE) || (*EBPtr1 == TABCHR)) {
 					EBPtr2 = EBPtr1;
-					while (EBPtr2 < EndSAr) {
-						++EBPtr2;
+					while (EBPtr2 < RhtSid) {	/* see the ^EM comment above */
+						SavEP2 = EBPtr2++;
+						if ((EBPtr2 >= GapBeg) && (EBPtr2 <= GapEnd)) {
+							EBPtr2 = GapEnd + 1;
+						}
+						if (EBPtr2 > EBfEnd) {
+							EBPtr2 = SavEP2;
+							break;
+						}
 						if ((*EBPtr2 != SPACE) && (*EBPtr2 != TABCHR)) {
-							EBPtr2--;
+							EBPtr2 = SavEP2;
 							break;
 						}
 					}
@@ -618,9 +641,26 @@ kludge:				break;
 				}
 				if (EBPtr1 > EndSAr)	/* if not found */
 					break;
-				while (EBPtr2 < EndSAr)
+/*
+ * EndSAr is the last place a match may START;  RhtSid is the last character
+ * that may be EXAMINED.  These greedy extensions move the END of the match,
+ * so they belong to RhtSid -- CMatch, which handles ^EM and ^ES in every
+ * position but the first, uses RhtSid for exactly this.  Bounding them by
+ * EndSAr made "^EMx" mean "one or more x, but not past n" as the first
+ * construct of an FB/FC search and "one or more x" everywhere else.  RhtSid
+ * can lie beyond the edit buffer gap,  so step over it as CMatch does.
+ */
+				while (EBPtr2 < RhtSid)
 					{
 					SavEP2 = EBPtr2++;
+					if ((EBPtr2 >= GapBeg) &&
+					    (EBPtr2 <= GapEnd)) {
+						EBPtr2 = GapEnd + 1;
+					}
+					if (EBPtr2 > EBfEnd) {
+						EBPtr2 = SavEP2;
+						break;
+					}
 					SStPtr = SavSSP;
 					if (CMatch(&SamChr) == FAILURE) {
 						DBGFEX(3,DbgFNm,"FAILURE");
@@ -645,13 +685,22 @@ kludge:				break;
 					    (*EBPtr1 == TABCHR))
 						{
 						EBPtr2 = EBPtr1;
-						while (EBPtr2 < EndSAr)
+						/* see the ^EM comment above */
+						while (EBPtr2 < RhtSid)
 						    {
-						    ++EBPtr2;
+						    SavEP2 = EBPtr2++;
+						    if ((EBPtr2 >= GapBeg) &&
+							(EBPtr2 <= GapEnd)) {
+							EBPtr2 = GapEnd + 1;
+						    }
+						    if (EBPtr2 > EBfEnd) {
+							EBPtr2 = SavEP2;
+							break;
+						    }
 						    if ((*EBPtr2 != SPACE) &&
 							(*EBPtr2 != TABCHR))
 							    {
-							    EBPtr2--;
+							    EBPtr2 = SavEP2;
 							    break;
 							    }
 						    }

@@ -24,8 +24,19 @@ DEFAULT FlowEL()		/* flow to end of loop */
 		++CBfPtr;			/* move to next command */
 		if (*CBfPtr == '<') {		/* if loop start character */
 			++TmpNst;		/* increment nesting count */
+/*
+ * ExeLst and ExeGtr both end with "CmdMod = '\0'",  and FlowEC and FlowEE
+ * reach SkpCmd -- which clears it -- for every character including their own
+ * nesting characters.  This was the one skip path that counted "<" and ">"
+ * and left CmdMod alone,  so an "@" written in front of a nested "<" was
+ * still set when the loop body was skipped:  FindES then took the next
+ * character as the delimiter of the first text argument it met and ran off
+ * the end of the command string.
+ */
+			CmdMod = '\0';		/* clear modifiers flags */
 		} else if (*CBfPtr == '>') {	/* else if loop end char */
 			--TmpNst;		/* decrement nesting count */
+			CmdMod = '\0';		/* clear modifiers flags */
 		} else {
 			if (SkpCmd() == FAILURE) {
 				DBGFEX(3,DbgFNm,"FAILURE");

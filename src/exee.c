@@ -781,6 +781,17 @@ static DEFAULT ExeEI()			/* execute an EI command */
 
     if (FBfPtr == FBfBeg) {			/* if it's EI$ */
 	if (EIIndx >= EIFL) {			/* if EI file is open */
+/*
+ * "EI$ closes the indirect command file and resumes input from the terminal;
+ * any portion of the file after a double <DELIM> which has not yet been read
+ * is discarded."  This used to clear CmdMod and nothing else,  so DoEI went
+ * right on reading and executing the rest of the file.  Close the file and
+ * mark it at end-of-file:  DoEI's loop stops when the command string we are
+ * part of finishes,  which throws away both the unread remainder of the file
+ * and whatever ReadEI had already buffered past our own <DELIM><DELIM>.
+ */
+	    ZIClos(EIIndx);			/* close the EI file */
+	    IsEofI[EIIndx] = TRUE;		/* stop DoEI's read loop */
 	    CmdMod = '\0';			/* clear modifiers flags */
 	}
 	EStTop = EStBot;			/* clear expression stack */
@@ -973,6 +984,7 @@ static DEFAULT ExeEP()			/* execute an EP command */
 static DEFAULT ExeEPr()			/* execute an E% command */
 {
 	BOOLEAN RepErr;			/* report errors? */
+	QRptr	SvQR;			/* the q-register the user named */
 
 	DBGFEN(1,"ExeEPr",NULL);
 
@@ -986,10 +998,16 @@ static DEFAULT ExeEPr()			/* execute an E% command */
 		return FAILURE;
 	}
 
+/*
+ * BldStr expands ^EQq and ^EUq by calling FindQR itself,  which overwrites
+ * the global QR.  Save the register the user named across the call.
+ */
+	SvQR = QR;
 	if (BldStr(FBfBeg, FBfEnd, &FBfPtr) == FAILURE) {
 		DBGFEX(1,DbgFNm,"FAILURE, BldStr() failed");
 		return FAILURE;
 	}
+	QR = SvQR;
 
 	if (FBfPtr == FBfBeg) {			/* if it's E%q$ */
 		ErrUTC();			/* unterminated command */
@@ -1010,6 +1028,14 @@ static DEFAULT ExeEPr()			/* execute an E% command */
 
 	if (QR->Start != NULL) {		/* if it's not empty */
 		if (ZWrBfr(EPRCFL, QR->Start, QR->End_P1-1) == FAILURE) {
+/*
+ * The file is open,  and returning without closing it leaves it that way:
+ * every later E% in the session would then fail with ?OFO instead of saying
+ * what went wrong.  Throw the partial output away -- if ZOpOut superseded an
+ * existing file it wrote to a temporary,  so deleting it leaves the original
+ * untouched.
+ */
+			ZOClDe(EPRCFL);		/* close and delete the file */
 #if DEBUGGING
 			sprintf(DbgSBf,"%s, ZWrBfr() failed",
 				(RepErr) ? "FAILURE" : "PushEx(0)");
@@ -1051,6 +1077,7 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
 	LONG		SvFFPg;		/* saved FFPage value */
 	DEFAULT		SvCrIn;		/* saved CurInp value */
 	ptrdiff_t	SvEbSz;		/* saved edit buffer size */
+	QRptr		SvQR;		/* the q-register the user named */
 	DEFAULT		Status;
 
 	DBGFEN(1,"ExeEQ",NULL);
@@ -1065,10 +1092,16 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
 		return FAILURE;
 	}
 
+/*
+ * BldStr expands ^EQq and ^EUq by calling FindQR itself,  which overwrites
+ * the global QR.  Save the register the user named across the call.
+ */
+	SvQR = QR;
 	if (BldStr(FBfBeg, FBfEnd, &FBfPtr) == FAILURE) {
 		DBGFEX(1,DbgFNm,"FAILURE, BldStr() failed");
 		return FAILURE;
 	}
+	QR = SvQR;
 
 	if (FBfPtr == FBfBeg) {			/* if it's EQq$ */
 		ErrUTC();			/* unterminated command */
@@ -1094,6 +1127,25 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
 	do {
 		if (RdPage() == FAILURE) {
 			Status = FAILURE;
+			goto exeeqdone;
+		}
+/*
+ * RdPage stops at end-of-file,  at a form feed,  or when the edit buffer
+ * cannot be grown,  and it reports the last of those by returning SUCCESS
+ * having read nothing at all.  Unlike every other RdPage loop in the tree this
+ * one does not empty the edit buffer between passes,  so a file too big for
+ * the memory available left it asking for the same page forever -- no error,
+ * no output,  and no test of GotCtC anywhere on the path,  so not even ^C
+ * could break in.  Neither end-of-file nor a form feed means the buffer
+ * filled: say so and give up.
+ */
+		if (!IsEofI[EQFL] && !FFPage) {
+			ErrMsg(ERR_MEM);	/* MEM = memory overflow */
+			Status = FAILURE;
+			goto exeeqdone;
+		}
+		if (GotCtC) {			/* if the user interrupted us */
+			Status = FAILURE;	/* ExeCSt reports ?XAB */
 			goto exeeqdone;
 		}
 	} while (!IsEofI[EQFL]);

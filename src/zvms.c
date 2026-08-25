@@ -460,7 +460,7 @@ VVOID ZClnUp(void)			/* clean up for exit */
 		}
 	}
 }
-#if DEBUGGING
+#if DEBUGGING || CONSISTENCY_CHECKING
 ULONG Zcp2ul(voidptr cp)		/* convert charptr to ULONG */
 {
 	return (ULONG)(cp);

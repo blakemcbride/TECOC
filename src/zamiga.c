@@ -285,7 +285,7 @@ SIZE_T Length;
 		}
 	}
 }
-#if DEBUGGING
+#if DEBUGGING || CONSISTENCY_CHECKING
 ULONG Zcp2ul(cp)		/* convert charptr to ULONG */
 voidptr cp;
 {

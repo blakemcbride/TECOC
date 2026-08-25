@@ -101,7 +101,14 @@ DEFAULT ExeM()			/* execute an M command */
 	    QRp->Number = 0;
 	}
     }
-    else CmdMod &= ~COLON;	/* clear colon flag TAA Mod */
+
+/*
+ * The modifiers were written for the M command itself,  and the macro must not
+ * see them:  an "@" would be taken as the delimiter modifier of the macro's
+ * FIRST command,  and a "::" would turn its first search into a compare.  Only
+ * MARGIS survives -- "m,nMq" is how a macro is given two arguments.
+ */
+    CmdMod &= MARGIS;		/* clear the modifiers written for us */
 
 /*
  * execute command string in Q-register
