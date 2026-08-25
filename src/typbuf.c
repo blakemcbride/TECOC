@@ -125,7 +125,7 @@ charptr YBfEnd;
 				break;
 		case FORMFD:	ZDspCh('\r');
 				/* fall through */
-		case VRTTAB:	ZDspBf("\n\n\n\n",4);
+		case VRTTAB:	ZDspBf("\n\n\n\n\n",FFLINS);
 				/* fall through */
 		case DELETE:	break;
 		case CTRL_G:	ZDspCh(CTRL_G);
