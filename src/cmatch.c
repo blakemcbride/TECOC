@@ -141,9 +141,22 @@ BOOLEAN *SamChr;		/* returned match indicator */
 	    }
 	    *SamChr = ChrMat;
 	    if (ChrMat) {
-		while (EBPtr2 <= RhtSid) {
+/*
+ * The bound has to be tested against the character we are about to move TO.
+ * "EBPtr2 <= RhtSid" let the increment below produce RhtSid+1,  which was then
+ * dereferenced -- past the end of the edit buffer on a forward search.  The
+ * increment can also land in the buffer gap,  which is not part of the text.
+ */
+		while (EBPtr2 < RhtSid) {
 		    SavEP2 = EBPtr2;
 		    ++EBPtr2;
+		    if ((EBPtr2 >= GapBeg) && (EBPtr2 <= GapEnd)) {
+			EBPtr2 = GapEnd + 1;	/* step over the gap */
+		    }
+		    if (EBPtr2 > EBfEnd) {	/* no more text to match */
+			EBPtr2 = SavEP2;
+			break;
+		    }
 		    SStPtr = SavSSP;
 		    if (CMatch(&ChrMat) == FAILURE) {
 			DBGFEX(3,DbgFNm,"FAILURE");
@@ -168,10 +181,18 @@ BOOLEAN *SamChr;		/* returned match indicator */
 		*SamChr = FALSE;
 	    } else {
 		*SamChr = TRUE;
-		while (EBPtr2 <= RhtSid) {
+		while (EBPtr2 < RhtSid) {	/* see the ^EM comment above */
+		    SavEP2 = EBPtr2;
 		    ++EBPtr2;
+		    if ((EBPtr2 >= GapBeg) && (EBPtr2 <= GapEnd)) {
+			EBPtr2 = GapEnd + 1;	/* step over the gap */
+		    }
+		    if (EBPtr2 > EBfEnd) {	/* no more text to match */
+			EBPtr2 = SavEP2;
+			break;
+		    }
 		    if ((*EBPtr2 != SPACE) && (*EBPtr2 != TABCHR)) {
-			EBPtr2--;
+			EBPtr2 = SavEP2;
 			break;
 		    }
 		}
