@@ -404,6 +404,15 @@ VVOID ReadCS()
     ZDspBf("\tsequence in the command string.  The last line of\r\n", 52);
     ZDspBf("\tthe command string is shown to help you recover.\r\n", 51);
 		    PrvChr = PRV_CTG;
+/*
+ * Every other store into the command buffer goes through the overflow check at
+ * the bottom of this loop.  This one did not,  so a bad escape sequence arriving
+ * with the buffer exactly full wrote one byte past CBfEnd.
+ */
+		    if (CBfPtr >= CBfEnd) {
+			ZDspBf("command buffer overflow\r\n", 25);
+			TAbort(EXIT_FAILURE);
+		    }
 		    CBfPtr++;
 		    *CBfPtr = ' ';
 		}				/* end if BadSeq) */
