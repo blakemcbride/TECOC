@@ -36,6 +36,25 @@ VVOID ClenUp (VVOID)		/* cleanup for TECO-C abort */
 			ZFree((voidptr)QRp->Start);
 		}
 	}
+/*
+ * free the local Q-register tables belonging to any macros we are still
+ * inside of.  ExeM allocates one per macro level and PopMac frees it on the
+ * way out,  but exiting from inside a macro (EX, EG, ^C^C ...) never reaches
+ * PopMac,  so they have to be released here.
+ */
+	for (i = 0; i <= MStTop; ++i) {
+		if (MStack[i].QRgstr != NULL) {
+			WORD j;
+			QRp = MStack[i].QRgstr;
+			for (j = 0; j < 36; ++j, ++QRp) {
+				if (QRp->Start != NULL) {
+					ZFree((voidptr)QRp->Start);
+				}
+			}
+			ZFree((voidptr)MStack[i].QRgstr);
+			MStack[i].QRgstr = NULL;
+		}
+	}
 	ZClnUp();			/* do system-dependent cleanup */
 #if DEBUGGING
 {
