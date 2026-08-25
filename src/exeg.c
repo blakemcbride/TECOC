@@ -30,7 +30,16 @@ DEFAULT ExeG()			/* execute a G command */
 			return FAILURE;
 		}
 		if (QR->Start == NULL) {	/* if empty */
-			RefLen = 0;
+/*
+ * RefLen is what ^S returns -- the negative length of the last string inserted
+ * or found -- and only the INSERT form of G has any business setting it.  ":Gq"
+ * (type) leaves it alone on the path where the register HAS text,  so clearing
+ * it unconditionally here made an EMPTY register destroy the ^Y / FR / ^S
+ * reference to the last insert,  and only then.
+ */
+			if (!(CmdMod & COLON)) {
+				RefLen = 0;
+			}
 			CmdMod = '\0';		/* clear modifiers flags */
 			EStTop = EStBot;	/* clear expression stack */
 			DBGFEX(1,DbgFNm,"SUCCESS, Q-register empty");

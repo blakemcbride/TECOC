@@ -226,22 +226,29 @@ typedef int	ptrdiff_t;	/* not in /sys/types.h yet */
 #endif
 #include <sys/types.h>		/* size_t (and maybe ptrdiff_t) */
 #else /* sun */
-#ifdef LINUX
-#define ptrdiff_t int
-#else
-typedef int	ptrdiff_t;
-typedef ULONG	size_t;
-#endif
+/*
+ * <stddef.h>,  not an override.  Round 1 removed the 32-bit override on SIZE_T
+ * for exactly this reason and left this one behind.  "#define ptrdiff_t int"
+ * -- and the "typedef int ptrdiff_t" that stood here for the other Unixes --
+ * narrows to 32 bits on any 64-bit machine,  and ptrdiff_t is the declared type
+ * of MakRom's OldSiz,  ExeM's MacLen,  ExeX's and ExeCtU's TmpSiz,  expand_gap's
+ * TmpSiz and NewSiz,  WrPage's Shuffl,  SrcLop's and DoFBFC's HowFar,  ZWrBfr's
+ * bufsiz,  DoEI's LeftOver and FirstChar's TmpSiz -- every one of them the
+ * difference of two pointers into a buffer that can be grown without limit.
+ * Past 2GB they all truncate,  and ZWrBfr's "bufsiz = BfrEnd-BfrBeg+1" would
+ * then hand fwrite the wrong count and report success.  Being a macro,  the
+ * LINUX form also shadowed the real ptrdiff_t for every header included after
+ * this one.  The non-Unix branch below has always just included <stddef.h>;
+ * so does this now.
+ */
+#include <stddef.h>		/* define ptrdiff_t, size_t and NULL */
 #endif /* sun */
 
 #ifdef AMIGA
+#undef NULL
 #define NULL 0L
 #else
-#ifdef LINUX
 #ifndef NULL
-#define NULL (void *)0
-#endif
-#else
 #define NULL 0
 #endif
 #endif

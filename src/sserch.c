@@ -59,7 +59,13 @@ DEFAULT SSerch()		/* search for 1 occurrence of a string */
  * first char is matched,  now check rest of search string
  */
 		do {
-			if (++SStPtr == SBfPtr) { /* if no more to check */
+/*
+ * ">=" rather than "==":  a ^EGq whose Q-register name is missing used to be
+ * able to leave SStPtr one PAST SBfPtr,  after which an equality test could
+ * never fire again and the match loop walked off the end of the search string.
+ * The call sites no longer let that happen,  but the test costs nothing.
+ */
+			if (++SStPtr >= SBfPtr) { /* if no more to check */
 				RefLen = (EBPtr1 - EBPtr2) - 1;
 /*
  * EBPtr1 is the first character of the match and EBPtr2 the last,  so the

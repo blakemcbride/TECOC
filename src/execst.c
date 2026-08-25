@@ -98,8 +98,20 @@ DEFAULT ExeCSt()		/* execute command string */
 				TAbort(EXIT_SUCCESS);	/* ...just terminate */
 			}
 			ErrMsg(ERR_XAB);	/* XAB = execution aborted */
-			DBGFEX(4,DbgFNm,"SUCCESS");
-			return SUCCESS;
+/*
+ * FAILURE,  not SUCCESS.  ExeCSt is re-entered for every macro level (ExeM)
+ * and for every $$-delimited chunk of an EI file (DoEI),  so returning SUCCESS
+ * told the caller the macro had finished normally:  ExeM popped its frame and
+ * returned SUCCESS,  and the OUTER ExeCSt carried straight on with the next
+ * command -- with GotCtC already cleared,  so nothing further noticed either.
+ * "Execution aborted" aborted exactly one level.  The same clear disarmed
+ * DoEI's "!GotCtC" loop control and TypBuf's ^C guard for everything below the
+ * top level.  Every caller already treats FAILURE as "abandon this command
+ * string",  ExeM and DoEI still unwind their frames on the way out,  and main
+ * re-prompts either way.  ErrMsg(ERR_XAB) above has already said why.
+ */
+			DBGFEX(4,DbgFNm,"FAILURE, ^C");
+			return FAILURE;
 		}
 		if (status == FAILURE) {	/* did command fail? */
 			if (EtFlag & ET_MUNG_MODE) {	/* if in mung mode */

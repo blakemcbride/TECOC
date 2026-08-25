@@ -136,10 +136,10 @@ DEFAULT BakSrc()		/* forward search for 1st search char */
 		    TCBfPt = CBfPtr;	/* save CBfPtr */
 		    TCStEn = CStEnd;	/* save CStEnd */
 		    CBfPtr = SStPtr;
-		    CStEnd = SBfPtr;
+		    CStEnd = SBfPtr - 1;	/* CStEnd is the LAST character */
 		    Status = FindQR();
 		    SStPtr = CBfPtr;
-		    SBfPtr = CStEnd;
+		    SBfPtr = CStEnd + 1;
 		    CBfPtr = TCBfPt;	/* restore CBfPtr */
 		    CStEnd = TCStEn;	/* restore CStEnd */
 		    if (Status == FAILURE) {

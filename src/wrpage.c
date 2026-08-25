@@ -74,8 +74,9 @@ LONG AddFF;			/* add form feed: -1 is TRUE, 0 is FALSE */
  * overwritten and overwrite it with a form feed.
  *
  * For a full-buffer P or PW this stores at EBfEnd+1,  which reads like an
- * overflow but is not: the allocation runs on to IBfEnd,  which RdLine keeps
- * at least IBFMIN bytes beyond EBfEnd,  and the byte is put back below.
+ * overflow but is not: the allocation runs on to IBfEnd,  and RdLine never
+ * offers ZRdLin the last byte of it,  so EBfEnd < IBfEnd always holds and the
+ * byte is put back below.
  */
 	if (AddFF) {
 		++OBfEnd;

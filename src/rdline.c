@@ -101,7 +101,18 @@ BOOLEAN *EBfFul;
  * Read the line from the input file.
  */
     if (*EBfFul == FALSE) {
-	if (ZRdLin(EBfEnd+1, IBfEnd-EBfEnd, CurInp, &length) == FAILURE) {
+/*
+ * The last byte of the allocation is deliberately NOT offered to ZRdLin.
+ * WrPage appends the form feed of a P/PW by overwriting the byte just past the
+ * text and putting it back afterwards,  which needs EBfEnd+1 to be inside the
+ * allocation even when the edit buffer is completely full.  ZRdLin's
+ * buffer-full test is "--charsLeft <= 0" when EZ_UNIXNL is set,  so asking for
+ * IBfEnd-EBfEnd let it fill right up to IBfEnd;  if the ZRaloc in expand_ibf
+ * then failed,  EBfEnd stayed equal to IBfEnd and the next P wrote one byte
+ * past the end of the buffer.  Reserving the byte here costs nothing and makes
+ * WrPage's comment true again.
+ */
+	if (ZRdLin(EBfEnd+1, IBfEnd-EBfEnd-1, CurInp, &length) == FAILURE) {
 	    ErrMsg(ERR_URL);		/* unable to read line */
 	    DBGFEX(3,DbgFNm,"FAILURE, ZRdLin() failed");
 	    return FAILURE;

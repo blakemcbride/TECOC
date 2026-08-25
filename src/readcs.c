@@ -360,6 +360,18 @@ VVOID ReadCS()
     *CBfPtr = TmpChr;
     LstErr = ERR_XXX;		/* last error message is undefined */
     FOREVER {
+/*
+ * VT200 mode substitutes a BS for F9 and a LF for F10,  and then has to look at
+ * the character it has just stored.  BS and LF are immediate-action keys,
+ * implemented by the switch in the "else" arm below,  and control used to fall
+ * straight to the bottom of this loop instead:  the substitute was left in the
+ * command string as data,  and neither key was echoed or acted on.  A <BS>
+ * sitting in a command string is not a no-op -- ExeCSt maps it to ZExCtH,  the
+ * "time of day" command -- so F9 pushed the time of day and F10,  a <LF>,
+ * executed as ExeNul.  Neither substitute is an ESCAPE,  so the jump back can
+ * be taken at most once per character read.
+ */
+      ReExam:
 	if (*CBfPtr == ESCAPE) {
 	    if (EtFlag & ET_VT200) {		/* if vt200 mode */
 		*CBfPtr = (unsigned char)ZChIn(FALSE);
@@ -426,6 +438,8 @@ VVOID ReadCS()
 		    }
 		    CBfPtr++;
 		    *CBfPtr = ' ';
+		} else {			/* else it was F9 or F10 */
+		    goto ReExam;		/* act on the BS or the LF */
 		}				/* end if BadSeq) */
 	    } else {				/* else not vt200 mode */
 		ZDspCh('$');

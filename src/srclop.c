@@ -232,7 +232,14 @@ DEFAULT SrcLop()		/* search loop */
 				DBGFEX(2,DbgFNm,"FAILURE, SinglP() failed");
 				return FAILURE;
 			    }
-			    EBPtr1 = GapEnd + 1;
+/*
+ * GapEnd,  not GapEnd+1.  The loop advances the candidate position with the
+ * EBPtr1++ at the TOP of its body,  which is why the set-up above it says
+ * "EBPtr1 = GapEnd" too.  Re-arming with GapEnd+1 after a page turn made the
+ * first character SSerch saw GapEnd+2,  so a match beginning at the very first
+ * character of any page after the first could never be found.
+ */
+			    EBPtr1 = GapEnd;
 			    EndSAr = RhtSid = EBfEnd;
 			}
 			break;
@@ -255,7 +262,7 @@ DEFAULT SrcLop()		/* search loop */
 				DBGFEX(2,DbgFNm,"FAILURE");
 				return FAILURE;
 			    }
-			    EBPtr1 = GapEnd + 1;
+			    EBPtr1 = GapEnd;	/* see the N_SEARCH comment above */
 			    EndSAr = RhtSid = EBfEnd;
 			}
 		}				/* end of switch */

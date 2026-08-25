@@ -94,7 +94,18 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 			return FAILURE;
 		}
 
-		if (NArgmt == 0) {		/* if it's 0s, 0n, etc. */
+/*
+ * n is an occurrence count for S, N, _, E_ and friends,  and 0S / 0N / 0_ have
+ * no meaning -- but FB and FC also take an m,n PAIR,  and there n is a
+ * character POSITION,  for which 0 is the perfectly ordinary value B.  The
+ * test used to apply to both forms,  so the natural way to write a bounded
+ * search over the front of the buffer,  "10,0FBa$",  was refused with ?ISA.
+ * MARGIS can only be set here for FB/FC:  ExeS and the rest reject m,n
+ * outright before Search is ever called.  Nothing downstream minds -- DoFBFC
+ * takes the direction from MArgmt < NArgmt before GetAra sorts the pair,  and
+ * GetAra is happy with m == 0.
+ */
+		if (!(CmdMod & MARGIS) && (NArgmt == 0)) {
 			ErrMsg(ERR_ISA);	/* illegal search argument */
 			DBGFEX(2,DbgFNm,"FAILURE, NArgmt == 0");
 			return FAILURE;

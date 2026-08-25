@@ -299,7 +299,8 @@ static DEFAULT SkpOne()		/* skip one command character */
 ExeNul here rather than SkpSkp:  ZExCtB, ZExCtH, ExeCtN, ExeCtS, ExeCtY,
 ExeCtZ and ExeUsc all return WITHOUT touching CmdMod -- they have to, since
 they are operands and can stand between a modifier and its command -- so a
-skipper that cleared it stopped somewhere execution would not have.
+skipper that cleared it stopped somewhere execution would not have.  ^R and ^T
+are here for the same reason:  their argument-less read forms are operands too.
 *****************************************************************************/
 static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 {
@@ -308,7 +309,7 @@ static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 /* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,   /* ^H*/ ExeNul,
 /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,   /* FF*/ SkpSkp,
 /* CR*/ ExeNul,   /* ^N*/ ExeNul,   /* ^O*/ SkpSkp,   /* ^P*/ SkpSkp,
-/* ^Q*/ SkpSkp,   /* ^R*/ SkpSkp,   /* ^S*/ ExeNul,   /* ^T*/ SkpSkp,
+/* ^Q*/ SkpSkp,   /* ^R*/ ExeNul,   /* ^S*/ ExeNul,   /* ^T*/ ExeNul,
 /* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,   /* ^X*/ SkpSkp,
 /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /* ^[*/ SkpSkp,   /* ^\*/ SkpSkp,
 /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul
@@ -412,6 +413,15 @@ ExePrc, ExeG, ExeM, ExeQ, ExeU and ExeX all END by clearing CmdMod,  while
 SkpQRg left it alone.  Those use SkpQRC (and SkpMac for M) below.  "[" and "]"
 keep the plain SkpQRg:  their executors leave CmdMod alone,  so it already
 agrees.
+	^R,  ^T and "'" belong to the same first group and were missed by that
+pass.  ExeCtR and ExeCtT both have two paths:  the argument-less READ form is a
+pure value producer that returns PushEx() without touching CmdMod,  and only
+the n^R / n^T write form clears it.  A skipper cannot tell the two apart,  but
+the read form is the one that can stand between a modifier and its command,  so
+ExeNul is the entry that matches -- inside skipped code the "n" of n^R is not
+on any stack to be consumed anyway.  "'",  the closing quote of a conditional,
+is ExeNul in FArray:  it does nothing at all.  As SkpSkp all three threw away
+an at-sign,  so "0<@^RS/x/>" reported ?UTC while "1<@^RS/x/>" ran.
 *****************************************************************************/
 DEFAULT SkpCmd()		/* skip a "command" */
 {
@@ -420,12 +430,12 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* ^D*/ SkpSkp,   /* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,
 /* BS*/ ExeNul,   /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,
 /* FF*/ SkpSkp,   /* CR*/ ExeNul,   /* ^N*/ ExeNul,   /* ^O*/ SkpSkp,
-/* ^P*/ SkpSkp,   /* ^Q*/ SkpSkp,   /* ^R*/ SkpSkp,   /* ^S*/ ExeNul,
-/* ^T*/ SkpSkp,   /* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,
+/* ^P*/ SkpSkp,   /* ^Q*/ SkpSkp,   /* ^R*/ ExeNul,   /* ^S*/ ExeNul,
+/* ^T*/ ExeNul,   /* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,
 /* ^X*/ SkpSkp,   /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /*ESC*/ SkpSkp,
 /* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul,
 /* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ ExeNul,
-/* $ */ SkpSkp,   /* % */ SkpQRC,   /* & */ ExeNul,   /* ' */ SkpSkp,
+/* $ */ SkpSkp,   /* % */ SkpQRC,   /* & */ ExeNul,   /* ' */ ExeNul,
 /* ( */ ExeNul,   /* ) */ ExeNul,   /* * */ ExeNul,   /* + */ ExeNul,
 /* , */ ExeNul,   /* - */ ExeNul,   /* . */ ExeNul,   /* / */ ExeNul,
 /* 0 */ ExeNul,   /* 1 */ ExeNul,   /* 2 */ ExeNul,   /* 3 */ ExeNul,

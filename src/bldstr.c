@@ -171,10 +171,21 @@ charptr XBfEnd;				/* end of build-string buffer */
 	    BBfPtr += BufPtr-BufBeg;
 	} else {
 /*
- * it really must be a Q reg reference after all
+ * It really must be a Q reg reference after all.
+ *
+ * EndArg-1,  not EndArg.  CStEnd is the address of the LAST character of the
+ * command string everywhere in the tree -- that is what IncCBP tests -- and
+ * EndArg points at the text argument's TERMINATOR,  one past its last
+ * character.  Lending FindQR the one-past pointer let IncCBP step onto the
+ * terminator and read it as the register name of a local ".q" reference:  with
+ * an @-modified command,  whose delimiter the user chooses,  the closing
+ * delimiter was silently eaten as the name and BldStr's own ++CBfPtr then left
+ * CBfPtr one PAST the terminator,  so the first command after the text
+ * argument was skipped.  DoCtE is only reached from inside BldStr's
+ * "while (CBfPtr < EndArg)" loop,  so EndArg-1 is always in range.
  */
 	    TCStEn = CStEnd;			/* save CStEnd */
-	    CStEnd = EndArg;
+	    CStEnd = EndArg - 1;
 	    Status = FindQR();
 	    CStEnd = TCStEn;			/* restore CStEnd */
 	    if (Status == FAILURE) {
@@ -196,7 +207,7 @@ charptr XBfEnd;				/* end of build-string buffer */
 	    return FAILURE;
 	}
 	TCStEn = CStEnd;			/* save CStEnd */
-	CStEnd = EndArg;
+	CStEnd = EndArg - 1;			/* see the ^EQ comment above */
 	Status = FindQR();
 	CStEnd = TCStEn;			/* restore CStEnd */
 	if (Status == FAILURE) {
