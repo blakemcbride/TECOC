@@ -39,6 +39,16 @@ charptr YBfEnd;
 	    Zcp2ul(YBfBeg), Zcp2ul(YBfEnd), (YBfEnd-YBfBeg));
     DbgFEn(5,DbgFNm,DbgSBf);
 #endif
+/*
+ * ZDspBf takes an unsigned length, so an inverted range here turns into a
+ * huge one.  ReadCS can produce exactly that: its "^G*" handling backs
+ * CBfPtr up by two, which from the second character of a command string
+ * leaves it before CBfBeg.
+ */
+    if (YBfEnd <= YBfBeg) {			/* nothing to display */
+	DBGFEX(5,DbgFNm,NULL);
+	return;
+    }
     if (EtFlag & ET_IMAGE_MODE) {		/* if no conversions */
         ZDspBf(YBfBeg, YBfEnd-YBfBeg);
 	DBGFEX(5,DbgFNm,NULL);
