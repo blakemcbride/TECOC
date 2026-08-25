@@ -33,7 +33,7 @@ DEFAULT ExeO()			/* execute an O command */
      * disadvantage to doing it this way is BldStr is probably building
      * much more than it needs to, potentially overrunning TBf?
      */
-    TBfEnd = TBfBeg + TBFINIT;
+    TBfEnd = TBfBeg + TBFINIT - 1;	/* BldStr wants the LAST usable byte */
     if (BldStr(TBfBeg, TBfEnd, &TBfPtr) == FAILURE) {
 	DBGFEX(1,DbgFNm,"FAILURE, BldStr() failed");
 	return FAILURE;
