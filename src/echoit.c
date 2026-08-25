@@ -38,7 +38,7 @@ unsigned char Charac;
 			   blank lines a vertical tab does */
 			/* FALLTHROUGH */
 		case VRTTAB:
-			ZDspBf("\n\n\n\n", 4);
+			ZDspBf("\n\n\n\n\n", FFLINS);
 			break;
 		case DELETE:
 			break;
