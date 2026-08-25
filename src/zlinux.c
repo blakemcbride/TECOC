@@ -1064,9 +1064,22 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	char TmpBfr[FILENAME_MAX];
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
 	BOOLEAN noDot;
-	if (noDot = strchr(FBfBeg,'.') == NULL) {	/* if no dot */
+	charptr NamPtr;
+/*
+ * Look for the extension in the NAME,  not in the whole filespec.  Searching
+ * from FBfBeg meant that any dot in the directory part -- "./mac", "../lib/mac"
+ * -- counted as an extension,  so the documented "as given, but with a .TEC
+ * type" step of the EI file search was silently skipped for those.
+ */
+	for (NamPtr = FBfPtr;
+	     (NamPtr > FBfBeg) && (*(NamPtr-1) != '/');
+	     --NamPtr) {
+	    ;
+	}
+	if (noDot = strchr(NamPtr,'.') == NULL) {	/* if no dot */
 	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
-		goto open_failed;
+		errno = ENOENT;			/* nothing was tried: say */
+		goto open_failed;		/* ..."not found" */
 	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
@@ -1078,9 +1091,11 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	}
 	MEMMOVE(TmpBfr, FBfBeg, TmpLen);		/* save file name */
 	if (ZClnEG(EG_LIB, GET_VAL, dummyp) != -1) {	/* get dir spec */
+	  errno = ENOENT;			/* no library to look in */
 	  goto open_failed;
 	}
 	if ((FBfPtr + TmpLen) > FBfEnd) {	/* if the name doesn't fit */
+	    errno = ENOENT;
 	    goto open_failed;
 	}
 	MEMMOVE(FBfPtr, TmpBfr, TmpLen);	/* append name to dir spec */
@@ -1093,6 +1108,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	}
 	if (noDot) {					/* if no dot */
 	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
+		errno = ENOENT;
 		goto open_failed;
 	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */

@@ -1065,9 +1065,22 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	char TmpBfr[FILENAME_MAX];
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
 	BOOLEAN noDot;
-	if (noDot = strchr((char *)FBfBeg,'.') == NULL) {	/* if no dot */
+	charptr NamPtr;
+/*
+ * Look for the extension in the NAME,  not in the whole filespec.  Searching
+ * from FBfBeg meant that any dot in the directory part -- "./mac", "../lib/mac"
+ * -- counted as an extension,  so the documented "as given, but with a .TEC
+ * type" step of the EI file search was silently skipped for those.
+ */
+	for (NamPtr = FBfPtr;
+	     (NamPtr > FBfBeg) && (*(NamPtr-1) != '/');
+	     --NamPtr) {
+	    ;
+	}
+	if (noDot = strchr((char *)NamPtr,'.') == NULL) {	/* if no dot */
 	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
-		goto open_failed;
+		errno = ENOENT;			/* nothing was tried: say */
+		goto open_failed;		/* ..."not found" */
 	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
