@@ -256,12 +256,17 @@ There are problems (as usual) on the IBM PC.  In various places,  TECO-C
 subtracts two pointers and puts the resulting value in a variable of type
 SIZE_T.  Under Turbo C,  size_t is 16 bits,  which won't work,  so we
 use unsigned long for SIZE_T for TURBO C.
+	There used to be a second override,  "unsigned int" for unix,  whose
+comment said it was there because their size_t was "int".  That was about
+signedness,  not width,  on the machines of the day -- but on a modern 64-bit
+Unix it NARROWS SIZE_T to 32 bits,  which silently truncates every MEMMOVE
+length, ZAlloc/ZRaloc size and pointer difference the editor computes once a
+buffer passes 4GB.  size_t is the right type on any system where it is not
+too small,  so only the old PC compilers get an override now.
 *****************************************************************************/
 
 #if (defined(__TURBOC__) && !TC_SMALL_DATA && !defined(WIN32)) || defined(__POWERC)
 typedef ULONG SIZE_T;		/* PCs suck */
-#elif defined(unix)
-typedef unsigned int SIZE_T;	/* override their size_t, which is "int" */
 #else
 typedef size_t SIZE_T;		/* use size_t as defined above */
 #endif

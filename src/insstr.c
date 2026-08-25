@@ -21,8 +21,8 @@ static DEFAULT expand_gap(length)
 ptrdiff_t length;			/* amount of gap room needed */
 #endif
 {
-    SIZE_T TmpSiz;
-    SIZE_T NewSiz;
+    ptrdiff_t TmpSiz;		/* signed: it is compared against "length" */
+    ptrdiff_t NewSiz;
     charptr NewBeg;
     DBGFEN(3,"expand_gap",NULL);
 /*
