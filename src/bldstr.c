@@ -156,6 +156,16 @@ charptr XBfEnd;				/* end of build-string buffer */
 	}
 	*BBfPtr++ = (char)QR->Number;
     } else {
+/*
+ * It isn't a construct we expand,  so pass the ^E and the character after it
+ * through unchanged.  That's TWO stores,  and BldStr's bounds check assumes
+ * at most one store per pass,  so the room has to be checked here.
+ */
+	if ((BBfPtr + 1) > XBfEnd) {
+	    ErrMsg(ERR_STL);			/* string too long */
+	    DBGFEX(2,DbgFNm,"FAILURE, string too long");
+	    return FAILURE;
+	}
 	*BBfPtr++ = CTRL_E;
 	*BBfPtr++ = *CBfPtr;
     }
