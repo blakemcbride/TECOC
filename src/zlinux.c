@@ -1921,7 +1921,6 @@ redraw()
 	int flag = 0;
 	int x;
 	int y;
-	int charcounter;
 	unsigned char *curptr;
 	if (ScroLn == 0)
 		return;
@@ -1983,10 +1982,8 @@ draw_all:
  * characters we "backed up" is GapBeg - p_scope_start
  */
 l1:	olddot = DOT; move(0,0);
-	charcounter = GapBeg - p_scope_start;
 	if (p_scope_start < GapBeg) {
 		for (curptr=p_scope_start; curptr < GapBeg; curptr++) {
-			int redrawflag;
 			zaddch2(*curptr);
 			getyx(stdscr,y,x);
 			if (y>VtSize - ScroLn - 1 - winline) {
@@ -1998,7 +1995,6 @@ l1:	olddot = DOT; move(0,0);
  */
 				move(y-1,0);
 				clrtoeol();
-				redrawflag = 0;
 				if (p_scope_start >= EBfEnd) {
 					finish();
 					drawline();
@@ -2042,8 +2038,13 @@ l1:	olddot = DOT; move(0,0);
 	curptr = GapEnd+1;
 	standout();
 	getyx(stdscr, doty, dotx);
+/*
+ * Both arms below compare the current cursor row against the bottom of the
+ * text window,  but only the first one used to ask curses for it -- the
+ * "else" arm read y before anything had ever assigned it.
+ */
+	getyx(stdscr,y,x);
 	if (curptr > EBfEnd) {
-		getyx(stdscr,y,x);
 		if (y <= VtSize - ScroLn - 1 - winline) {
 			specon();
 			addch((EzFlag & EZ_BTEE) ? ACS_BTEE : ACS_DIAMOND);
