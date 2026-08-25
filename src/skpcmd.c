@@ -350,6 +350,16 @@ skip forward under one of these conditions:
 function returns, CBfPtr is left pointing to the last character of the
 command. In the case of a command like T, CBfPtr is not changed.  In the
 case of a command like Stext<ESC>, CBfPtr is left pointing to the <ESC>.
+	Note which table entries below are NOT Skp* functions.  SkpSkp clears
+CmdMod,  which is what a skipped command must do,  but the table is indexed by
+every character,  not just by commands,  and the characters that come BETWEEN a
+modifier and its command must leave CmdMod alone.  The at-sign has always been
+ExeAtS -- the real executor -- so that skipping "@" sets the bit the way
+executing it would;  the colon is ExeCln for the same reason,  and the digits,
+",", "-" and "+" are ExeNul,  which returns SUCCESS without touching CmdMod.
+With those as SkpSkp,  "@:S/text/" lost its at-sign before SkpArg ever saw it,
+FindES looked for an ESCAPE instead of honouring the "/" delimiter,  and the
+skip ran to the wrong place.
 *****************************************************************************/
 DEFAULT SkpCmd()		/* skip a "command" */
 {
@@ -364,11 +374,11 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ SkpSkp,
 /* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ SkpSkp,
 /* $ */ SkpSkp,   /* % */ SkpQRg,   /* & */ SkpSkp,   /* ' */ SkpSkp,
-/* ( */ SkpSkp,   /* ) */ SkpSkp,   /* * */ SkpSkp,   /* + */ SkpSkp,
-/* , */ SkpSkp,   /* - */ SkpSkp,   /* . */ SkpSkp,   /* / */ SkpSkp,
-/* 0 */ SkpSkp,   /* 1 */ SkpSkp,   /* 2 */ SkpSkp,   /* 3 */ SkpSkp,
-/* 4 */ SkpSkp,   /* 5 */ SkpSkp,   /* 6 */ SkpSkp,   /* 7 */ SkpSkp,
-/* 8 */ SkpSkp,   /* 9 */ SkpSkp,   /* : */ SkpSkp,   /* ; */ SkpSkp,
+/* ( */ SkpSkp,   /* ) */ SkpSkp,   /* * */ SkpSkp,   /* + */ ExeNul,
+/* , */ ExeNul,   /* - */ ExeNul,   /* . */ SkpSkp,   /* / */ SkpSkp,
+/* 0 */ ExeNul,   /* 1 */ ExeNul,   /* 2 */ ExeNul,   /* 3 */ ExeNul,
+/* 4 */ ExeNul,   /* 5 */ ExeNul,   /* 6 */ ExeNul,   /* 7 */ ExeNul,
+/* 8 */ ExeNul,   /* 9 */ ExeNul,   /* : */ ExeCln,   /* ; */ SkpSkp,
 /* < */ SkpSkp,   /* = */ SkpSkp,   /* > */ SkpSkp,   /* ? */ SkpSkp,
 /* @ */ ExeAtS,   /* A */ SkpSkp,   /* B */ SkpSkp,   /* C */ SkpSkp,
 /* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRg,
