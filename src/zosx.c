@@ -399,25 +399,28 @@ function.
 *****************************************************************************/
 VVOID ZDoCmd(charptr GBfBeg, charptr GBfPtr)	/* die and pass command to OS */
 {
-	char	buf[128+1];
-	char	*space_p;
+	char	buf[256];		/* ExeEG's GBFSIZE */
 	DBGFEN(1,"ZDoCmd",NULL);
 /*
- * 1. Terminate buf[] and command line in GBf
- * 2. make local copy since GBf will be free'd in ZClnUp()
- * 3. separate program name from arguments, if any
- * 4. Call ZClnUp to free up everything
- * 5. Execute the command line, with optional arguments.  If we know where
- *    the command processor is, use it so we can execute .BAT batch files
- * 6. we shouldn't be here, exit
+ * 1. Terminate the command line in GBf
+ * 2. make a local copy,  since GBf will be free'd in ZClnUp()
+ * 3. Call ZClnUp to free up everything
+ * 4. Hand the whole line to the shell
+ * 5. we shouldn't be here, exit
  */
-	buf[128] = *GBfPtr = '\0';
-	(void)strncpy(buf, (char *)GBfBeg, 128);
-	if ((space_p = strchr(buf,' ')) != NULL) {
-		*space_p++ = '\0';
-	}
+	*GBfPtr = '\0';
+	buf[sizeof(buf)-1] = '\0';
+	(void)strncpy(buf, (char *)GBfBeg, sizeof(buf)-1);
 	ZClnUp();
-	execlp ("/bin/sh", "sh", "-c", buf, (space_p) ? space_p : NULL, NULL);
+/*
+ * "sh -c" takes the WHOLE command line as one argument;  whatever follows it
+ * becomes $0, $1, ... of that shell,  not arguments of the command.  Splitting
+ * the line at the first space and handing the remainder to execlp separately
+ * therefore threw the arguments away: "EGls /nowhere$" listed the current
+ * directory.  The NULL that ends a variadic argument list also has to be cast
+ * to char *,  since it is not necessarily a pointer.
+ */
+	execlp ("/bin/sh", "sh", "-c", buf, (char *)NULL);
 	/* we should never reach this statement */
 	(void)perror ("");
 	ZExit (EXIT_SUCCESS);
