@@ -43,6 +43,13 @@ DEFAULT ExeS()			/* execute an S command */
 				DBGFEX(1,DbgFNm,"FAILURE");
 				return FAILURE;
 			}
+/*
+ * This shortcut has to leave CmdMod the way the full path below leaves it.
+ * It did not,  so the double-colon bit survived into the next command -- and
+ * several commands reject "::" outright,  so "::Sx$Ny$" failed with
+ * '?ILL Illegal command "::N"'.
+ */
+			CmdMod = '\0';		/* clear modifiers flags */
 			DBGFEX(1,DbgFNm,"PushEx(0)");
 			return PushEx(0L,OPERAND);
 		}
