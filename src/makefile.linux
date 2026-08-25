@@ -25,11 +25,19 @@
 
 CC= gcc
 
+# TECOC is written in K&R C.  C23 -- which GCC 15 and later use by default --
+# removed old-style function definitions and the empty parameter list that
+# means "unspecified arguments", so the compiler rejects nearly every
+# function here.  Pin the dialect.  It has to be gnu89 rather than c89
+# because some of the Z*.C files use // comments.
+
+STD= -std=gnu89
+
 # Uncomment the following line for non-video teco
-#CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O  -DLINUX
+#CFLAGS= ${STD} ${OSVERS} ${DEBG} ${CCHEK} -O  -DLINUX
 
 # Or, uncomment the following two lines for video teco
-CFLAGS= ${OSVERS} ${DEBG} ${CCHEK} -O  -DLINUX -DCURSES
+CFLAGS= ${STD} ${OSVERS} ${DEBG} ${CCHEK} -O  -DLINUX -DCURSES
 TERMOBJS = -lncurses
 
 
