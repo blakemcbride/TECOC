@@ -1215,7 +1215,7 @@ DEFAULT	OfIndx;				/* output file indicator */
 BOOLEAN RepErr;				/* report errors? */
 {
 	char *tfname;
-	struct stat *bufstat = NULL;
+	struct stat bufstat;
 	int tmpflag = 0;
 #if DEBUGGING
 	static char *DbgFNm = "ZOpOut";
@@ -1229,11 +1229,20 @@ BOOLEAN RepErr;				/* report errors? */
 	if (access(FBfBeg, 0) == 0) {		/* if file already exists */
 		char *dirname,*s;
 	 	int n;
-		bufstat = (struct stat *)malloc(sizeof(struct stat));
-		stat(FBfBeg, bufstat);
+		if (stat(FBfBeg, &bufstat) != 0) {	/* can't stat it? */
+			if (RepErr)
+				ZErMsg();
+			DBGFEX(2,DbgFNm,"FAILURE, stat() failed");
+			return FAILURE;
+		}
 		tmpflag = 1;
 		n = FBfPtr - FBfBeg;		/* strlen(FBfBeg) */
 		dirname = (char *)malloc(n+4);
+		if (dirname == NULL) {
+			ErrMsg(ERR_MEM);	/* MEM = memory overflow */
+			DBGFEX(2,DbgFNm,"FAILURE, malloc() failed");
+			return FAILURE;
+		}
 		strcpy(dirname, FBfBeg);
 		s=dirname + n;
 		while (*s != '/' && s > dirname)
@@ -1248,9 +1257,20 @@ BOOLEAN RepErr;				/* report errors? */
 			*dirname='.'; *(dirname+1)='\0';
 		}
 		tfname = tempnam(dirname,"tecoc");
+		free(dirname);
+		if (tfname == NULL) {		/* couldn't make a temp name */
+			if (RepErr)
+				ZErMsg();
+			DBGFEX(2,DbgFNm,"FAILURE, tempnam() failed");
+			return FAILURE;
+		}
+		if (strlen(tfname) >= FILENAME_MAX) {	/* won't fit in OFNam */
+			free(tfname);
+			DBGFEX(2,DbgFNm,"FAILURE, temp name too long");
+			return FAILURE;		/* caller reports ?UFO */
+		}
 		(void)strcpy(OFiles[OfIndx].OFNam, tfname);
 		free(tfname);
-		free(dirname);
 		(void)strcpy(OFiles[OfIndx].OTNam, FBfBeg);
 #if DEBUGGING
 		sprintf(DbgSBf,	"file %s already exists\r\n", FBfBeg);
@@ -1273,8 +1293,7 @@ BOOLEAN RepErr;				/* report errors? */
 	}
 	if (tmpflag) {
 		fchmod(fileno(OFiles[OfIndx].OStrem),
-		       bufstat->st_mode | S_IRUSR | S_IWUSR);
-		free(bufstat);
+		       bufstat.st_mode | S_IRUSR | S_IWUSR);
 	}
 	DBGFEX(2,DbgFNm,"SUCCESS");
 	return SUCCESS;
