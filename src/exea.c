@@ -52,6 +52,12 @@ DEFAULT ExeA()			/* execute an A command */
 	    DBGFEX(1,DbgFNm,"FAILURE, GetNmA() failed");
 	    return FAILURE;
 	}
+/*
+ * The n has been taken off the expression stack,  so any "m," that came with it
+ * has been consumed too.  Leaving MARGIS set made the NEXT command think it had
+ * been handed an m,n pair with a stale MArgmt -- the same bug m,nUq had.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 	if (ColonMod) {				/* if it's n:A */
 	    if (NArgmt < 1) {
 	        ErrMsg(ERR_IPA);

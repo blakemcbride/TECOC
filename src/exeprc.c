@@ -28,6 +28,12 @@ DEFAULT ExePrc()		/* execute % (percent) command */
 		return FAILURE;
 	}
 	QR->Number += NArgmt;
+/*
+ * The n has been taken off the expression stack,  so any "m," that came with it
+ * has been consumed too.  Leaving MARGIS set made the NEXT command think it had
+ * been handed an m,n pair with a stale MArgmt -- the same bug m,nUq had.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld,OPERAND)",QR->Number);
 	DbgFEx(1,DbgFNm,DbgSBf);
