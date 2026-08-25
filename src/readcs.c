@@ -509,7 +509,7 @@ VVOID ReadCS()
 			}
 #if CURSES
 			if (ScroLn > 0 || skiprefresh)
-			    dolf(HowFar);
+			    dolf();
 			if (ScroLn == 0 || skiprefresh)
 #endif
 			    ZDspCh('*');
@@ -558,7 +558,7 @@ VVOID ReadCS()
 			}
 #if CURSES
 			if (ScroLn > 0 && !skiprefresh)
-			    dobs(HowFar);
+			    dobs();
 			if (ScroLn == 0 || skiprefresh)
 #endif
 			    ZDspCh('*');
