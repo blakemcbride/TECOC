@@ -141,11 +141,12 @@ DEFAULT EType;
 	}
 	DbgFEn(3,DbgFNm,DbgSBf);
 #endif
-	if (++EStTop >= EXS_SIZE) {		/* if expression stack full */
+	if ((EStTop + 1) >= EXS_SIZE) {		/* if expression stack full */
 		ErrMsg(ERR_PDO);		/* push-down list overflow */
 		DBGFEX(3,DbgFNm,"FAILURE, expression stack full");
 		return FAILURE;
 	}
+	++EStTop;
 	EStack[EStTop].Elemnt = Item;		/* put item on stack */
 	EStack[EStTop].ElType = EType;		/* put item type on stack */
 	if (EStTop > (EStBot + 1)) {		/* if stack might reduce */

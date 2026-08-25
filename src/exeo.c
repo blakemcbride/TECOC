@@ -108,11 +108,12 @@ DEFAULT ExeO()			/* execute an O command */
 	while ((CBfPtr < CStEnd) && (*CBfPtr != '!')) {
 	    switch (*CBfPtr) {
 	    case '<':
-		if (++LStTop >= LPS_SIZE) {
+		if ((LStTop + 1) >= LPS_SIZE) {
 		    ErrMsg(ERR_PDO);
 		    DBGFEX(1,DbgFNm,"FAILURE");
 		    return FAILURE;
 		}
+		++LStTop;
 		LStack[LStTop].LIndex = INFINITE;
 		LStack[LStTop].LAddr = CBfPtr;
 		CmdMod = '\0';

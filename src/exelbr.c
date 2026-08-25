@@ -24,11 +24,18 @@ DEFAULT ExeLBr()				/* execute [ command */
 		DBGFEX(1,DbgFNm,"FindQR() FAILURE");
 		return FAILURE;
 	}
-	if (++QStTop >= QRS_SIZE) {
+/*
+ * Don't bump QStTop until we know there's room for the entry.  Unlike the
+ * expression, loop and macro stacks, QStTop is NOT reset between command
+ * strings, so an out-of-range value left behind here would survive to be
+ * used as an index by a later ] command.
+ */
+	if ((QStTop + 1) >= QRS_SIZE) {
 		ErrMsg(ERR_PDO);		/* push-down list overflow */
 		DBGFEX(1,DbgFNm,"ERR_PDO FAILURE");
 		return FAILURE;
 	}
+	++QStTop;
 /*
  * Copy QR to top of QStack
  */

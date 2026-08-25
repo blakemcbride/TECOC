@@ -18,11 +18,12 @@ charptr End;			/* end of new command string, plus one */
 	MSptr	MSp;		/* pointer into the macro stack */
 	BOOLEAN	NumArg;		/* TRUE if there is a number on the stack */
 	DBGFEN(1,"PshMac",NULL);
-	if (++MStTop >= MCS_SIZE) {		/* if macro stack is full */
+	if ((MStTop + 1) >= MCS_SIZE) {		/* if macro stack is full */
 		ErrMsg(ERR_PDO);		/* push-down list overflow */
 		DBGFEX(1,DbgFNm,"FAILURE, macro stack is full");
 		return FAILURE;
 	}
+	++MStTop;
 	NumArg = (EStTop != EStBot) &&		/* if numeric arg and */
 	    (EStack[EStTop].ElType == OPERAND);	/* not a partial expression */
 	if (NumArg) {				/* if numeric argument */

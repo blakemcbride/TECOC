@@ -10,11 +10,12 @@
 DEFAULT ExeLst()				/* execute a  < command */
 {
 	DBGFEN(1,"ExeLst",NULL);
-	if (++LStTop >= LPS_SIZE) {		/* if loop stack is full */
+	if ((LStTop + 1) >= LPS_SIZE) {		/* if loop stack is full */
 		ErrMsg(ERR_PDO);		/* push-down list overflow */
 		DBGFEX(1,DbgFNm,"FAILURE");
 		return FAILURE;
 	}
+	++LStTop;
 	if (EStTop == EStBot) {			/* if no numeric argument */
 		NArgmt = INFINITE;		/* make it an infinite loop */
 	} else {
