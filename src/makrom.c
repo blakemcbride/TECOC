@@ -27,6 +27,17 @@ SIZE_T Amount;			/* how much additional room to make */
 	sprintf(DbgSBf,"Amount = %ld bytes", (LONG)Amount);
 	DbgFEn(2,DbgFNm,DbgSBf);
 #endif
+/*
+ * Asking for nothing is not an error,  but it must not reach ZAlloc:  a
+ * malloc(0) that returns NULL -- which is permitted, and happens on some
+ * systems -- would be reported as ?MEM.  ExeEQ gets here with Amount == 0
+ * when the file it read was empty.  The q-register is already in the state
+ * this function promises to leave it in,  so there is nothing to do.
+ */
+	if (Amount == 0) {
+		DBGFEX(2,DbgFNm,"SUCCESS, nothing to do");
+		return SUCCESS;
+	}
 	if (QR->Start == NULL) {		/* if it was empty */
 		OldSiz = 0;
 		NewBlk = (charptr)ZAlloc(Amount);
