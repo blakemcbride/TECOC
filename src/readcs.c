@@ -236,7 +236,8 @@ l1:	getyx(stdscr,yy,xx);
 			CBfPtr = &LclStr[0];
 			if (TmpChr == (DEFAULT)'.') {
 			    LclStr[1] = (unsigned char)ZChIn(FALSE);
-			    EchoIt((unsigned char)TmpChr);
+			    EchoIt(LclStr[1]);	/* the register letter, */
+						/* ...not the "." again */
 			    CStEnd = &LclStr[1];
 			} else {
 			    CStEnd = &LclStr[0];
