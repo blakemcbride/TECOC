@@ -58,8 +58,17 @@ static DEFAULT DoFBFC()		/* search loop */
  * beyond the n boundary,  it can still be matched.
  */
 
+/*
+ * The gap has to end up immediately in front of the m,n area,  so the distance
+ * to move it is the number of area characters that lie BEFORE the gap,  which is
+ * GapBeg-AraBeg.  This used to use AraEnd-GapEnd -- the number that lie AFTER it
+ * -- which is a different number unless the area happens to be symmetric about
+ * dot.  Too large and GapBeg was driven below EBfBeg (heap underflow) and the
+ * search started before m;  too small and the search started after m and missed
+ * matches inside the requested range.
+ */
 	if ((AraBeg < GapBeg) && (AraEnd > GapEnd)) {
-	    Shuffl = AraEnd - GapEnd;
+	    Shuffl = GapBeg - AraBeg;
 	    GapBeg -= Shuffl;
 	    GapEnd -= Shuffl;
 	    MEMMOVE(GapEnd+1, GapBeg, (SIZE_T)Shuffl);
