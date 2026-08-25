@@ -97,12 +97,15 @@ DEFAULT ExeO()			/* execute an O command */
     Found = FALSE;
     CmdMod = '\0';				/* clear modifiers flags */
     while (!Found) {
-	while (*CBfPtr != '!') {
-	    if (CBfPtr == CStEnd) {
-		ErrPSt(ERR_TAG, TBfBeg, TBfPtr);
-		DBGFEX(1,DbgFNm,"FAILURE, missing tag");
-		return FAILURE;
-	    }
+/*
+ * Scan forward for the "!" that starts a tag.  CBfPtr has to be tested
+ * against CStEnd BEFORE it is dereferenced:  SkpCmd,  and the tag-skipping
+ * code at the bottom of this loop,  can leave CBfPtr sitting on CStEnd,  and
+ * the "++CBfPtr" then steps it past the end of the command string.  An
+ * equality test could not catch that,  so the scan used to run off the end
+ * of the command buffer (try "@O$$").
+ */
+	while ((CBfPtr < CStEnd) && (*CBfPtr != '!')) {
 	    switch (*CBfPtr) {
 	    case '<':
 		if (++LStTop >= LPS_SIZE) {
@@ -131,6 +134,11 @@ DEFAULT ExeO()			/* execute an O command */
 	    } /* end of switch */
 	    ++CBfPtr;
 	} /* end of while (!='!')*/
+	if ((CBfPtr > CStEnd) || (*CBfPtr != '!')) {	/* no tag found */
+	    ErrPSt(ERR_TAG, TBfBeg, TBfPtr);
+	    DBGFEX(1,DbgFNm,"FAILURE, missing tag");
+	    return FAILURE;
+	}
 /*
  * At this point, we've found an '!'.  if tracing is on,  display exclamation
  * point
