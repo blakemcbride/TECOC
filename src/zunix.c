@@ -1888,6 +1888,11 @@ char *target;
 	n = strlen(target);
 	dirname=(char *)malloc(strlen(target)+4);
 	ftarget=(char *)malloc(strlen(target)+4);
+	if ((dirname == NULL) || (ftarget == NULL)) {
+		if (dirname != NULL) free(dirname);
+		if (ftarget != NULL) free(ftarget);
+		return(-3);		/* "problems other than not found" */
+	}
 	strcpy(dirname, target);
 	s=dirname + n;
 	while (*s != '/' && s > dirname)
