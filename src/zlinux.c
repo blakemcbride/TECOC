@@ -1209,16 +1209,23 @@ int argc;
 char *argv[];
 {
 	int i;
-	char TmpBuf[256];
+	char *TmpBuf;
+	SIZE_T	BufSiz;
+	SIZE_T	BufLen;
 	SIZE_T	line_len;
 	char *cmd;
+	char *CmdPfx;
 	DBGFEN(2,"ZPrsCL",NULL);
 /*
  * If the command line contains arguments,  construct a replica of the
  * command line in Q-register Z.  It's a "replica" because spacing might
  * be wrong.
+ *
+ * The replica used to be built in a 256-byte stack array with a chain of
+ * unbounded strcat calls,  so a command line longer than that -- a long
+ * pathname is enough -- smashed the stack before TECO had read a single
+ * command.  Measure the command line first and allocate room for it.
  */
-	TmpBuf[0] = '\0';
 	cmd = strrchr(argv[0], '/');
 	if (cmd) {
 		cmd++;
@@ -1227,34 +1234,62 @@ char *argv[];
 	}
 	if (strcmp(cmd, "teco") == 0 ||
 		  strcmp(cmd, "mung") == 0) {
-		strcat(TmpBuf, cmd);
-		strcat(TmpBuf, " ");
+		CmdPfx = cmd;
 	} else if (strcmp(cmd, "inspect") == 0) {
-		strcat(TmpBuf, "teco -inspect ");
+		CmdPfx = "teco -inspect";
 	} else if (strcmp(cmd, "Make") == 0) {
-		strcat(TmpBuf, "make ");
+		CmdPfx = "make";
+	} else {
+		CmdPfx = NULL;
 	}
-	if (argc > 1 || TmpBuf[0] != '\0') {
-		for (i=1; i<argc; i++) {
-			if ( strchr(*++argv, ' ') != NULL ) {
-						// There is embedded space, turn into quoted string
-				strcat(TmpBuf, "\"");
-				strcat(TmpBuf, *argv);
-				strcat(TmpBuf, "\" ");
-			}
-			else {
-				strcat(TmpBuf, *argv);
-				strcat(TmpBuf, " ");
-			}
+	if (argc > 1 || CmdPfx != NULL) {
+		BufSiz = 1;			/* the terminating NUL */
+		if (CmdPfx != NULL) {
+			BufSiz += strlen(CmdPfx) + 1;	/* name and a space */
 		}
-		line_len = strlen(TmpBuf)-1;	/* remove trailing space */
-		QR = &QRgstr[35];		/* 35 = q-register Z */
-		if (MakRom(line_len) == FAILURE) {
+		for (i = 1; i < argc; i++) {	/* argument, 2 quotes, space */
+			BufSiz += strlen(argv[i]) + 3;
+		}
+		TmpBuf = (char *)ZAlloc(BufSiz);
+		if (TmpBuf == NULL) {
+			ErrMsg(ERR_MEM);	/* MEM = memory overflow */
 			DBGFEX(2,DbgFNm,"exiting with EXIT_FAILURE");
 			ZExit(EXIT_FAILURE);
 		}
-		MEMMOVE(QR->Start, TmpBuf, line_len);
-		QR->End_P1 += line_len;		/* length of q-reg text */
+		BufLen = 0;
+		if (CmdPfx != NULL) {
+			strcpy(TmpBuf + BufLen, CmdPfx);
+			BufLen += strlen(CmdPfx);
+			TmpBuf[BufLen++] = ' ';
+		}
+		for (i = 1; i < argc; i++) {
+			if (strchr(argv[i], ' ') != NULL) {
+/*
+ * There is an embedded space,  so turn it into a quoted string.
+ */
+				TmpBuf[BufLen++] = '"';
+				strcpy(TmpBuf + BufLen, argv[i]);
+				BufLen += strlen(argv[i]);
+				TmpBuf[BufLen++] = '"';
+			} else {
+				strcpy(TmpBuf + BufLen, argv[i]);
+				BufLen += strlen(argv[i]);
+			}
+			TmpBuf[BufLen++] = ' ';
+		}
+		TmpBuf[BufLen] = '\0';
+		line_len = (BufLen > 0) ? BufLen - 1 : 0; /* drop the space */
+		if (line_len > 0) {
+			QR = &QRgstr[35];	/* 35 = q-register Z */
+			if (MakRom(line_len) == FAILURE) {
+				ZFree((voidptr)TmpBuf);
+				DBGFEX(2,DbgFNm,"exiting with EXIT_FAILURE");
+				ZExit(EXIT_FAILURE);
+			}
+			MEMMOVE(QR->Start, TmpBuf, line_len);
+			QR->End_P1 += line_len;	/* length of q-reg text */
+		}
+		ZFree((voidptr)TmpBuf);
 	}
 #if USE_ANSI_CLPARS
 /*
