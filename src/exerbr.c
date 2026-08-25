@@ -41,12 +41,16 @@ DEFAULT ExeRBr()                /* execute ] command */
  */
 	TmpQRp = &QStack[QStTop];
 	TmpSiz = TmpQRp->End_P1 - TmpQRp->Start;
-	if (TmpSiz == 0) {			/* if it should be empty */
-		if (QR->Start != NULL) {	    /* but it isn't empty */
-			ZFree((voidptr)QR->Start);	/* then empty it */
-			QR->Start = QR->End_P1 = NULL;
-		}
-	} else {
+/*
+ * Discard whatever the Q-register held first.  MakRom only ever GROWS a text
+ * area,  so asking it for TmpSiz bytes on top of the old contents (which are
+ * then overwritten from the start anyway) left the block permanently oversized.
+ */
+	if (QR->Start != NULL) {
+		ZFree((voidptr)QR->Start);
+		QR->Start = QR->End_P1 = NULL;
+	}
+	if (TmpSiz > 0) {
 		if (MakRom((SIZE_T)TmpSiz) == FAILURE) { /* adjust QR space */
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;

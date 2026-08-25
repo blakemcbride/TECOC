@@ -1088,18 +1088,29 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
  * Make room in the q-register.
  */
 	FSize = EBfEnd - (EBfBeg + SvEbSz + (GapEnd - GapBeg));
-	if (MakRom((SIZE_T)FSize) == FAILURE) {
-		Status = FAILURE;
-		goto exeeqdone;
+/*
+ * EQ replaces the Q-register's text,  so throw the old text away first.  MakRom
+ * only ever grows a text area,  so asking it for FSize bytes on top of what was
+ * already there left the block bigger than it needed to be for good.
+ */
+	if (QR->Start != NULL) {
+		ZFree((voidptr)QR->Start);
+		QR->Start = QR->End_P1 = NULL;
 	}
+	if (FSize > 0) {
+		if (MakRom((SIZE_T)FSize) == FAILURE) {
+			Status = FAILURE;
+			goto exeeqdone;
+		}
 
 /*
  * Copy the text that we just read from the file into the q-register.
  */
-	MEMMOVE(QR->Start,
-		EBfBeg + SvEbSz + 1 + (GapEnd - GapBeg),
-		(SIZE_T)FSize);
-	QR->End_P1 = QR->Start + FSize;
+		MEMMOVE(QR->Start,
+			EBfBeg + SvEbSz + 1 + (GapEnd - GapBeg),
+			(SIZE_T)FSize);
+		QR->End_P1 = QR->Start + FSize;
+	}
 
 	Status = SUCCESS;
 exeeqdone:
