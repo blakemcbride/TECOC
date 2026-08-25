@@ -10,7 +10,12 @@ DEFAULT ExeEY()			/* execute an EY command */
 	BOOLEAN	ColonMod;
 	DBGFEN(1,"ExeEY",NULL);
 	ColonMod = (CmdMod & COLON);		/* is it :EY ? */
-	CmdMod &= ~COLON;			/* clear modifiers flags */
+/*
+ * Only the COLON bit used to be cleared here,  so "@EY" -- and "@Y",  which
+ * comes straight here -- leaked their at-sign into the next command.  SkpCmd
+ * skips both with SkpSkp,  which clears the whole of CmdMod.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 	GapBeg = EBfBeg;			/* clear the...   */
 	GapEnd = EBfEnd;			/*   ...edit buffer */
 	if (IsEofI[CurInp]) {			/* if at end-of-file */

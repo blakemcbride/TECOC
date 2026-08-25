@@ -1027,7 +1027,7 @@ VVOID ZPrsCL(int argc, char **argv)
  * execute embedded command line-parsing macro directly from clpars[]
  */
 	CStBeg = CBfPtr = clpars;		/* command string start */
-	CStEnd = clpars + CLPARS_LEN;		/* command string end */
+	CStEnd = clpars + CLPARS_LEN - 1;	/* command string end */
 	EStTop = EStBot;			/* clear expression stack */
 	ExeCSt();				/* execute command string */
 #else
@@ -1051,7 +1051,7 @@ VVOID ZPrsCL(int argc, char **argv)
 			exit(-1);
 		}
 		CStBeg = CBfPtr = p;		/* command string start */
-		CStEnd = p + CLPARS_LEN;	/* command string end */
+		CStEnd = p + CLPARS_LEN - 1;	/* command string end */
 		EStTop = EStBot;		/* clear expression stack */
 		ExeCSt();			/* execute command string */
 		free(p);

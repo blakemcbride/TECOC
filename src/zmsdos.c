@@ -1289,10 +1289,10 @@ VVOID ZPrsCL(int argc, char **argv)
 
 #ifdef WIN32
 		CStBeg = CBfPtr = (unsigned char  *)clpars;/* command string start */
-		CStEnd = (unsigned char *)clpars + CLPARS_LEN;           /* command string end */
+		CStEnd = (unsigned char *)clpars + CLPARS_LEN - 1;       /* command string end */
 #else
         CStBeg = CBfPtr = (unsigned char _far *)clpars;/* command string start */
-        CStEnd = (unsigned char _far *)clpars + CLPARS_LEN;           /* command string end */
+        CStEnd = (unsigned char _far *)clpars + CLPARS_LEN - 1;       /* command string end */
 #endif
         EStTop = EStBot;                        /* clear expression stack */
         ExeCSt();                               /* execute command string */

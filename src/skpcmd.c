@@ -17,7 +17,9 @@ static DEFAULT SkpDqu(void);	/* skip a " (double quote) command */
 static DEFAULT SkpE(void);	/* skip one of the E commands */
 static DEFAULT SkpExc(void);	/* skip command with text argument */
 static DEFAULT SkpF(void);	/* skip one of the F commands */
+static DEFAULT SkpMac(void);	/* skip an Mq command */
 static DEFAULT SkpOne(void);	/* skip one command character */
+static DEFAULT SkpQRC(void);	/* skip a Q-register name, clear CmdMod */
 static DEFAULT SkpQRg(void);	/* skip a Q-register name */
 static DEFAULT SkpSkp(void);	/* */
 #endif
@@ -75,6 +77,37 @@ static DEFAULT SkpQRg()		/* skip a Q-register name */
 		}
 		++CBfPtr;			/* step over the register letter */
 	}
+	return SUCCESS;
+}
+/*****************************************************************************
+	SkpQRC()
+	Skip a Q-register name and then clear CmdMod,  which is what the
+executors of %, G, M, Q, U and X all do (ExeM clears everything but MARGIS,
+and so does its skipper -- see below).  SkpQRg itself cannot do the clearing,
+because it is also the skipper for "[" and "]",  whose executors leave CmdMod
+alone;  the manual calls those two "transparent to numeric arguments".
+	Without this the skipper and the executor stopped in different places:
+"@Ga" executed consumed its at-sign and "@Ga" skipped did not,  so SkpArg's
+FindES then looked for an ESCAPE instead of honouring the delimiter and the
+skip ran through the end of the loop body it was supposed to stop in.
+*****************************************************************************/
+static DEFAULT SkpQRC()		/* skip a Q-register name, clear CmdMod */
+{
+	if (SkpQRg() == FAILURE)
+		return FAILURE;
+	CmdMod = '\0';				/* clear modifiers flags */
+	return SUCCESS;
+}
+/*****************************************************************************
+	SkpMac()
+	Skip an Mq command.  ExeM clears everything but MARGIS -- "m,nMq" is
+how a macro is handed two arguments -- so the skipper leaves the same bits.
+*****************************************************************************/
+static DEFAULT SkpMac()		/* skip an Mq command */
+{
+	if (SkpQRg() == FAILURE)
+		return FAILURE;
+	CmdMod &= MARGIS;			/* clear modifiers flags */
 	return SUCCESS;
 }
 /*****************************************************************************
@@ -262,18 +295,23 @@ static DEFAULT SkpOne()		/* skip one command character */
 }
 /*****************************************************************************
 	SkpCrt()
+	See the comment above FSAray for why the value-producing commands are
+ExeNul here rather than SkpSkp:  ZExCtB, ZExCtH, ExeCtN, ExeCtS, ExeCtY,
+ExeCtZ and ExeUsc all return WITHOUT touching CmdMod -- they have to, since
+they are operands and can stand between a modifier and its command -- so a
+skipper that cleared it stopped somewhere execution would not have.
 *****************************************************************************/
 static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 {
 	static DEFAULT (*FCAray[])(VVOID) = {
-/* ^A*/ SkpCtA,   /* ^B*/ SkpSkp,   /* ^C*/ SkpSkp,   /* ^D*/ SkpSkp,
-/* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,   /* ^H*/ SkpSkp,
+/* ^A*/ SkpCtA,   /* ^B*/ ExeNul,   /* ^C*/ SkpSkp,   /* ^D*/ SkpSkp,
+/* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,   /* ^H*/ ExeNul,
 /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,   /* FF*/ SkpSkp,
-/* CR*/ ExeNul,   /* ^N*/ SkpSkp,   /* ^O*/ SkpSkp,   /* ^P*/ SkpSkp,
-/* ^Q*/ SkpSkp,   /* ^R*/ SkpSkp,   /* ^S*/ SkpSkp,   /* ^T*/ SkpSkp,
+/* CR*/ ExeNul,   /* ^N*/ ExeNul,   /* ^O*/ SkpSkp,   /* ^P*/ SkpSkp,
+/* ^Q*/ SkpSkp,   /* ^R*/ SkpSkp,   /* ^S*/ ExeNul,   /* ^T*/ SkpSkp,
 /* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,   /* ^X*/ SkpSkp,
-/* ^Y*/ SkpSkp,   /* ^Z*/ SkpSkp,   /* ^[*/ SkpSkp,   /* ^\*/ SkpSkp,
-/* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ SkpSkp
+/* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /* ^[*/ SkpSkp,   /* ^\*/ SkpSkp,
+/* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul
 	};
 	WORD	CDummy;
 	if (CBfPtr == CStEnd) {			/* if end of command string */
@@ -360,41 +398,55 @@ executing it would;  the colon is ExeCln for the same reason,  and the digits,
 With those as SkpSkp,  "@:S/text/" lost its at-sign before SkpArg ever saw it,
 FindES looked for an ESCAPE instead of honouring the "/" delimiter,  and the
 skip ran to the wrong place.
+	That rule is not about the digits:  it is about every character that can
+stand between a modifier and its command,  which is every VALUE-PRODUCING
+command as well.  ExeDot, ExeB, ExeZ, ExeH, ExeOpr, ExeRtP, ExeUsc, ExeCtN,
+ExeCtS, ExeCtY, ExeCtZ, ZExCtB and ZExCtH all return without touching CmdMod --
+they have to,  since ExeCom sets MARGIS and the commonest m,n idiom in TECO is
+".,.+5T",  which would lose its "m" the instant "." cleared the flag.  So ".",
+"B", "H", "Z", "(", ")", "*", "/", "#", "&" and the control characters above
+are ExeNul here too;  as SkpSkp they threw away an at-sign the executor would
+have kept,  and "0<@.+1S/x/>" reported ?UTC while "1<@.+1S/x/>" ran.
+	The other direction is the six commands that take a Q-register name:
+ExePrc, ExeG, ExeM, ExeQ, ExeU and ExeX all END by clearing CmdMod,  while
+SkpQRg left it alone.  Those use SkpQRC (and SkpMac for M) below.  "[" and "]"
+keep the plain SkpQRg:  their executors leave CmdMod alone,  so it already
+agrees.
 *****************************************************************************/
 DEFAULT SkpCmd()		/* skip a "command" */
 {
 	static DEFAULT (*FSAray[])(VVOID) = {
-/*NUL*/ ExeNul,   /* ^A*/ SkpCtA,   /* ^B*/ SkpSkp,   /* ^C*/ SkpSkp,
+/*NUL*/ ExeNul,   /* ^A*/ SkpCtA,   /* ^B*/ ExeNul,   /* ^C*/ SkpSkp,
 /* ^D*/ SkpSkp,   /* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,
-/* BS*/ SkpSkp,   /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,
-/* FF*/ SkpSkp,   /* CR*/ ExeNul,   /* ^N*/ SkpSkp,   /* ^O*/ SkpSkp,
-/* ^P*/ SkpSkp,   /* ^Q*/ SkpSkp,   /* ^R*/ SkpSkp,   /* ^S*/ SkpSkp,
+/* BS*/ ExeNul,   /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,
+/* FF*/ SkpSkp,   /* CR*/ ExeNul,   /* ^N*/ ExeNul,   /* ^O*/ SkpSkp,
+/* ^P*/ SkpSkp,   /* ^Q*/ SkpSkp,   /* ^R*/ SkpSkp,   /* ^S*/ ExeNul,
 /* ^T*/ SkpSkp,   /* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,
-/* ^X*/ SkpSkp,   /* ^Y*/ SkpSkp,   /* ^Z*/ SkpSkp,   /*ESC*/ SkpSkp,
-/* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ SkpSkp,
-/* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ SkpSkp,
-/* $ */ SkpSkp,   /* % */ SkpQRg,   /* & */ SkpSkp,   /* ' */ SkpSkp,
-/* ( */ SkpSkp,   /* ) */ SkpSkp,   /* * */ SkpSkp,   /* + */ ExeNul,
-/* , */ ExeNul,   /* - */ ExeNul,   /* . */ SkpSkp,   /* / */ SkpSkp,
+/* ^X*/ SkpSkp,   /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /*ESC*/ SkpSkp,
+/* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul,
+/* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ ExeNul,
+/* $ */ SkpSkp,   /* % */ SkpQRC,   /* & */ ExeNul,   /* ' */ SkpSkp,
+/* ( */ ExeNul,   /* ) */ ExeNul,   /* * */ ExeNul,   /* + */ ExeNul,
+/* , */ ExeNul,   /* - */ ExeNul,   /* . */ ExeNul,   /* / */ ExeNul,
 /* 0 */ ExeNul,   /* 1 */ ExeNul,   /* 2 */ ExeNul,   /* 3 */ ExeNul,
 /* 4 */ ExeNul,   /* 5 */ ExeNul,   /* 6 */ ExeNul,   /* 7 */ ExeNul,
 /* 8 */ ExeNul,   /* 9 */ ExeNul,   /* : */ ExeCln,   /* ; */ SkpSkp,
 /* < */ SkpSkp,   /* = */ SkpSkp,   /* > */ SkpSkp,   /* ? */ SkpSkp,
-/* @ */ ExeAtS,   /* A */ SkpSkp,   /* B */ SkpSkp,   /* C */ SkpSkp,
-/* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRg,
-/* H */ SkpSkp,   /* I */ SkpArg,   /* J */ SkpSkp,   /* K */ SkpSkp,
-/* L */ SkpSkp,   /* M */ SkpQRg,   /* N */ SkpArg,   /* O */ SkpArg,
-/* P */ SkpSkp,   /* Q */ SkpQRg,   /* R */ SkpSkp,   /* S */ SkpArg,
-/* T */ SkpSkp,   /* U */ SkpQRg,   /* V */ SkpSkp,   /* W */ SkpSkp,
-/* X */ SkpQRg,   /* Y */ SkpSkp,   /* Z */ SkpSkp,   /* [ */ SkpQRg,
+/* @ */ ExeAtS,   /* A */ SkpSkp,   /* B */ ExeNul,   /* C */ SkpSkp,
+/* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRC,
+/* H */ ExeNul,   /* I */ SkpArg,   /* J */ SkpSkp,   /* K */ SkpSkp,
+/* L */ SkpSkp,   /* M */ SkpMac,   /* N */ SkpArg,   /* O */ SkpArg,
+/* P */ SkpSkp,   /* Q */ SkpQRC,   /* R */ SkpSkp,   /* S */ SkpArg,
+/* T */ SkpSkp,   /* U */ SkpQRC,   /* V */ SkpSkp,   /* W */ SkpSkp,
+/* X */ SkpQRC,   /* Y */ SkpSkp,   /* Z */ ExeNul,   /* [ */ SkpQRg,
 /* \ */ SkpSkp,   /* ] */ SkpQRg,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
-/* ` */ SkpSkp,   /* a */ SkpSkp,   /* b */ SkpSkp,   /* c */ SkpSkp,
-/* d */ SkpSkp,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRg,
-/* h */ SkpSkp,   /* i */ SkpArg,   /* j */ SkpSkp,   /* k */ SkpSkp,
-/* l */ SkpSkp,   /* m */ SkpQRg,   /* n */ SkpArg,   /* o */ SkpArg,
-/* p */ SkpSkp,   /* q */ SkpQRg,   /* r */ SkpSkp,   /* s */ SkpArg,
-/* t */ SkpSkp,   /* u */ SkpQRg,   /* v */ SkpSkp,   /* w */ SkpSkp,
-/* x */ SkpQRg,   /* y */ SkpSkp,   /* z */ SkpSkp,   /* { */ SkpSkp,
+/* ` */ SkpSkp,   /* a */ SkpSkp,   /* b */ ExeNul,   /* c */ SkpSkp,
+/* d */ SkpSkp,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRC,
+/* h */ ExeNul,   /* i */ SkpArg,   /* j */ SkpSkp,   /* k */ SkpSkp,
+/* l */ SkpSkp,   /* m */ SkpMac,   /* n */ SkpArg,   /* o */ SkpArg,
+/* p */ SkpSkp,   /* q */ SkpQRC,   /* r */ SkpSkp,   /* s */ SkpArg,
+/* t */ SkpSkp,   /* u */ SkpQRC,   /* v */ SkpSkp,   /* w */ SkpSkp,
+/* x */ SkpQRC,   /* y */ SkpSkp,   /* z */ ExeNul,   /* { */ SkpSkp,
 /* | */ SkpSkp,   /* } */ SkpSkp,   /* ~ */ SkpSkp,   /*DEL*/ SkpSkp,
 /*129*/ SkpSkp,   /*130*/ SkpSkp,   /*131*/ SkpSkp,   /*132*/ SkpSkp,
 /*133*/ SkpSkp,   /*134*/ SkpSkp,   /*135*/ SkpSkp,   /*136*/ SkpSkp,

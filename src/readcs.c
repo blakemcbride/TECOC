@@ -608,7 +608,15 @@ VVOID ReadCS()
 			CBfPtr -= 2;
 			ZDspBf(Prompt, 3);
 			CRCnt = 0;
-			TypBuf(CBfBeg, CBfPtr);
+/*
+ * TypBuf's end pointer is EXCLUSIVE,  and CBfPtr points AT the last character
+ * of the command string,  not one past it -- both of the ^G characters have
+ * already been backed over above.  "TypBuf(CBfBeg, CBfPtr)" therefore stopped
+ * one character short,  and ^G* showed the user a command string that was not
+ * the one about to run.  (The ^G<SP> case gets this right by accident:  it
+ * displays between the two decrements.)
+ */
+			TypBuf(CBfBeg, CBfPtr+1);
 		    }
 		    PrvChr = PRV_DEF;
 		    break;

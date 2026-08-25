@@ -33,13 +33,25 @@ DEFAULT ExeM()			/* execute an M command */
 	return FAILURE;
     }
 
+/*
+ * Both of these early returns used to leave CmdMod alone,  so "@Mq" consumed
+ * its at-sign when q had text in it and leaked the at-sign into the FOLLOWING
+ * command when q was empty:  what a command did depended on the contents of the
+ * register it named.  Clear the modifiers here exactly as the normal path does
+ * below.  (MARGIS survives on purpose -- "m,nMq" is how a macro is handed two
+ * arguments -- and it survives for an empty register too so that the skipper's
+ * SkpQRC, which clears the same bits, agrees with us either way.)
+ */
+
     if (QR->Start == NULL) {		/* if q-register is empty */
+	CmdMod &= MARGIS;		/* clear the modifiers written for us */
 	DBGFEX(1,DbgFNm,"SUCCESS, Q-register is empty");
 	return SUCCESS;
     }
 
     MacLen = QR->End_P1 - QR->Start;
     if (MacLen <= 0) {			/* nothing to execute */
+	CmdMod &= MARGIS;		/* clear the modifiers written for us */
 	DBGFEX(1,DbgFNm,"SUCCESS, Q-register is empty");
 	return SUCCESS;
     }

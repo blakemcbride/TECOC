@@ -41,7 +41,17 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
  * string from the last search command.
  */
 
-	if ((CBfPtr < CStEnd) && (*(CBfPtr+1) == ESCAPE)) { /* if it's s$, n$ */
+/*
+ * "Stext$" with an EMPTY text -- that is,  "S$" -- means "search again for the
+ * string the last search used",  and the test for it is "the character after
+ * the S is an ESCAPE".  But an @-modified command's next character is the
+ * DELIMITER THE USER CHOSE,  and nothing stops that delimiter being an ESCAPE:
+ * "@S$text$" was taken for "S$",  the previous search string was searched for
+ * instead of "text",  and "text$" was left for ExeCSt to read as commands.
+ * With ATSIGN set there is always a text argument,  even an empty one.
+ */
+	if (!(CmdMod & ATSIGN) &&
+	    (CBfPtr < CStEnd) && (*(CBfPtr+1) == ESCAPE)) { /* if it's s$, n$ */
 		++CBfPtr;			/* skip the escape */
 	} else {
 		if (BldStr(SBfBeg, SBfEnd, &SBfPtr) == FAILURE) {

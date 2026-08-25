@@ -113,6 +113,12 @@ DEFAULT ExeA()			/* execute an A command */
 /*
  * if there is no numeric argument, must be A or :A
  */
+/*
+ * Only the COLON bit was cleared above,  so "@A" and "@:A" leaked their at-sign
+ * into the next command -- the numeric path below has cleared the whole of
+ * CmdMod since round 4,  and SkpCmd skips A with SkpSkp,  which clears it too.
+ */
+    CmdMod = '\0';				/* clear modifiers flags */
     if (IsEofI[CurInp]) {			/* if already at end-of-file */
         DBGFEX(1,DbgFNm,(ColonMod) ? "PushEx(0)" : "SUCCESS");
 	return ((ColonMod) ? PushEx(0L,OPERAND) : SUCCESS);

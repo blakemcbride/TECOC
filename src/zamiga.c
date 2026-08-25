@@ -224,7 +224,30 @@ BOOLEAN NoWait;				/* return immediately? */
 		LastLF = FALSE;
 		return (DEFAULT)LINEFD;
 	}
-	if (read(fileno(stdin), &Charac, 1) != 1) {
+/*
+ * The 32 bit of the ET flag ("read with no wait on control-T") is documented in
+ * TECOC.H,  ExeCtT passes it down faithfully and already treats -1 as "nothing
+ * there",  and the header comment above promises it -- but this function used
+ * to declare NoWait and never mention it again,  so a macro written around the
+ * documented idiom (set 32ET,  poll ^T,  do something else when it returns -1)
+ * hung on the first poll.  There is no curses build on the Amiga,  so the read
+ * itself is what has to be made non-blocking.
+ */
+	if (NoWait) {				/* if 32ET, don't block */
+		int fd = fileno(stdin);
+		int flags = fcntl(fd, F_GETFL, 0);
+		int nread;
+		if (flags != -1) {
+			(VVOID)fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+		}
+		nread = read(fd, &Charac, 1);
+		if (flags != -1) {
+			(VVOID)fcntl(fd, F_SETFL, flags);
+		}
+		if (nread != 1) {
+			return (DEFAULT)-1;	/* nothing typed yet */
+		}
+	} else if (read(fileno(stdin), &Charac, 1) != 1) {
 		if (!GotCtC) {
 			ZErMsg();
 			ErrMsg(ERR_URC);
@@ -771,7 +794,7 @@ char *argv[];
  * execute imbedded command line-parsing macro directly from clpars[]
  */
 	CStBeg = CBfPtr = clpars;		/* command string start */
-	CStEnd = clpars + CLPARS_LEN;		/* command string end */
+	CStEnd = clpars + CLPARS_LEN - 1;	/* command string end */
 	EStTop = EStBot;			/* clear expression stack */
 	ExeCSt();				/* execute command string */
 #else

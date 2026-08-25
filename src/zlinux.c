@@ -22,6 +22,7 @@
 #include <pwd.h>
 #include <time.h>
 #include <stdlib.h>
+#include <poll.h>		/* poll(), for ZChIn's NoWait */
 #include <unistd.h>
 #include <termios.h>
 #include <glob.h>		/* Rewritten 05/04 by TAA to use glob function */
@@ -226,14 +227,38 @@ BOOLEAN NoWait;				/* return immediately? */
 		LastLF = FALSE;
 		return (DEFAULT)LINEFD;
 	}
+/*
+ * The 32 bit of the ET flag ("read with no wait on control-T") is documented in
+ * TECOC.H,  ExeCtT passes it down faithfully and already treats -1 as "nothing
+ * there",  and the header comment above promises it -- but this function used
+ * to declare NoWait and never mention it again,  so a macro written around the
+ * documented idiom (set 32ET,  poll ^T,  do something else when it returns -1)
+ * hung on the first poll.  The MS-DOS, Win32, OS/2 and VMS ports have always
+ * honoured it.
+ */
 #if CURSES
+	if (NoWait) {
+		nodelay(stdscr, TRUE);		/* poll instead of blocking */
+	}
 	Charac = getch();
+	if (NoWait) {
+		nodelay(stdscr, FALSE);		/* back to blocking reads */
+	}
 	if (Charac == ERR) {
 		Charac = -1;
 	}
 #else
 	{
 		unsigned char InByte;
+		if (NoWait) {			/* if 32ET, don't block */
+			struct pollfd pfd;
+			pfd.fd = fileno(stdin);
+			pfd.events = POLLIN;
+			pfd.revents = 0;
+			if (poll(&pfd, (nfds_t)1, 0) <= 0) {
+				return (DEFAULT)-1; /* nothing typed yet */
+			}
+		}
 		Charac = (read(fileno(stdin), &InByte, 1) == 1)
 				? (int)InByte
 				: -1;
@@ -244,6 +269,9 @@ BOOLEAN NoWait;				/* return immediately? */
 			TAbort(EXIT_FAILURE);	/* ...safe to do it here */
 		if (GotCtC || SupGotCtC)
 			return (DEFAULT)CTRL_C;
+		if (NoWait) {			/* if 32ET, nothing there */
+			return (DEFAULT)-1;
+		}
 		if (!GotCtC) {
 			ZErMsg();
 			ErrMsg(ERR_URC);
@@ -1378,7 +1406,17 @@ char *argv[];
  */
 	CStBeg = clpars;		/* command string start */
 	CBfPtr = clpars;		/* command string start */
-	CStEnd = clpars + CLPARS_LEN;		/* command string end */
+/*
+ * CStEnd is the address of the LAST CHARACTER of the command string everywhere
+ * else in the tree:  PshMac writes "CStEnd = End - 1",  ExeCSt loops "while
+ * (CBfPtr <= CStEnd)",  IncCBP refuses to move when "CBfPtr >= CStEnd" and
+ * ExeEsc guards its lookahead with "CBfPtr < CStEnd".  CLPARS_LEN is a
+ * character count,  so "clpars + CLPARS_LEN" addressed the array's NUL
+ * terminator instead -- harmless only because the macro ends with "$$",  which
+ * makes ExeEsc jump CBfPtr to CStEnd before the NUL can be fetched as a
+ * command.  Restore the invariant.
+ */
+	CStEnd = clpars + CLPARS_LEN - 1;	/* command string end */
 	EStTop = EStBot;			/* clear expression stack */
 	ExeCSt();				/* execute command string */
 #else
@@ -1429,7 +1467,20 @@ DEFAULT ZPWild()		/* preset the wildcard lookup filename */
 	globindex = 0;
 	*FBfPtr='\0';				/* terminate string */
 	result = glob(FBfBeg, GLOB_ERR|GLOB_MARK, NULL, &pglob);
+/*
+ * "the pattern matched nothing" is not an error,  it is FILENF -- the same
+ * thing ZSWild returns when it runs off the end of the match list,  and the
+ * only return code ExeEN can turn into "?FNF" or into the 0 that ":EN" is
+ * supposed to hand back.  Returning FAILURE for it made ExeEN throw the rest
+ * of the command string away with no message at all.  FAILURE is now reserved
+ * for a real glob() failure,  and that gets reported here,  where we still
+ * know what went wrong.
+ */
+	if (result == GLOB_NOMATCH) {
+		return FILENF;
+	}
 	if (result != 0) {
+		ZErMsg();			/* report the system error */
 		return FAILURE;
 	}
 	result = 0; /* Count files matched */
@@ -1441,7 +1492,7 @@ DEFAULT ZPWild()		/* preset the wildcard lookup filename */
 	if (result > 0) {
 		return SUCCESS;
 	}
-	return FAILURE;
+	return FILENF;				/* matched only directories */
 }
 /*****************************************************************************
 	ZRaloc()
@@ -1623,8 +1674,13 @@ DEFAULT ZSWild()		/* search for next wildcard filename */
 {
 	size_t filename_length;
 	char *pathname;
+/*
+ * No ENfilespec$ has been done yet,  or the one that was done matched nothing.
+ * That is "file not found",  not a failure with nothing to say about it:  see
+ * the comment in ZPWild above.
+ */
 	if (pglob.gl_pathc == 0)
-		return FAILURE;
+		return FILENF;
 /*
  * Skip the directories.  GLOB_MARK put a "/" on the end of each of those,
  * so it is the LAST character of the pathname we have to look at.  The "-1"
@@ -1647,6 +1703,7 @@ DEFAULT ZSWild()		/* search for next wildcard filename */
  * we really have a file name now
  */
 	if (filename_length > (size_t)(FBfEnd - FBfBeg)) {
+		ErrMsg(ERR_STL);		/* string too long */
 		return FAILURE;			/* won't fit in FBf */
 	}
 	MEMMOVE(FBfBeg, pathname, (SIZE_T)filename_length);

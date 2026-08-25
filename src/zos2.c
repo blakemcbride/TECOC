@@ -989,7 +989,7 @@ VVOID ZPrsCL(int argc, char **argv)
 
 
         CStBeg = CBfPtr = clpars; /* command string start */
-        CStEnd = clpars + CLPARS_LEN;/* command string end */
+        CStEnd = clpars + CLPARS_LEN - 1;/* command string end */
         EStTop = EStBot;                        /* clear expression stack */
         ExeCSt();                               /* execute command string */
 

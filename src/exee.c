@@ -63,6 +63,7 @@ static DEFAULT ExeEF(void);
 static DEFAULT ExeEG(void);
 static DEFAULT ExeEH(void);
 static DEFAULT ExeEI(void);
+static DEFAULT ExeEJ(void);
 static DEFAULT ExeEK(void);
 static DEFAULT ExeEN(void);
 static DEFAULT ExeEO(void);
@@ -546,6 +547,17 @@ charptr *EscPtr;	/* returned ptr to $$ in EI string  (+1) */
 	DbgFEn(1,DbgFNm,DbgSBf);
 #endif
 
+/*
+ * ZRdLin normally returns whole lines,  and a $$ cannot straddle a line
+ * boundary because a line boundary is a <LF>.  But ZRdLin also returns short
+ * when the buffer it was given fills up,  and we only guarantee ZBFMIN bytes
+ * free before each call,  so a long line is split at an arbitrary byte.  This
+ * used to be reset at the top of every pass,  and a $$ split across such a
+ * boundary was then not recognised:  the first $ set the flag,  the pass
+ * ended,  the flag was cleared,  and the second $ looked like a lone one.
+ */
+	previous_char_was_escape = FALSE;
+
 	FOREVER {
 
 /*
@@ -594,7 +606,6 @@ charptr *EscPtr;	/* returned ptr to $$ in EI string  (+1) */
 
 		TmpPtr = ZBfRdP;
 		ZBfRdP += line_len;
-		previous_char_was_escape = FALSE;
 		for (; TmpPtr < ZBfRdP; ++TmpPtr) {
 			if (*TmpPtr == ESCAPE) {
 				if (previous_char_was_escape) {
@@ -792,8 +803,13 @@ static DEFAULT ExeEI()			/* execute an EI command */
  */
 	    ZIClos(EIIndx);			/* close the EI file */
 	    IsEofI[EIIndx] = TRUE;		/* stop DoEI's read loop */
-	    CmdMod = '\0';			/* clear modifiers flags */
 	}
+/*
+ * The CmdMod clear used to be INSIDE the "if" above,  so "@EI$" with no EI file
+ * open left its at-sign set and the next command took its first text character
+ * as a delimiter.  The modifiers were written for this command either way.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 	EStTop = EStBot;			/* clear expression stack */
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	return SUCCESS;
@@ -868,6 +884,27 @@ static DEFAULT ExeEK()			/* execute an EK command */
 
 /*****************************************************************************
 
+	ExeEJ()
+
+	This function executes an EJ command.  The command itself is
+implemented in the port file,  as ZExeEJ,  and no port ever cleared CmdMod --
+so "@EJ" leaked its at-sign into the next command on all nine of them.  SkpCmd
+skips EJ with SkpSkp,  which clears CmdMod,  so clearing here is also what
+makes the skipper and the executor stop in the same place.
+
+*****************************************************************************/
+
+static DEFAULT ExeEJ()			/* execute an EJ command */
+{
+	DEFAULT status;
+
+	status = ZExeEJ();
+	CmdMod = '\0';				/* clear modifiers flags */
+	return status;
+}
+
+/*****************************************************************************
+
 	ExeEN()
 
 	This function executes an EN command.
@@ -880,6 +917,8 @@ static DEFAULT ExeEK()			/* execute an EK command */
 
 static DEFAULT ExeEN()			/* execute an EN command */
 {
+	DEFAULT status;
+
 	DBGFEN(1,"ExeEN",NULL);
 
 	if (BldStr(FBfBeg, FBfEnd, &FBfPtr) == FAILURE) {
@@ -887,46 +926,47 @@ static DEFAULT ExeEN()			/* execute an EN command */
 		return FAILURE;
 	}
 
-	if (FBfPtr == FBfBeg) {		/* if it's EN$ or :EN$ */
-		switch (ZSWild()) {
-		case FAILURE:
-			DBGFEX(1,DbgFNm,"FAILURE, ZSWild() failed");
-			return FAILURE;
+/*
+ * ZPWild and ZSWild both report "there is no such file" as FILENF now:  for
+ * ZSWild that is "the match list is exhausted" or "no ENfilespec$ has been
+ * done",  and for ZPWild it is "the pattern matched nothing".  Both used to
+ * come back as an unadorned FAILURE,  with no Err* call anywhere below,  so
+ * ExeCSt threw the rest of the command string away and printed NOTHING -- and
+ * ":EN" did not return the 0 the whole command exists to hand a macro.  A
+ * FAILURE now means a real operating-system failure,  which the port reports
+ * before returning it.
+ *	Both forms take the same three-way answer,  so they share it.
+ */
+	status = (FBfPtr == FBfBeg)	/* if it's EN$ or :EN$ */
+		? ZSWild()		/* ...find the next match */
+		: ZPWild();		/* ...else preset the filespec */
 
-		case FILENF:
-			if (CmdMod & COLON) {	/* if it's :EN */
-				CmdMod = '\0';	/* clear modifiers flags */
-				EStTop = EStBot;/* clear expression stack */
-				DBGFEX(1,DbgFNm,"PushEx(0)");
-				return PushEx(0L,OPERAND);
-			}
-			ErrStr(ERR_FNF, "");	/* file not found */
-			DBGFEX(1,DbgFNm,"FAILURE");
-			return FAILURE;
-
-		case SUCCESS:
-			if (CmdMod & COLON) {	/* if it's :EN */
-				CmdMod = '\0';	/* clear modifiers flags */
-				DBGFEX(1,DbgFNm,"PushEx(-1)");
-				return PushEx(-1L,OPERAND);
-			}
-			EStTop = EStBot;/* clear expression stack */
-			CmdMod = '\0';	/* clear modifiers flags */
-			DBGFEX(1,DbgFNm,"SUCCESS");
-			return SUCCESS;
+	switch (status) {
+	case FILENF:
+		if (CmdMod & COLON) {		/* if it's :EN */
+			CmdMod = '\0';		/* clear modifiers flags */
+			EStTop = EStBot;	/* clear expression stack */
+			DBGFEX(1,DbgFNm,"PushEx(0)");
+			return PushEx(0L,OPERAND);
 		}
-	}
-
-	if (ZPWild() == FAILURE) {		/* preset wildcard filepsec */
-		DBGFEX(1,DbgFNm,"FAILURE, ZPWild() failed");
+		ErrStr(ERR_FNF, "");		/* file not found */
+		DBGFEX(1,DbgFNm,"FAILURE");
 		return FAILURE;
+
+	case SUCCESS:
+		if (CmdMod & COLON) {		/* if it's :EN */
+			CmdMod = '\0';		/* clear modifiers flags */
+			DBGFEX(1,DbgFNm,"PushEx(-1)");
+			return PushEx(-1L,OPERAND);
+		}
+		EStTop = EStBot;		/* clear expression stack */
+		CmdMod = '\0';			/* clear modifiers flags */
+		DBGFEX(1,DbgFNm,"SUCCESS");
+		return SUCCESS;
 	}
 
-	EStTop = EStBot;			/* clear expression stack */
-	CmdMod = '\0';				/* clear modifiers flags */
-
-	DBGFEX(1,DbgFNm,"SUCCESS");
-	return SUCCESS;
+	DBGFEX(1,DbgFNm,"FAILURE, wildcard lookup failed");
+	return FAILURE;
 }
 
 /*****************************************************************************
@@ -944,9 +984,19 @@ numbers less than 100.
 
 static DEFAULT ExeEO()			/* execute an EO command */
 {
-	return ((EStTop > EStBot)		/* is it nEO ? */
+	DEFAULT status;
+
+	status = ((EStTop > EStBot)		/* is it nEO ? */
 	    ? ExeNYI()				/* ...yes, not supported */
 	    : PushEx((LONG)TVERSION,OPERAND));	/* ...no, return version */
+/*
+ * The modifiers were written for the EO command,  and it never cleared them,
+ * so "@EO" leaked its at-sign into the next command.  SkpCmd skips EO with
+ * SkpSkp,  which clears CmdMod,  so clearing here is also what makes the
+ * skipper and the executor stop in the same place.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
+	return status;
 }
 
 /*****************************************************************************
@@ -1505,7 +1555,7 @@ DEFAULT	ExeE()				/* execute an E command */
 		/* C */ ExeEC,    /* D */ ExeED,
 		/* E */ ExeIll,   /* F */ ExeEF,
 		/* G */ ExeEG,    /* H */ ExeEH,
-		/* I */ ExeEI,    /* J */ ZExeEJ,
+		/* I */ ExeEI,    /* J */ ExeEJ,
 		/* K */ ExeEK,    /* L */ ExeNYI,
 		/* M */ ExeNYI,   /* N */ ExeEN,
 		/* O */ ExeEO,    /* P */ ExeEP,

@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <termios.h>
 #endif
+#include <poll.h>		/* poll(), for ZChIn's NoWait */
 #if CURSES
 #include <curses.h>		/* has to come before zport.h */
 #endif
@@ -249,15 +250,43 @@ BOOLEAN NoWait;				/* return immediately? */
 		LastLF = FALSE;
 		return (DEFAULT)LINEFD;
 	}
+/*
+ * The 32 bit of the ET flag ("read with no wait on control-T") is documented in
+ * TECOC.H,  ExeCtT passes it down faithfully and already treats -1 as "nothing
+ * there",  and the header comment above promises it -- but this function used
+ * to declare NoWait and never mention it again,  so a macro written around the
+ * documented idiom (set 32ET,  poll ^T,  do something else when it returns -1)
+ * hung on the first poll.  The MS-DOS, Win32, OS/2 and VMS ports have always
+ * honoured it.
+ */
 #if CURSES
-	if ((Charac = getch()) == ERR) {
+	if (NoWait) {
+		nodelay(stdscr, TRUE);		/* poll instead of blocking */
+	}
+	Charac = getch();
+	if (NoWait) {
+		nodelay(stdscr, FALSE);		/* back to blocking reads */
+	}
+	if (Charac == ERR) {
 #else
+	if (NoWait) {				/* if 32ET, don't block */
+		struct pollfd pfd;
+		pfd.fd = fileno(stdin);
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		if (poll(&pfd, (nfds_t)1, 0) <= 0) {
+			return (DEFAULT)-1;	/* nothing typed yet */
+		}
+	}
 	if (read(fileno(stdin), &Charac, 1) != 1) {
 #endif
 		if (GotHUp)			/* terminal went away */
 			TAbort(EXIT_FAILURE);	/* ...safe to do it here */
 		if (GotCtC || SupGotCtC)
 			return (DEFAULT)CTRL_C;
+		if (NoWait) {			/* if 32ET, nothing there */
+			return (DEFAULT)-1;
+		}
 		if (!GotCtC) {
 			ZErMsg();
 			ErrMsg(ERR_URC);
@@ -1369,7 +1398,7 @@ char *argv[];
  */
 	CStBeg = clpars;		/* command string start */
 	CBfPtr = clpars;		/* command string start */
-	CStEnd = clpars + CLPARS_LEN;		/* command string end */
+	CStEnd = clpars + CLPARS_LEN - 1;	/* command string end */
 	EStTop = EStBot;			/* clear expression stack */
 	ExeCSt();				/* execute command string */
 #else
@@ -1423,15 +1452,22 @@ DEFAULT ZPWild()		/* preset the wildcard lookup filename */
 	}
 	*FBfPtr='\0';				/* terminate string */
 	wild_list = glob(FBfBeg);
+/*
+ * "the pattern matched nothing" is not an error,  it is FILENF -- the same
+ * thing ZSWild returns when it runs off the end of the match list,  and the
+ * only return code ExeEN can turn into "?FNF" or into the 0 that ":EN" is
+ * supposed to hand back.  Returning FAILURE for it made ExeEN throw the rest
+ * of the command string away with no message at all.
+ */
 	if (!wild_list) {
-		return FAILURE;
+		return FILENF;
 	}
 	if (*wild_list) {
 		return SUCCESS;
 	}
 	free(wild_list);			/* oops - no files found */
 	wild_list = 0;
-	return FAILURE;
+	return FILENF;
 }
 /*****************************************************************************
 	ZRaloc()
@@ -1602,7 +1638,7 @@ DEFAULT ZSWild()		/* search for next wildcard filename */
 {
 	int filename_length;
 	if (!wild_list)
-		return FAILURE;
+		return FILENF;		/* no ENfilespec$ has been done */
 	if (!(*wild_list))
 		return FILENF;
 /*

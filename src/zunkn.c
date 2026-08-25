@@ -366,7 +366,7 @@ VVOID ZPrsCL(int argc, char **argv)
  * execute imbedded command line-parsing macro directly from clpars[]
  */
 	CStBeg = CBfPtr = clpars;		/* command string start */
-	CStEnd = clpars + CLPARS_LEN;		/* command string end */
+	CStEnd = clpars + CLPARS_LEN - 1;	/* command string end */
 	EStTop = EStBot;			/* clear expression stack */
 	ExeCSt();				/* execute command string */
 #else

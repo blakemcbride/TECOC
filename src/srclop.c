@@ -85,7 +85,21 @@ static DEFAULT DoFBFC()		/* search loop */
 	    EBPtr1 = AraEnd;
 	    EndSAr = (Shuffl!=0 ? GapEnd + 1 : AraBeg);
 	}
-	RhtSid = EBfEnd;
+/*
+ * EndSAr is the last place a match may START;  RhtSid is the last byte that may
+ * be EXAMINED,  which is how a match is allowed to run past the n boundary.
+ * "RhtSid = EBfEnd" is right when the gap has been shuffled out of the way,
+ * and right when the m,n area lies after the gap.  It was wrong in the
+ * remaining case -- the area lies entirely BEFORE the gap -- because then a
+ * partial match that reached AraEnd carried straight on into the gap,  which
+ * is not text at all but whatever the last gap movement left there.  The match
+ * could "succeed" against that stale text,  and the code below then computed a
+ * NEGATIVE HowFar and handed MEMMOVE a length of (SIZE_T)-1.
+ *	Stopping at GapBeg-1 is what the non-FB paths do (see the backwards
+ * branch of SrcLop below);  SSerch notices that bound and steps EBPtr2 over
+ * the gap,  so the match still carries on into the text beyond it.
+ */
+	RhtSid = (AraEnd < GapBeg) ? GapBeg - 1 : EBfEnd;
     } else {				/* else it's nFB or nFC */
 	if (NArgmt > 0) {		/* forward search */
 	    SIncrm = 1;
