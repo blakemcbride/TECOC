@@ -129,6 +129,9 @@ charptr YBfEnd;
 				/* fall through */
 		case DELETE:	break;
 		case CTRL_G:	ZDspCh(CTRL_G);
+				/* ring the bell AND show it as ^G,
+				   the way EchoIt does */
+				/* FALLTHROUGH */
 		default:	ZDspCh('^');
 				ZDspCh(*YBfPtr | '\100');
 	    }

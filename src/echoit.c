@@ -34,7 +34,9 @@ unsigned char Charac;
 			break;
 		case FORMFD:
 			ZDspCh('\r');
-			/* fall through to VRTTAB */
+			/* a form feed shows as a CR followed by the same
+			   blank lines a vertical tab does */
+			/* FALLTHROUGH */
 		case VRTTAB:
 			ZDspBf("\n\n\n\n", 4);
 			break;
@@ -42,7 +44,8 @@ unsigned char Charac;
 			break;
 		case CTRL_G:
 			ZDspCh(CTRL_G);
-			/* fall through to default case */
+			/* ring the bell AND show it as ^G */
+			/* FALLTHROUGH */
 		default:				/* display as ^ch */
 			ZDspCh('^');
 			ZDspCh(Charac | '\100');

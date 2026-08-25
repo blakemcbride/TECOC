@@ -622,6 +622,10 @@ char c;
 		    }
 		    waddch(curwin, '\n');
 		    waddch(curwin, '\r');
+		    /* note that this goes on to emit the character a
+		       second time.  That may not be what was meant,  but
+		       it is what this has always done. */
+		    /* FALLTHROUGH */
 		default:
 		    waddch(curwin,c);
 	    }
