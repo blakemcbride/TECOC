@@ -1102,9 +1102,10 @@ DEFAULT	OfIndx;				/* output file indicator */
 BOOLEAN RepErr;				/* report errors? */
 BOOLEAN Backup;				/* TAA Added */
 {
-	char *tfname;
 	struct stat bufstat;
 	int tmpflag = 0;
+	int fd = -1;			/* mkstemp's descriptor for the temp file */
+#define TMPTAIL "tecocXXXXXX"		/* mkstemp replaces the X's */
 #if DEBUGGING
 	static char *DbgFNm = "ZOpOut";
 	sprintf(DbgSBf,", FBf = \"%.*s\"",(int)(FBfPtr-FBfBeg),FBfBeg);
@@ -1115,8 +1116,8 @@ BOOLEAN Backup;				/* TAA Added */
  */
 	*FBfPtr = '\0';
 	if (access(FBfBeg, 0) == 0) {		/* if file already exists */
-		char *dirname,*s;
-	 	int n;
+		charptr		s;		/* scans back for the last "/" */
+		ptrdiff_t	DirLen;		/* length of the directory part */
 		if (stat(FBfBeg, &bufstat) != 0) {	/* can't stat it? */
 			if (RepErr)
 				ZErMsg();
@@ -1124,41 +1125,34 @@ BOOLEAN Backup;				/* TAA Added */
 			return FAILURE;
 		}
 		tmpflag = 1;
-		n = FBfPtr - FBfBeg;		/* strlen(FBfBeg) */
-		dirname = (char *)malloc(n+4);
-		if (dirname == NULL) {
-			ErrMsg(ERR_MEM);	/* MEM = memory overflow */
-			DBGFEX(2,DbgFNm,"FAILURE, malloc() failed");
-			return FAILURE;
+/*
+ * Build the temporary file's name in the same directory as the file it will
+ * replace,  so the rename at close time stays inside one filesystem.  Scan
+ * back for the last "/":  everything up to and including it is the directory
+ * part,  and there may not be one at all.
+ */
+		for (s = FBfPtr; (s > FBfBeg) && (*(s-1) != '/'); --s) {
+			;
 		}
-		strcpy(dirname, FBfBeg);
-		s=dirname + n;
-		while (*s != '/' && s > dirname)
-			s--;
-		if (*s=='/' && s==dirname) {	/* must be root directory */
-			*(s+1)='\0';
-		} else if (*s=='/')  {		/* we have string/name */
-			*s='\0';
-		} else {			/* must have s==dirname and
-						   *s != '/', so current
-						   directory */
-			*dirname='.'; *(dirname+1)='\0';
-		}
-		tfname = tempnam(dirname,"tecoc");
-		free(dirname);
-		if (tfname == NULL) {		/* couldn't make a temp name */
-			if (RepErr)
-				ZErMsg();
-			DBGFEX(2,DbgFNm,"FAILURE, tempnam() failed");
-			return FAILURE;
-		}
-		if (strlen(tfname) >= FILENAME_MAX) {	/* won't fit in OFNam */
-			free(tfname);
+		DirLen = s - FBfBeg;
+		if ((DirLen + (ptrdiff_t)sizeof(TMPTAIL)) > FILENAME_MAX) {
 			DBGFEX(2,DbgFNm,"FAILURE, temp name too long");
 			return FAILURE;		/* caller reports ?UFO */
 		}
-		(void)strcpy(OFiles[OfIndx].OFNam, tfname);
-		free(tfname);
+		MEMMOVE(OFiles[OfIndx].OFNam, FBfBeg, (SIZE_T)DirLen);
+		(void)strcpy(OFiles[OfIndx].OFNam + DirLen, TMPTAIL);
+/*
+ * mkstemp,  unlike the tempnam this used to call,  creates the file itself
+ * and hands back a descriptor for it,  so nothing can slip in between the
+ * name being chosen and the file being created.
+ */
+		fd = mkstemp(OFiles[OfIndx].OFNam);
+		if (fd < 0) {			/* couldn't make a temp file */
+			if (RepErr)
+				ZErMsg();
+			DBGFEX(2,DbgFNm,"FAILURE, mkstemp() failed");
+			return FAILURE;
+		}
 		(void)strcpy(OFiles[OfIndx].OTNam, FBfBeg);
 #if DEBUGGING
 		sprintf(DbgSBf,	"file %s already exists\r\n", FBfBeg);
@@ -1172,14 +1166,25 @@ BOOLEAN Backup;				/* TAA Added */
 	sprintf(DbgSBf,	"creating file %s\r\n",	OFiles[OfIndx].OFNam);
 	DbgFMs(2,DbgFNm,DbgSBf);
 #endif
-	OFiles[OfIndx].OStrem = fopen(OFiles[OfIndx].OFNam, "w");
+	OFiles[OfIndx].OStrem = (tmpflag)
+				? fdopen(fd, "w")	/* mkstemp already */
+							/* ...opened it */
+				: fopen(OFiles[OfIndx].OFNam, "w");
 	if (OFiles[OfIndx].OStrem == NULL) {
+		if (tmpflag) {			/* don't leave it lying about */
+			(void)close(fd);
+			(void)remove(OFiles[OfIndx].OFNam);
+		}
 		if (RepErr)
 			ZErMsg();
 		DBGFEX(2,DbgFNm,"FAILURE");
 		return FAILURE;
 	}
 	if (tmpflag) {
+/*
+ * mkstemp creates the file readable and writable by its owner only.  Give the
+ * replacement the same permissions the original had.
+ */
 		fchmod(fileno(OFiles[OfIndx].OStrem),
 		       bufstat.st_mode | S_IRUSR | S_IWUSR);
 	}
