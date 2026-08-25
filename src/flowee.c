@@ -34,5 +34,14 @@ DEFAULT FlowEE()		/* flow to else or end (| or ') */
 	if (TraceM) {
 		EchoIt(*CBfPtr);
 	}
+/*
+ * Every other way out of a skipped stretch of command string ends with a
+ * SkpCmd on the terminator,  and that clears CmdMod.  The "break" on "|"
+ * above does not,  so a modifier written just before the else-part -- "@" or
+ * ":" -- survived into the command AFTER the "|",  which then saw a modifier
+ * it was never given.  FlowEC and FlowEL need no such line: they always reach
+ * their terminator through SkpCmd,  or through a caller that clears.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 	return SUCCESS;
 }
