@@ -196,7 +196,13 @@ static DEFAULT ExeFN()			/* execute an FN command */
 static DEFAULT ExeFR()			/* execute an FR command */
 {
 	DBGFEN(1,"ExeFR",NULL);
-	if ((GapBeg-RefLen) < EBfBeg) {		/* if out of range */
+/*
+ * RefLen is the NEGATIVE of the length of the last string inserted or found
+ * (see InsStr and SSerch),  so the test has to add it,  not subtract it.
+ * The character pointer may have been moved since the string was inserted or
+ * found,  so the deletion really can run off the front of the edit buffer.
+ */
+	if ((GapBeg+RefLen) < EBfBeg) {		/* if out of range */
 		ErrMsg(ERR_DTB);		/* DTB = "delete too big" */
 		DBGFEX(1,DbgFNm,"FAILURE");
 		return FAILURE;
