@@ -274,7 +274,7 @@ static DEFAULT SkpE()			/* skip one of the E commands */
 /* E */ 0,         /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpSkp,
 /* I */ SkpArg,    /* J */ SkpSkp,    /* K */ SkpSkp,    /* L */ SkpArg,
 /* M */ SkpSkp,    /* N */ SkpSkp,    /* O */ SkpSkp,    /* P */ SkpSkp,
-/* Q */ SkpOne,    /* R */ SkpArg,    /* S */ SkpSkp,    /* T */ SkpSkp,
+/* Q */ SkpCtU,    /* R */ SkpArg,    /* S */ SkpSkp,    /* T */ SkpSkp,
 /* U */ SkpSkp,    /* V */ SkpSkp,    /* W */ SkpArg,    /* X */ SkpSkp,
 /* Y */ SkpSkp,    /* Z */ SkpSkp
 	};
@@ -284,8 +284,16 @@ static DEFAULT SkpE()			/* skip one of the E commands */
 	}
 	++CBfPtr;
 	TmpChr = To_Upper(*CBfPtr);
+/*
+ * EQq<filespec>$ and E%q<filespec>$ each take a Q-register name AND a text
+ * argument;  ExeEQ and ExeEPr both do IncCBP,  FindQR,  BldStr.  Skipping them
+ * with SkpOne stepped over the register name only and handed the filespec back
+ * to the scanning loop,  which then read it as commands -- and a "<", ">", "!",
+ * '"', "'" or "|" in a file name really does change what the loop does.
+ * SkpCtU skips exactly what those two commands consume.
+ */
 	if (TmpChr == '%')
-		return SkpOne();
+		return SkpCtU();
 	else if (TmpChr == '_')
 		return SkpArg();
 	else if (!Is_Upper(TmpChr) || (TmpChr=='E'))
