@@ -297,11 +297,18 @@ static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 static DEFAULT SkpE()			/* skip one of the E commands */
 {
 	unsigned char TmpChr;
+/*
+ * ENfilespec$ always takes a text argument -- ExeEN starts with a BldStr,
+ * exactly like EB, EI, ER and EW -- but the table below skipped it as if it
+ * took none,  which handed the filespec back to the scanning loop to be read
+ * as commands.  A "<", ">", "!", '"', "'" or "|" in a wildcard filespec then
+ * really did change where the skip stopped.
+ */
 	static DEFAULT (*FEAray[])(VVOID) = {
 /* A */ SkpSkp,    /* B */ SkpArg,    /* C */ SkpSkp,    /* D */ SkpSkp,
 /* E */ 0,         /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpSkp,
 /* I */ SkpArg,    /* J */ SkpSkp,    /* K */ SkpSkp,    /* L */ SkpArg,
-/* M */ SkpSkp,    /* N */ SkpSkp,    /* O */ SkpSkp,    /* P */ SkpSkp,
+/* M */ SkpSkp,    /* N */ SkpArg,    /* O */ SkpSkp,    /* P */ SkpSkp,
 /* Q */ SkpCtU,    /* R */ SkpArg,    /* S */ SkpSkp,    /* T */ SkpSkp,
 /* U */ SkpSkp,    /* V */ SkpSkp,    /* W */ SkpArg,    /* X */ SkpSkp,
 /* Y */ SkpSkp,    /* Z */ SkpSkp
