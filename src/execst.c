@@ -89,8 +89,14 @@ DEFAULT ExeCSt()		/* execute command string */
 		check_code_checksums ();
 #endif
 		ZCHKKB();			/* kludge for MS-DOS only */
+		if (GotHUp) {			/* if the terminal hung up */
+			TAbort(EXIT_FAILURE);	/* ...clean up and go away */
+		}
 		if (GotCtC) {			/* if got a control-C */
 			GotCtC = FALSE;
+			if (EtFlag & ET_MUNG_MODE) {	/* if in mung mode */
+				TAbort(EXIT_SUCCESS);	/* ...just terminate */
+			}
 			ErrMsg(ERR_XAB);	/* XAB = execution aborted */
 			DBGFEX(4,DbgFNm,"SUCCESS");
 			return SUCCESS;

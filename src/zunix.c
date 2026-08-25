@@ -254,6 +254,8 @@ BOOLEAN NoWait;				/* return immediately? */
 #else
 	if (read(fileno(stdin), &Charac, 1) != 1) {
 #endif
+		if (GotHUp)			/* terminal went away */
+			TAbort(EXIT_FAILURE);	/* ...safe to do it here */
 		if (GotCtC || SupGotCtC)
 			return (DEFAULT)CTRL_C;
 		if (!GotCtC) {
@@ -1611,9 +1613,13 @@ static VVOID CntrlC()
 	EtFlag &= ~ET_TRAP_CTRL_C;		/* turn off bit */
 	SupGotCtC = 1;
     } else {					/* user doesn't want it */
-	if (EtFlag & ET_MUNG_MODE) {		/* if in MUNG mode */
-	    TAbort(EXIT_SUCCESS);
-	}
+/*
+ * Just raise the flag.  Terminating TECO means closing files and freeing
+ * memory,  none of which is safe to do from a signal handler -- delivered in
+ * the middle of a malloc it corrupts the heap.  ExeCSt notices the flag after
+ * the command it is running,  and terminates from there if we are in MUNG
+ * mode.
+ */
 	GotCtC = TRUE;				/* set "stop soon" flag */
     }
     signal(SIGINT, CntrlC);
@@ -1623,7 +1629,11 @@ static VVOID CntrlC()
  */
 static void sighup()
 {
-	TAbort(EXIT_FAILURE);
+/*
+ * Only raise a flag: TAbort closes files and frees memory, which must not
+ * happen from inside a signal handler.  ZChIn and ExeCSt act on it.
+ */
+	GotHUp = TRUE;
 }
 #if !CURSES
 /*
@@ -1728,6 +1738,7 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	signal(SIGINT, CntrlC);		/* call CntrlC on interrupt */
 	signal(SIGHUP, sighup);		/* call sighup on hang up */
 	siginterrupt(SIGINT, 1);
+	siginterrupt(SIGHUP, 1);	/* so a hangup breaks the pending read */
 /*
  * set up termcap stuff
  */

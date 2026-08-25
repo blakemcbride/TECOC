@@ -257,6 +257,13 @@ terminates and when certain commands execute time-consuming loops.
 *****************************************************************************/
 GLOBALV	BOOLEAN	GotCtC = FALSE;
 /*****************************************************************************
+	GotHUp is set by the SIGHUP handler.  Like GotCtC it is only a flag:
+the handler must not do the closing and freeing that terminating TECO
+involves,  because none of that is safe to run from a signal handler.  It is
+noticed at the same safe points GotCtC is.
+*****************************************************************************/
+GLOBALV	BOOLEAN	GotHUp = FALSE;
+/*****************************************************************************
 	IBfEnd is the end of the input buffer.  See file PG.MEM for a
 description of memory management.
 *****************************************************************************/

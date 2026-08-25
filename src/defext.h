@@ -43,6 +43,7 @@ EXTERN	LONG	FFPage;		/* form feed flag (returned by ^E command) */
 EXTERN	charptr	GapBeg;		/* edit buffer gap beginning */
 EXTERN	charptr	GapEnd;		/* end of edit buffer gap */
 EXTERNV	BOOLEAN	GotCtC;		/* TRUE if the user just hit a control-C */
+EXTERNV	BOOLEAN	GotHUp;		/* TRUE if the terminal hung up */
 EXTERN	charptr	IBfEnd;		/* end of input buffer */
 EXTERN	charptr	IBfEnd;		/* input buffer end */
 EXTERN	int	IniSrM;		/* initial search mode */
