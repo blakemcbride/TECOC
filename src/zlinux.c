@@ -1012,6 +1012,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
 	BOOLEAN noDot;
 	if (noDot = strchr(FBfBeg,'.') == NULL) {	/* if no dot */
+	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
+		goto open_failed;
+	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
@@ -1024,6 +1027,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	if (ZClnEG(EG_LIB, GET_VAL, dummyp) != -1) {	/* get dir spec */
 	  goto open_failed;
 	}
+	if ((FBfPtr + TmpLen) > FBfEnd) {	/* if the name doesn't fit */
+	    goto open_failed;
+	}
 	MEMMOVE(FBfPtr, TmpBfr, TmpLen);	/* append name to dir spec */
 	FBfPtr += TmpLen;
 	*FBfPtr = '\0';				/* terminate file name */
@@ -1033,6 +1039,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    return SUCCESS;
 	}
 	if (noDot) {					/* if no dot */
+	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
+		goto open_failed;
+	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
