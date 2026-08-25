@@ -160,13 +160,21 @@ DEFAULT ExeO()			/* execute an O command */
 #endif
 /*
  * compare found tag (in ArgPtr) to O command tag (in TBf).
+ *
+ * The walk used to be bounded only by the length of the wanted tag,  on the
+ * assumption that the closing "!" would always stop it first.  BldStr expands
+ * ^Q,  so the wanted tag can itself contain a "!" and the comparison then runs
+ * past the closing one -- off the end of the command string,  which inside a
+ * macro is the end of a heap block.  CBfPtr is the closing "!" FindES just
+ * found,  so bound the walk with it and test for having reached it,  which
+ * needs no dereference at all.
  */
 	TagPtr = TBfBeg;
-	while ((TagPtr < TBfPtr) && (*ArgPtr == *TagPtr)) {
+	while ((TagPtr < TBfPtr) && (ArgPtr < CBfPtr) && (*ArgPtr == *TagPtr)) {
 	    ++ArgPtr;
 	    ++TagPtr;
 	}
-	Found = ((TagPtr == TBfPtr) && (*ArgPtr == '!'));
+	Found = ((TagPtr == TBfPtr) && (ArgPtr == CBfPtr));
 	++CBfPtr;
     } /* end of while (!Found) */
     --CBfPtr;
