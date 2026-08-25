@@ -28,6 +28,19 @@ LONG Value;
 		}
 		return TmpPtr-GapEnd;
 	}
+/*
+ * Going backwards from the very start of the buffer there is nothing to find,
+ * and the answer is 0.  Falling into the code below would test IsEOL(*EBfBeg) --
+ * but with dot at 0 the byte at EBfBeg is the first byte of the GAP,  not the
+ * first character of the document,  and it holds whatever the last gap movement
+ * left there.  If that stale byte looked like a line terminator this returned +1
+ * for a request to move BACKWARDS,  which made "-1K" delete a character forwards,
+ * "-1L" move forwards,  and ReadCS's immediate-mode backspace hand MEMMOVE a
+ * length of (SIZE_T)-1.
+ */
+	if (GapBeg == EBfBeg) {
+		return 0L;
+	}
 	TmpPtr = GapBeg;
 	while ((TmpPtr > EBfBeg) && (Value <= 0)) {
 		--TmpPtr;

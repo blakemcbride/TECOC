@@ -544,10 +544,18 @@ VVOID ReadCS()
 			    	ZDspCh(CRETRN);
 			    	ZScrOp(SCR_EEL);
 			    }
+/*
+ * Ln2Chr is documented to return a displacement of the same sign as its argument,
+ * but SIZE_T is unsigned:  if it ever came back positive here the MEMMOVE length
+ * would be enormous.  ExeL tests the sign before making the same two moves;  so
+ * does this now.
+ */
 			HowFar = Ln2Chr(-1L);
-			GapBeg += HowFar;
-			GapEnd += HowFar;
-			MEMMOVE(GapEnd+1, GapBeg, (SIZE_T)-HowFar);
+			if (HowFar < 0) {
+				GapBeg += HowFar;
+				GapEnd += HowFar;
+				MEMMOVE(GapEnd+1, GapBeg, (SIZE_T)-HowFar);
+			}
 			if (EvFlag) {
 			    DoEvEs(EvFlag);
 			} else {
