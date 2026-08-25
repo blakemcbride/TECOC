@@ -8,6 +8,7 @@
 #include "defext.h"		/* define external global variables */
 #include "dchars.h"		/* define identifiers for characters */
 #include "deferr.h"		/* define identifiers for error messages */
+#include <limits.h>		/* LONG_MIN, for the x/-1 special case */
 /*****************************************************************************
 	Reduce()
 	This function attempts to reduce the expression stack.  It is called
@@ -48,7 +49,21 @@ static DEFAULT Reduce()		/* reduce the expression stack */
 				case '+':	x += y;		break;
 				case '-':	x -= y;		break;
 				case '*':	x *= y;		break;
-				case '/':	x /= y;		break;
+				case '/':
+/*
+ * Dividing by zero raises SIGFPE on most machines,  which killed TECO outright
+ * and took the edit buffer with it.  Report an error instead.  LONG_MIN / -1
+ * traps the same way and has no representable result,  so let it wrap the way
+ * the other operators here do.
+ */
+					if (y == 0) {
+						ErrMsg(ERR_ARG);
+						return FAILURE;
+					}
+					if ((y != -1) || (x != LONG_MIN)) {
+						x /= y;
+					}
+					break;
 				case '&':	x &= y;		break;
 				case '#':	x |= y;		break;
 				}
