@@ -72,6 +72,10 @@ LONG AddFF;			/* add form feed: -1 is TRUE, 0 is FALSE */
 /*
  * If we need to append a form feed,  then save the character being
  * overwritten and overwrite it with a form feed.
+ *
+ * For a full-buffer P or PW this stores at EBfEnd+1,  which reads like an
+ * overflow but is not: the allocation runs on to IBfEnd,  which RdLine keeps
+ * at least IBFMIN bytes beyond EBfEnd,  and the byte is put back below.
  */
 	if (AddFF) {
 		++OBfEnd;
