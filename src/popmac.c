@@ -13,12 +13,23 @@ DEFAULT PopMac()		/* restore environment after macro exit */
     MSptr	MSp;		/* pointer into the macro stack */
     QRptr	QRp;		/* pointer into local Q-register table */
     BOOLEAN	RetVal;		/* TRUE if macro is returning a value */
+    DEFAULT	Status;		/* FAILURE if the returned value was bad */
     DBGFEN(1,"PopMac",NULL);
+    Status = SUCCESS;
     RetVal = (EStTop > EStBot);
     if (RetVal) {		/* if macro is returning a value */
         if (GetNmA() == FAILURE) {
-	    DBGFEX(1,DbgFNm,"FAILURE, GetNmA() failed");
-	    return FAILURE;
+/*
+ * The macro left something that isn't a value on the expression stack (say
+ * "1+"),  and GetNmA has already reported ?IFE.  Do NOT return from here:
+ * the environment below still describes the macro,  and CStBeg/CStEnd would
+ * be left pointing into the Q-register's text.  Nothing re-establishes them,
+ * so the NEXT command string would be executed against that stale -- and,
+ * once the Q-register is reused, freed -- memory.  Remember the failure,
+ * finish unwinding, and report it at the end.
+ */
+	    RetVal = FALSE;		/* there is no value to push */
+	    Status = FAILURE;
 	}
     }
 /*
@@ -42,8 +53,12 @@ DEFAULT PopMac()		/* restore environment after macro exit */
     }
     --MStTop;
 #if DEBUGGING
-    sprintf(DbgSBf,"%s", (RetVal) ? "PushEx(NArgmt)" : "SUCCESS");
+    sprintf(DbgSBf,"%s", (Status == FAILURE) ? "FAILURE"
+				: (RetVal) ? "PushEx(NArgmt)" : "SUCCESS");
     DbgFEx(1,DbgFNm,DbgSBf);
 #endif
+    if (Status == FAILURE) {
+	return FAILURE;
+    }
     return ((RetVal) ? PushEx(NArgmt, OPERAND) : SUCCESS);
 }

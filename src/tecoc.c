@@ -605,7 +605,7 @@ char **argv;
 	CStEnd--;
 	FOREVER {			/* loop forever */
 		ReadCS();		/* read command string */
-		CBfPtr = CBfBeg;	/* initialize command string ptr */
+		CStBeg = CBfPtr = CBfBeg; /* initialize command string ptr */
 		CmdMod = '\0';		/* clear modifiers flags */
 		EStTop = EStBot =	/* clear expression stack */
 		LStTop = LStBot =	/* clear loop stack */
