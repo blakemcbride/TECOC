@@ -1557,7 +1557,7 @@ DEFAULT ZRdLin(                 /* read a line from a file */
 #endif
                         return SUCCESS;
                 }
-                if (character == FORMFD && !(EzFlag & ED_FF)) {
+                if (character == FORMFD && !(EzFlag & EZ_FF)) {
                         /* toss form feed, then finished */
                         *retlen = shortBuf - charsLeft;
                         FFPage = -1;

@@ -1372,7 +1372,7 @@ DEFAULT *retlen;		/* returned length of string */
 			return SUCCESS;
 		}
 		IFisCR[IfIndx] = character == '\r'; /* last character was a CR -- DOS file? */
-		if (character == FORMFD && !(EzFlag & ED_FF)) {
+		if (character == FORMFD && !(EzFlag & EZ_FF)) {
 			/* toss form feed, then finished */
 			*retlen = shortBuf - charsLeft;
 			FFPage = -1;

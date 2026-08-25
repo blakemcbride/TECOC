@@ -20,7 +20,6 @@ TECO-11, and may be implemented in TECO-C someday.
 /*#define ED_IMMED_OK	32*/	/* allow immediate escape-sequence commands */
 #define ED_DOT_BY_ONE	64	/* move dot by one on iter. search failure */
 /*#define ED_NO_W	128*/	/* don't do automatic "^W" before prompt */
-#define ED_FF           128     /* do not stop read on FF */
 #if defined(unix) || defined(AMIGA)
 #define ED_UNIXNL	256	/* use Unix-style newline line terminators */
 #endif
