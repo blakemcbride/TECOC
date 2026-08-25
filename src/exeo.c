@@ -142,12 +142,19 @@ DEFAULT ExeO()			/* execute an O command */
 	}
 /*
  * At this point, we've found an '!'.  if tracing is on,  display exclamation
- * point
+ * point.
+ *
+ * Just the "!".  There used to be an "if (CmdMod & ATSIGN) ZDspCh('@');" in
+ * front of it,  commented "if it was @O".  It cannot mean that:  CmdMod is
+ * cleared fifty lines above,  at the top of the scan,  precisely so that the
+ * O command's own modifiers do not leak into it.  What it actually printed was
+ * a modifier left behind by the scan itself -- SkpCmd maps "@" to ExeAtS,  the
+ * real executor,  so any at-sign the scan stepped over on its way to the "!"
+ * set the bit -- and the trace then showed an "@" in front of a tag that has
+ * none.  ("?Oxx$@!xx!" traced the tag as "@!xx!".)  The "!" that opens a tag
+ * is never at-sign modified,  so there is never an "@" to echo here.
  */
 	if (TraceM) {				/* if trace mode is on */
-	    if (CmdMod & ATSIGN) {		/* if it was @O */
-		ZDspCh('@');
-	    }
 	    ZDspCh('!');
 	}
 	if (FindES('!') == FAILURE) {	/* find end of tag */

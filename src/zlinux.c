@@ -1484,8 +1484,18 @@ DEFAULT ZPWild()		/* preset the wildcard lookup filename */
 		return FAILURE;
 	}
 	result = 0; /* Count files matched */
+/*
+ * Count the files,  skipping the directories.  GLOB_MARK put a "/" on the end
+ * of each of those,  so it is the LAST character of the pathname we look at --
+ * and "[strlen(...)-1]" is "[-1]" for a zero-length pathname.  glob() never
+ * returns one,  so this is a landmine rather than a live bug,  but ZSWild's
+ * copy of the same test guards it explicitly and this one should too.
+ */
 	for (i = 0; i < pglob.gl_pathc; i++) {
-		if (pglob.gl_pathv[i][strlen(pglob.gl_pathv[i])-1] != '/') {
+		size_t pathname_length = strlen(pglob.gl_pathv[i]);
+
+		if ((pathname_length == 0) ||
+		    (pglob.gl_pathv[i][pathname_length-1] != '/')) {
 			result++;
 		}
 	}
@@ -1686,8 +1696,8 @@ DEFAULT ZSWild()		/* search for next wildcard filename */
  * so it is the LAST character of the pathname we have to look at.  The "-1"
  * used to be inside the strlen(),  which took the length of whatever happened
  * to precede the string and then indexed the pathname with it -- an
- * out-of-bounds read,  and the directory test never worked.  ZPWild has this
- * same test written correctly.
+ * out-of-bounds read,  and the directory test never worked.  ZPWild's copy of
+ * the same test now reads the same way.
  */
 	do {
 		if (globindex >= (int)pglob.gl_pathc) return FILENF;
