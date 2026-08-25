@@ -779,7 +779,12 @@ static DEFAULT ExeEI()			/* execute an EI command */
 	return SUCCESS;
     }
 
-    if (++EIIndx > NIFDBS) {			/* If EI nesting too deep */
+/*
+ * EIIndx indexes IFiles[NIFDBS], IsOpnI[NIFDBS] and IsEofI[NIFDBS],  whose last
+ * valid subscript is NIFDBS-1.  Testing for "> NIFDBS" let the deepest level use
+ * element NIFDBS of all three.
+ */
+    if (++EIIndx >= NIFDBS) {			/* If EI nesting too deep */
 	EIIndx--;
 	ErrMsg(ERR_MEM);			/* ERR_MEM=memory overflow */
 	DBGFEX(1,DbgFNm,"FAILURE, EI nested too deep");
