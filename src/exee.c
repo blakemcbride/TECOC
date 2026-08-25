@@ -266,7 +266,7 @@ static DEFAULT ExeEC()			/* execute an EC command */
 			return FAILURE;
 		}
 
-/* ??? */	ZDspBf("memory expand as per page 84\r\n", 29);
+/* ??? */	ZDspBf("memory expand as per page 84\r\n", 30);
 		CmdMod = '\0';			/* clear modifiers flags */
 
 		DBGFEX(1,DbgFNm,"SUCCESS");
