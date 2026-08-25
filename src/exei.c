@@ -33,7 +33,13 @@ DEFAULT ExeI()			/* execute an I command */
 				return FAILURE;
 			}
 		} else {				/* else must be nI$ */
-			if ((CBfPtr+1) == CStEnd) {
+/*
+ * The test used to be "(CBfPtr+1) == CStEnd",  which was wrong twice over:
+ * it rejected a perfectly good "nI$" whose ESCAPE happened to be the last
+ * character of a macro,  and it did not stop the lookahead below from reading
+ * past the end of the command string when the "I" itself was last.
+ */
+			if (CBfPtr == CStEnd) {
 				if (MStTop < 0) {
 					ErrUTC();
 					DBGFEX(1,DbgFNm,"FAILURE, unterminated command");

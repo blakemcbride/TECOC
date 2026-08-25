@@ -19,7 +19,12 @@ ESCAPE cannot be part of the syntax of the preceding TECO command.
 DEFAULT ExeEsc()		/* execute an ESCAPE command */
 {
 	DBGFEN(1,"ExeEsc",NULL);
-	if (*(CBfPtr+1) == ESCAPE) {		/* if it's <ESC><ESC> */
+/*
+ * CBfPtr may be sitting on the last character of the command string -- for a
+ * macro that is the last byte of the Q-register's text -- so the lookahead
+ * has to be guarded.  If there is no next character this can't be <ESC><ESC>.
+ */
+	if ((CBfPtr < CStEnd) && (*(CBfPtr+1) == ESCAPE)) {	/* <ESC><ESC>? */
 		if (TraceM) {			/* if tracing is on */
 			ZDspCh('$');		/* echo the escape */
 		}

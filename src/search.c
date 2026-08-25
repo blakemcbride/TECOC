@@ -41,7 +41,7 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
  * string from the last search command.
  */
 
-	if (*(CBfPtr+1) == ESCAPE) {		/* if it's s$, n$, etc. */
+	if ((CBfPtr < CStEnd) && (*(CBfPtr+1) == ESCAPE)) { /* if it's s$, n$ */
 		++CBfPtr;			/* skip the escape */
 	} else {
 		if (BldStr(SBfBeg, SBfEnd, &SBfPtr) == FAILURE) {
@@ -98,6 +98,7 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 
 	if ((CmdMod & COLON) ||			/* if colon modifier or */
 	    ((LStTop != LStBot) &&		/* (in loop and         */
+	     (CBfPtr < CStEnd) &&		/* (guard the lookahead */
 	     (*(CBfPtr+1) == ';'))) {		/* next cmd = ;)        */
 		if (Matchd) {			/* if successful search */
 			if (EsFlag&& LStTop == LStBot && MStTop < 0) {

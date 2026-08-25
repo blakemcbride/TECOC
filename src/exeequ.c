@@ -25,14 +25,14 @@ DEFAULT ExeEqu()		/* execute an = (equals sign) comand */
 		DBGFEX(1,DbgFNm,"FAILURE, GetNmA() failed");
 		return FAILURE;
 	}
-	if (*(CBfPtr+1) != '=') {		/* if next char not = */
+	if ((CBfPtr >= CStEnd) || (*(CBfPtr+1) != '=')) { /* if next char not = */
 		MakDBf(NArgmt, 10);		/* make string in decimal */
 	} else {
 		if (IncCBP() == FAILURE) {	/* move to next char */
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
 		}
-		if (*(CBfPtr+1) != '=') {	/* if next char not = */
+		if ((CBfPtr >= CStEnd) || (*(CBfPtr+1) != '=')) {
 			MakDBf(NArgmt, 8);	/* make string in octal */
 		} else {
 			if (IncCBP() == FAILURE) { /* move to next char */
