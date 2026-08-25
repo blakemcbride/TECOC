@@ -33,7 +33,13 @@ DEFAULT ExeBSl()		/* execute a \ (backslash) command */
 	RefLen=0;
 	if (GapEnd != EBfEnd) {			/* if not at end of buffer */
 	    BOOLEAN negative = FALSE;
-	    char NxtChr;
+/*
+ * Is_Digit and Is_Upper index ChrMsk[] with their argument,  so a plain char
+ * would index ChrMsk[-128..-1] for an 8-bit character on a signed-char
+ * platform.  IsRadx() gates the loop to 0-9/A-Z/a-z today,  but the guarantee
+ * is not local and -Wchar-subscripts flags it.
+ */
+	    unsigned char NxtChr;
 	    if (*(GapEnd+1) == '-') {		/* minus sign? */
 		RefLen--;
 		GapEnd++;			/* move forward... */
