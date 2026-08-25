@@ -18,6 +18,7 @@ static DEFAULT SkpE(void);	/* skip one of the E commands */
 static DEFAULT SkpExc(void);	/* skip command with text argument */
 static DEFAULT SkpF(void);	/* skip one of the F commands */
 static DEFAULT SkpOne(void);	/* skip one command character */
+static DEFAULT SkpQRg(void);	/* skip a Q-register name */
 static DEFAULT SkpSkp(void);	/* */
 #endif
 /*****************************************************************************
@@ -49,6 +50,34 @@ ErrUTC() already reports ?UTC or ?UTM according to MStTop,  so failing here is
 both correct and one iteration earlier than the callers would have managed.
 *****************************************************************************/
 /*****************************************************************************
+	SkpQRg()
+	This function skips a Q-register name.  On entry CBfPtr points at the
+command character;  on return it points at the last character of the name.
+	A Q-register name is not always one character: FindQR accepts a leading
+"." for a register local to the current macro level and consumes two.  These
+commands used to be skipped with SkpOne,  which stepped over the "." and left
+the register letter to be rescanned as a command -- and ".I", ".N", ".O" and
+".S" are commands with a text argument,  so the scan then swallowed everything
+up to the next ESC.  A macro that used local Q-registers therefore could not
+safely contain a null loop,  a conditional,  or an O command.
+*****************************************************************************/
+static DEFAULT SkpQRg()		/* skip a Q-register name */
+{
+	if (CBfPtr == CStEnd) {
+		ErrUTC();			/* unterminated command */
+		return FAILURE;
+	}
+	++CBfPtr;
+	if (*CBfPtr == '.') {			/* if local Q-register name */
+		if (CBfPtr == CStEnd) {
+			ErrUTC();		/* unterminated command */
+			return FAILURE;
+		}
+		++CBfPtr;			/* step over the register letter */
+	}
+	return SUCCESS;
+}
+/*****************************************************************************
 	SkpCtA()
 *****************************************************************************/
 static DEFAULT SkpCtA()		/* skip control-A command */
@@ -67,15 +96,14 @@ static DEFAULT SkpCtA()		/* skip control-A command */
 }
 /*****************************************************************************
 	SkpCtU()
+	Skip a Q-register name followed by a text argument.  That is what ^U
+consumes,  and also what EQ and E% consume,  so SkpE sends those here too.
 *****************************************************************************/
 static DEFAULT SkpCtU()		/* skip control-U command */
 {
 	BOOLEAN	TTrace;		/* temp: holds trace flag */
-	if (CBfPtr == CStEnd) {
-		ErrUTC();			/* unterminated command */
+	if (SkpQRg() == FAILURE)		/* skip the Q-register name */
 		return FAILURE;
-	}
-	++CBfPtr;
 	TTrace = TraceM;			/* save trace mode flag */
 	TraceM = FALSE;				/* keep FindES from tracing */
 	if (FindES(ESCAPE) == FAILURE)		/* find end of string */
@@ -328,7 +356,7 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* ^X*/ SkpSkp,   /* ^Y*/ SkpSkp,   /* ^Z*/ SkpSkp,   /*ESC*/ SkpSkp,
 /* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ SkpSkp,
 /* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ SkpSkp,
-/* $ */ SkpSkp,   /* % */ SkpOne,   /* & */ SkpSkp,   /* ' */ SkpSkp,
+/* $ */ SkpSkp,   /* % */ SkpQRg,   /* & */ SkpSkp,   /* ' */ SkpSkp,
 /* ( */ SkpSkp,   /* ) */ SkpSkp,   /* * */ SkpSkp,   /* + */ SkpSkp,
 /* , */ SkpSkp,   /* - */ SkpSkp,   /* . */ SkpSkp,   /* / */ SkpSkp,
 /* 0 */ SkpSkp,   /* 1 */ SkpSkp,   /* 2 */ SkpSkp,   /* 3 */ SkpSkp,
@@ -336,20 +364,20 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* 8 */ SkpSkp,   /* 9 */ SkpSkp,   /* : */ SkpSkp,   /* ; */ SkpSkp,
 /* < */ SkpSkp,   /* = */ SkpSkp,   /* > */ SkpSkp,   /* ? */ SkpSkp,
 /* @ */ ExeAtS,   /* A */ SkpSkp,   /* B */ SkpSkp,   /* C */ SkpSkp,
-/* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpOne,
+/* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRg,
 /* H */ SkpSkp,   /* I */ SkpArg,   /* J */ SkpSkp,   /* K */ SkpSkp,
-/* L */ SkpSkp,   /* M */ SkpOne,   /* N */ SkpArg,   /* O */ SkpArg,
-/* P */ SkpSkp,   /* Q */ SkpOne,   /* R */ SkpSkp,   /* S */ SkpArg,
-/* T */ SkpSkp,   /* U */ SkpOne,   /* V */ SkpSkp,   /* W */ SkpSkp,
-/* X */ SkpOne,   /* Y */ SkpSkp,   /* Z */ SkpSkp,   /* [ */ SkpOne,
-/* \ */ SkpSkp,   /* ] */ SkpOne,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
+/* L */ SkpSkp,   /* M */ SkpQRg,   /* N */ SkpArg,   /* O */ SkpArg,
+/* P */ SkpSkp,   /* Q */ SkpQRg,   /* R */ SkpSkp,   /* S */ SkpArg,
+/* T */ SkpSkp,   /* U */ SkpQRg,   /* V */ SkpSkp,   /* W */ SkpSkp,
+/* X */ SkpQRg,   /* Y */ SkpSkp,   /* Z */ SkpSkp,   /* [ */ SkpQRg,
+/* \ */ SkpSkp,   /* ] */ SkpQRg,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
 /* ` */ SkpSkp,   /* a */ SkpSkp,   /* b */ SkpSkp,   /* c */ SkpSkp,
-/* d */ SkpSkp,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpOne,
+/* d */ SkpSkp,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRg,
 /* h */ SkpSkp,   /* i */ SkpArg,   /* j */ SkpSkp,   /* k */ SkpSkp,
-/* l */ SkpSkp,   /* m */ SkpOne,   /* n */ SkpArg,   /* o */ SkpArg,
-/* p */ SkpSkp,   /* q */ SkpOne,   /* r */ SkpSkp,   /* s */ SkpArg,
-/* t */ SkpSkp,   /* u */ SkpOne,   /* v */ SkpSkp,   /* w */ SkpSkp,
-/* x */ SkpOne,   /* y */ SkpSkp,   /* z */ SkpSkp,   /* { */ SkpSkp,
+/* l */ SkpSkp,   /* m */ SkpQRg,   /* n */ SkpArg,   /* o */ SkpArg,
+/* p */ SkpSkp,   /* q */ SkpQRg,   /* r */ SkpSkp,   /* s */ SkpArg,
+/* t */ SkpSkp,   /* u */ SkpQRg,   /* v */ SkpSkp,   /* w */ SkpSkp,
+/* x */ SkpQRg,   /* y */ SkpSkp,   /* z */ SkpSkp,   /* { */ SkpSkp,
 /* | */ SkpSkp,   /* } */ SkpSkp,   /* ~ */ SkpSkp,   /*DEL*/ SkpSkp,
 /*129*/ SkpSkp,   /*130*/ SkpSkp,   /*131*/ SkpSkp,   /*132*/ SkpSkp,
 /*133*/ SkpSkp,   /*134*/ SkpSkp,   /*135*/ SkpSkp,   /*136*/ SkpSkp,
