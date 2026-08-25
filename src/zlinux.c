@@ -1548,9 +1548,40 @@ character is received when it is struck, and no echoing is performed.  Save
 the terminal characteristics so when we exit we can reset them (in ZClnUp)
 to what they were before we changed them.
 *****************************************************************************/
+/*****************************************************************************
+
+	SetSig()
+
+	Install a signal handler.  This uses sigaction rather than signal()
+because signal()'s behaviour differs between the BSD and System V traditions,
+and because siginterrupt() -- which this code used to call to stop a signal
+restarting a pending read -- is deprecated in favour of saying so here.
+
+	Restart says whether a system call interrupted by this signal should
+be resumed or fail with EINTR.  TECO wants ^C and a hangup to break the read
+it is sitting in,  so those pass FALSE.
+
+*****************************************************************************/
+
+static VVOID SetSig(SigNum, Handler, Restart)
+int SigNum;			/* which signal */
+void (*Handler)();		/* what to call */
+BOOLEAN Restart;		/* resume an interrupted system call? */
+{
+	struct sigaction sa;
+
+	sa.sa_handler = Handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = Restart ? SA_RESTART : 0;
+	(void)sigaction(SigNum, &sa, (struct sigaction *)NULL);
+}
 static VVOID CntrlC()
 {
-    signal(SIGINT, SIG_IGN);
+/*
+ * sigaction leaves this handler installed and blocks SIGINT while it runs,
+ * so there is no need to ignore the signal on the way in and re-arm on the
+ * way out,  as the signal()-based version had to.
+ */
     SupGotCtC = 0;
     if (EtFlag & ET_TRAP_CTRL_C) {		/* if user wants it */
 	EtFlag &= ~ET_TRAP_CTRL_C;		/* turn off bit */
@@ -1565,7 +1596,6 @@ static VVOID CntrlC()
  */
 	GotCtC = TRUE;				/* set "stop soon" flag */
     }
-    signal(SIGINT, CntrlC);
 }
 /*
  * sighup - what we do if we get a hang up?
@@ -1647,7 +1677,7 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	ioctl(0, TIOCGETP, &cur);
 #endif
 #ifdef SIGTSTP
-	signal(SIGTSTP, sigstop);	/* call sigstop on stop (control-Z) */
+	SetSig(SIGTSTP, sigstop, TRUE);	/* call sigstop on stop (control-Z) */
 #endif
 #endif
 /*
@@ -1679,10 +1709,10 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	ioctl(0, TIOCSETP, &cur);	/* set the new modes */
 #endif
 #endif
-	signal(SIGINT, CntrlC);		/* call CntrlC on interrupt */
-	signal(SIGHUP, sighup);		/* call sighup on hang up */
-	siginterrupt(SIGINT, 1);
-	siginterrupt(SIGHUP, 1);	/* so a hangup breaks the pending read */
+	SetSig(SIGINT, CntrlC, FALSE);	/* call CntrlC on interrupt */
+	SetSig(SIGHUP, sighup, FALSE);	/* call sighup on hang up */
+					/* FALSE: neither may restart the */
+					/* read ZChIn is sitting in */
 /*
  * set up termcap stuff
  */
