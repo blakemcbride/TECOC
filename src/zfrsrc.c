@@ -397,7 +397,7 @@ kludge:			break;
 			LstBeg = SStPtr;
 			for (;EBPtr1<=EndSAr;++EBPtr1) {
 				while (*SStPtr != ']') {
-					if (*SStPtr == ', ') {
+					if (*SStPtr == ',') {
 						if (++SStPtr == SBfPtr) {
 							ErrMsg(ERR_ICE);
 							DBGFEX(3,DbgFNm,"FAILURE");
