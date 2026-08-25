@@ -378,12 +378,15 @@ LONG ZClnEG(                    /* execute special :EG command */
         }
 
         if (EGOper == GET_VAL) {
+                size_t cplen;
                 if ((cp = getenv(cp)) == NULL) {
                         retval = 0L;            /* return failure */
+                } else if ((cplen = strlen(cp)) >= FILENAME_MAX) {
+                        retval = 0L;            /* too long for FBf */
                 } else {
                         retval = -1L;           /* success, copy to FBf */
-                        strcpy((char*)FBfBeg, cp);
-                        FBfPtr = FBfBeg + strlen(cp);
+                        MEMMOVE(FBfBeg, cp, (SIZE_T)(cplen + 1));
+                        FBfPtr = FBfBeg + cplen;
                 }
         } else {
                 strcpy(buf, cp);                /* build NAME= */

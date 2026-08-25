@@ -283,12 +283,15 @@ stored in /tmp so it gets deleted when the system boots.
 			default: return 0L;
 		}
 		if (EGOper == GET_VAL) {
+			size_t cplen;
 			if ((cp = getenv(cp)) == NULL) {
 				retval = 0L;            /* return failure */
+			} else if ((cplen = strlen(cp)) >= FILENAME_MAX) {
+				retval = 0L;            /* too long for FBf */
 			} else {
 				retval = -1L;           /* success, copy to FBf */
-				strcpy((char*)FBfBeg, cp);
-				FBfPtr = FBfBeg + strlen(cp);
+				MEMMOVE(FBfBeg, cp, (SIZE_T)(cplen + 1));
+				FBfPtr = FBfBeg + cplen;
 			}
 		} else {
 			/* Cannot set value */
