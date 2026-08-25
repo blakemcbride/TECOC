@@ -278,6 +278,17 @@ static BOOLEAN ChkHlp(HlpEnd)		/* check for HELP command */
 charptr HlpEnd;				/* end of help command */
 {
     DBGFEN(3, "ChkHlp", NULL);
+/*
+ * HlpEnd points at the carriage return the user just typed,  so the command
+ * typed so far is CBfBeg..HlpEnd-1.  Make sure there really are that many
+ * characters before looking at them -- typing "H" and a carriage return used
+ * to read up to six bytes of whatever happened to be in the freshly allocated
+ * command buffer,  and could hand ZHelp a start pointer beyond its end.
+ */
+    if ((HlpEnd - CBfBeg) < 4) {
+	DBGFEX(3, DbgFNm, "FALSE");
+	return FALSE;
+    }
     if ((*CBfBeg     != 'H' && *CBfBeg     != 'h') ||
 	(*(CBfBeg+1) != 'E' && *(CBfBeg+1) != 'e') ||
 	(*(CBfBeg+2) != 'L' && *(CBfBeg+2) != 'l') ||
@@ -285,8 +296,9 @@ charptr HlpEnd;				/* end of help command */
 	DBGFEX(3, DbgFNm, "FALSE");
 	return FALSE;
     }
-    if ((*(CBfBeg+4) != '/') &&
-	(*(CBfBeg+5) != 'S') && (*(CBfBeg+5) != 's')) {
+    if (((HlpEnd - CBfBeg) < 6) ||	/* too short to be "HELP/S..." */
+	((*(CBfBeg+4) != '/') &&
+	 (*(CBfBeg+5) != 'S') && (*(CBfBeg+5) != 's'))) {
 	ZHelp(CBfBeg+4, HlpEnd-1, FALSE, TRUE);
     } else {
 	ZHelp(CBfBeg+6, HlpEnd-1, TRUE, TRUE);
