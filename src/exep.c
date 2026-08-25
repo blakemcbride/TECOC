@@ -48,6 +48,11 @@ DEFAULT ExeP()			/* execute a P or PW command */
 		}
 	} while ((--NArgmt > 0) && !IsEofI[CurInp]);
 	if (CmdMod & COLON) {			/* if it's :P */
+/*
+ * This arm consumed the colon but left it set,  so the NEXT command saw a
+ * colon it was never given:  ":PGA" typed Q-register A instead of inserting it.
+ */
+		CmdMod = '\0';			/* clear modifiers flags */
 		DBGFEX(1,DbgFNm,SavEof ? "PushEx(0)" : "PushEx(-1)");
 		return PushEx(SavEof ? 0L : -1L, OPERAND);
 	}

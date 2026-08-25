@@ -42,12 +42,17 @@ DEFAULT ExeEqu()		/* execute an = (equals sign) comand */
 			MakDBf(NArgmt, 16);	/* make string in hex */
 		}
 	}
-	if (CmdMod & COLON) {			/* if colon modified */
-		CmdMod &= ~COLON;		/* clear colon flag */
-	} else {
+	if ((CmdMod & COLON) == 0) {		/* if not colon modified */
 		*DBfPtr++ = CRETRN;		/* append a carriage return */
 		*DBfPtr++ = LINEFD;		/* append a line feed */
 	}
+/*
+ * "=" uses only n,  so an m,n= command has consumed the pair.  Clearing just
+ * the colon bit left MARGIS set (and MArgmt stale) for the next command, which
+ * then read an "m" the user had not typed:  "2,3=T" typed one character
+ * instead of the current line.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
 	ZDspBf(DBfBeg, DBfPtr-DBfBeg);		/* display the string */
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	return SUCCESS;

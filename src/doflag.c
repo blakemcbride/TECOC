@@ -19,6 +19,13 @@ LONG *Flag;
 	DBGFEN(2,"DoFlag",NULL);
 	if ((EStTop == EStBot) ||		    /* if no numeric arg or */
 	    (EStack[EStTop].ElType != OPERAND)) {   /* partial expression */
+/*
+ * Reading a flag consumes the modifiers the command was given,  so they have
+ * to be cleared here too,  not just on the "set the flag" path below.  ":ED"
+ * used to leave the colon set for the next command,  which then saw a colon it
+ * was never given:  ":EDGA" typed Q-register A instead of inserting it.
+ */
+		CmdMod = '\0';				/* clear modifiers */
 		DBGFEX(2,DbgFNm,"PushEx");
 		return PushEx(*Flag, OPERAND);		/* return the flag */
 	}

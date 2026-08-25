@@ -9,5 +9,13 @@
 DEFAULT ExeCtL()		/* execute an ^L (control-L) command */
 {
 	ZDspCh(FORMFD);
+/*
+ * ^L takes no arguments and no modifiers,  so it has to discard whatever was
+ * in front of it,  the way ExeCtA, ExeExc and the rest of the no-argument
+ * commands do.  Without this a ":^L" left the colon set for the next command,
+ * which then saw a colon it was never given.
+ */
+	CmdMod = '\0';				/* clear modifiers flags */
+	EStTop = EStBot;			/* clear expression stack */
 	return SUCCESS;
 }
