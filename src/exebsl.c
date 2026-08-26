@@ -30,6 +30,14 @@ DEFAULT ExeBSl()		/* execute a \ (backslash) command */
     if ((EStTop == EStBot) ||			/* if no numeric arg or */
 	(EStack[EStTop].ElType != OPERAND)) {	/* partial expression */
 	LONG StrVal = 0;
+/*
+ * Accumulate in an unsigned type,  exactly as ExeDgt does for the same digit
+ * string read out of the command string instead of out of the edit buffer.
+ * A number too big for a LONG is not an error in TECO -- it just wraps,  the
+ * same way +, - and * do -- but doing the arithmetic in a signed type makes
+ * that overflow undefined behaviour.
+ */
+	ULONG Acc = 0;
 	RefLen=0;
 	if (GapEnd != EBfEnd) {			/* if not at end of buffer */
 	    BOOLEAN negative = FALSE;
@@ -40,12 +48,17 @@ DEFAULT ExeBSl()		/* execute a \ (backslash) command */
  * is not local and -Wchar-subscripts flags it.
  */
 	    unsigned char NxtChr;
-	    if (*(GapEnd+1) == '-') {		/* minus sign? */
-		RefLen--;
-		GapEnd++;			/* move forward... */
-		*GapBeg++ = *GapEnd;		/* ... one character */
-		negative = TRUE;
-	    } else if (*(GapEnd+1) == '+') {	/* plus sign? */
+/*
+ * "If there is no digit string following the pointer,  the result is zero and
+ * THE POINTER POSITION REMAINS UNCHANGED."  The sign used to be consumed
+ * before the digit loop had a chance to say whether any digits followed it,
+ * so a "\" on a lone + or - moved dot over the sign and decremented RefLen --
+ * the length ^S reports -- for a reference that was never made.  Look one
+ * character past the sign before committing to it.
+ */
+	    if ((((*(GapEnd+1) == '-') || (*(GapEnd+1) == '+'))) &&
+		((GapEnd+1) != EBfEnd) && IsRadx(*(GapEnd+2))) {
+		negative = (*(GapEnd+1) == '-');
 		RefLen--;
 		GapEnd++;			/* move forward... */
 		*GapBeg++ = *GapEnd;		/* ... one character */
@@ -61,10 +74,13 @@ DEFAULT ExeBSl()		/* execute a \ (backslash) command */
 		    NxtChr -= '\67';
 		else
 		    NxtChr -= '\127';
-		StrVal = (StrVal * Radix) + NxtChr;
+		Acc = (Acc * (ULONG)Radix) + (ULONG)NxtChr;
 	    }
-	    if (negative)
-		StrVal = -StrVal;
+/*
+ * "StrVal = -StrVal" on LONG_MIN is undefined too,  so negate in the unsigned
+ * type and cast once,  as ExeDgt does.
+ */
+	    StrVal = negative ? (LONG)(0 - Acc) : (LONG)Acc;
 	}
 	CmdMod = '\0';				/* clear modifiers flags */
 #if DEBUGGING

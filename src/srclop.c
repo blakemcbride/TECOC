@@ -37,7 +37,50 @@ static DEFAULT DoFBFC()		/* search loop */
 #endif
 
     Shuffl = 0;
-    if (CmdMod & MARGIS) {			/* if it's m,nFB or m,nFC */
+    if ((CmdMod & MARGIS) && (MArgmt == NArgmt)) {
+
+/*
+ * An ANCHORED search.  The manual:  "A special case of the bounded search
+ * occurs when the upper and lower bound limits are the same.  In such a case,
+ * the search command is called an anchored search,  and is used to compare the
+ * search argument against the character string immediately following the text
+ * buffer pointer",  and it defines ::Stext` as "identical to .,.:FBtext`".
+ *	It has to be taken before the general path below,  which can never
+ * match when m == n:  GetAra reads m,n as the half-open range [m,n) and so
+ * hands back AraEnd == AraBeg-1,  the direction test picks BACKWARDS because
+ * m is not less than n,  and SSerch's first bound test (EBPtr1 < EndSAr) fires
+ * before it looks at a single character.  Worse,  m == n == Z made GetAra
+ * itself report ?POP,  because it computes the address of character n-1.
+ *	Only a match that starts exactly at m counts,  so EBPtr1 and EndSAr
+ * are both the address of m;  the matched string may run past m,  which is
+ * what RhtSid allows.  (TECO-C's own ::S builds .,.+1:FB to dodge all this;
+ * that still works,  since [.,.+1) is the single position dot.)
+ */
+	if (MArgmt < 0) {			/* if negative m */
+	    ErrMsg(ERR_NCA);			/* negative argument to , */
+	    DBGFEX(2,DbgFNm,"FAILURE, negative m");
+	    return FAILURE;
+	}
+	if (MArgmt > ((GapBeg-EBfBeg) + (EBfEnd-GapEnd))) {	/* if past Z */
+	    ErrStr(ERR_POP, ErrTxt);		/* POP = pointer off page */
+	    DBGFEX(2,DbgFNm,"FAILURE, m too large");
+	    return FAILURE;
+	}
+	AraBeg = EBfBeg + MArgmt;		/* compute area beginning */
+	if (AraBeg > GapBeg-1) {		/* if past start of gap */
+	    AraBeg += (GapEnd-GapBeg) + 1;	/* correct for gap */
+	}
+	AraEnd = AraBeg;
+	if (AraBeg > EBfEnd) {			/* if m is the end of the buffer */
+	    Matchd = FALSE;			/* there is nothing to compare */
+	    DBGFEX(2,DbgFNm,"SUCCESS, Matchd = FALSE");
+	    return SUCCESS;
+	}
+	SIncrm = 1;				/* compare forwards */
+	EBPtr1 = EndSAr = AraBeg;		/* only m may start a match */
+	RhtSid = (AraBeg < GapBeg) ? GapBeg - 1 : EBfEnd;
+
+    } else if (CmdMod & MARGIS) {		/* if it's m,nFB or m,nFC */
 /*
  * Call GetAra to convert m and n into addresses.  A side effect of the call
  * to GetAra is that MArgmt and NArgmt are sorted so that MArgmt is less than

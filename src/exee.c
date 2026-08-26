@@ -267,11 +267,17 @@ static DEFAULT ExeEC()			/* execute an EC command */
 			return FAILURE;
 		}
 
-/* ??? */	ZDspBf("memory expand as per page 84\r\n", 30);
+/*
+ * nEC is the TECO-10 memory-sizing command,  which TECO-C does not implement.
+ * It must not report success:  ExeEX and ExeEG both call ExeEC to close out
+ * the output file and then exit if it worked,  so an nEC that answered
+ * SUCCESS without closing anything would make TECO exit with the output file
+ * unwritten -- and ClenUp closes-and-deletes it.
+ */
 		CmdMod = '\0';			/* clear modifiers flags */
 
-		DBGFEX(1,DbgFNm,"SUCCESS");
-		return SUCCESS;
+		DBGFEX(1,DbgFNm,"ExeNYI(), nEC is TECO-10 only");
+		return ExeNYI();
 	}
 
     if (IsOpnO[CurOut]) {

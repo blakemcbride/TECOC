@@ -88,6 +88,9 @@ TECOC.RNH, DEFERR.H, VRBMSG.H and ERR.C.
 ?UTM	Unterminated macro
 ?WLO	System Device Write-Locked
 ?nnn	I/O Error or Directive Error  (RSX-11 only)
-%Superseding existing filed  (TECO-11 only)
-%Search fail in iter  (TECO-11 only)
+  TECO-11's two warning messages are not errors -- they do not abort the
+command,  execution continues -- so they have no ERR_ code and are printed
+with ZDspBf where they happen.  Both ARE implemented:
+%Superseding existing file	ZOpOut,  in the z*.c port files
+%Search fail in iter		Search,  in search.c
 */

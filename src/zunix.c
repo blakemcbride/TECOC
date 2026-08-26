@@ -921,8 +921,25 @@ DEFAULT ZExeEJ()			/* execute an EJ command */
 		return PushEx((LONG)25600, OPERAND);	/* means "Unix" */
 	}
 	if (NArgmt == 0) {
-		DBGFEX(1,DbgFNm,"PushEx(getppid())");
-		return PushEx((LONG)getppid(), OPERAND);
+/*
+ * "Returns a value equal to your job number" -- this process's own pid,  not
+ * its parent's.  getppid() answered with the pid of the shell TECO was started
+ * from,  so every TECO run from one shell claimed the same job number.
+ */
+		DBGFEX(1,DbgFNm,"PushEx(getpid())");
+		return PushEx((LONG)getpid(), OPERAND);
+	}
+	if ((NArgmt == 1) || (NArgmt == 2)) {
+/*
+ * The manual documents 1EJ ("console keyboard number ... on single-terminal
+ * systems this is always a 0") and 2EJ ("your operating system's user
+ * identification number") as always available,  and the table above says both
+ * are 0 everywhere except VAX/VMS.  Falling through to ExeNYI() contradicted
+ * that table AND abandoned the whole command string,  so a macro carried over
+ * from TECO-32 -- where zvms.c does implement them -- died on arrival.
+ */
+		DBGFEX(1,DbgFNm,"PushEx(0)");
+		return PushEx(0L, OPERAND);
 	}
 	DBGFEX(1,DbgFNm,"ExeNYI()");
 	return ExeNYI();

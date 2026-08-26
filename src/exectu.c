@@ -93,6 +93,33 @@ DEFAULT ExeCtU()		/* execute a ^U (control-U) command */
 				DBGFEX(1,DbgFNm,"FAILURE, ERR_IIA");
 				return FAILURE;
 			}
+		} else {			/* else must be n^Uq$ */
+/*
+ * The <DELIM> is part of the syntax of n^Uq$ -- the manual gives the command
+ * as "n^Uq`" -- and SkpCtU consumes one when it skips over a ^U.  This arm
+ * used to leave CBfPtr on the Q-register name,  so whatever the user wrote
+ * between the register name and the delimiter was handed back to ExeCSt AS
+ * COMMANDS,  and the skipper and the executor stopped in different places.
+ * The test is the one ExeI uses for the identical command shape (nI$),  and
+ * the @-modified arm just above answers ?IIA for exactly this mistake.
+ */
+			if (CBfPtr != CStEnd) {
+				if (*(CBfPtr+1) != ESCAPE) {
+					ErrMsg(ERR_IIA); /* illegal insert arg */
+					DBGFEX(1,DbgFNm,"FAILURE, illegal insert arg");
+					return FAILURE;
+				}
+				++CBfPtr;	/* consume the delimiter */
+			} else if (MStTop < 0) {
+				ErrUTC();	/* unterminated command */
+				DBGFEX(1,DbgFNm,"FAILURE, unterminated command");
+				return FAILURE;
+			}
+/*
+ * else the command string ran out right after the Q-register name inside a
+ * macro:  as in ExeI,  end-of-macro serves as the delimiter.  Fall through
+ * and store the character.
+ */
 		}
 /*
  * Increase the size of the text area by 1 character

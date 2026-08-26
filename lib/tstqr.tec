@@ -88,11 +88,11 @@ otest1done
 !
 10u.n                 ! put 10 in main-level q-register .n !
 @^U1/20u.n:m2/    ! put 20u.n$:m2$$ in q-register 1 !
-27:^U1
+27:^U1
 @^U2/:m3/           ! put :m3$$ in q-register 2 !
-27:^U2
+27:^U2
 @^U3/q.n/           ! put q.n$$ into q-register 3 !
-27:^U3
+27:^U3
 m1+q.n-30"e
         test 3 passed (:M commands use old local q-registers)13^T10^T
 |
@@ -107,11 +107,11 @@ m1+q.n-30"e
 
 10u.n                 ! put 10 in main-level q-register .n !
 @^U1/20u.nm.2/    ! put 20u.n$m.2$$ in q-register .1 !
-27:^U1
+27:^U1
 @^U.2/m.3/           ! put m.3$$ in q-register .2 !
-27:^U.2
+27:^U.2
 @^U.3/q.n/           ! put q.n$$ into q-register .3 !
-27:^U.3
+27:^U.3
 :m1+q.n-40"e
         test 5 passed (M. commands use old local q-registers)13^T10^T
 |

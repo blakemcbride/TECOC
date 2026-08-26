@@ -477,8 +477,13 @@ DEFAULT ZExeEJ(void)                    /* execute an EJ command */
         }
 
         if (NArgmt == 0) {
-                DBGFEX(1,DbgFNm,"PushEx(getppid())");
-                return PushEx((LONG)getppid(), OPERAND);        /* process id */
+/*
+ * "Returns a value equal to your job number" -- this process's own pid,  not
+ * its parent's.  getppid() answered with the pid of the shell TECO was started
+ * from,  so every TECO run from one shell claimed the same job number.
+ */
+                DBGFEX(1,DbgFNm,"PushEx(getpid())");
+                return PushEx((LONG)getpid(), OPERAND);         /* process id */
         }
 
         DBGFEX(1,DbgFNm,"ExeNYI");

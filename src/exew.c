@@ -53,7 +53,18 @@ static DEFAULT VGetW()		/* execute an n:W command */
 			NArgmt==3 ? SeeAll :
 			NArgmt==4 ? MrkFlg :
 			NArgmt==5 ? HldFlg :
+/*
+ * VSetW's "case 6" writes scope_start under CURSES and TopDot only in the
+ * non-CURSES build,  and redraw() maintains scope_start too;  nothing in a
+ * CURSES build ever assigns TopDot,  so reading it here made 6:W answer 0
+ * forever and a macro that saved the window position with 6:W and restored it
+ * with m,6:W scrolled to the top of the buffer instead.
+ */
+#if CURSES
+			NArgmt==6 ? (DEFAULT)scope_start :
+#else
 			NArgmt==6 ? TopDot :
+#endif
 			NArgmt==7 ? ScroLn :
 #if CURSES
 		        NArgmt==8 ? SpcMrk :

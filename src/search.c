@@ -143,8 +143,26 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 		return SUCCESS;
 	} else {				/* else unsuccessful search */
 		*SBfPtr = '\0';
-		ErrPSt(ERR_SRH, SBfBeg, SBfPtr);/* "search failure" */
-		DBGFEX(2,DbgFNm,(LStTop==LStBot) ? "FAILURE"  : "FlowEL()");
-		return (LStTop == LStBot) ? FAILURE : FlowEL();
+/*
+ * ?SRH is "A search command not preceded by a colon modifier AND NOT WITHIN AN
+ * ITERATION has failed to find the specified text".  Inside an iteration the
+ * failure is not an error at all:  the manual lists "%Search fail in iter"
+ * among its two non-fatal warnings,  and says that after printing it "the
+ * iteration is terminated,  i.e., TECO simulates a 0; command" -- which is
+ * exactly what FlowEL does here.  Reporting it with ErrPSt instead printed
+ * "?SRH",  which everywhere else in TECO means the command string was
+ * abandoned;  it also set LstErr,  so a later ? or / blamed a search that had
+ * not failed fatally,  and with EH&4 set TypESt dumped the command string.
+ *	%Superseding existing file (ZOpOut) is the other warning of the pair,
+ * and is printed the same way.
+ */
+		if (LStTop == LStBot) {		/* if not in an iteration */
+			ErrPSt(ERR_SRH, SBfBeg, SBfPtr);/* "search failure" */
+			DBGFEX(2,DbgFNm,"FAILURE");
+			return FAILURE;
+		}
+		ZDspBf("% Search fail in iter\r\n", 23);
+		DBGFEX(2,DbgFNm,"FlowEL()");
+		return FlowEL();
 	}
 }

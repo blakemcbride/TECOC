@@ -125,6 +125,16 @@ DEFAULT ExeCSt()		/* execute command string */
 	}
 	if (LStTop != LStBot) {			/* if unclosed loop */
 		ErrUTC();			/* unterminated command */
+/*
+ * FAILURE,  not SUCCESS,  for the same reason as the ^C arm above:  ExeCSt is
+ * re-entered for every macro level and for every $$-delimited chunk of an EI
+ * file,  so answering SUCCESS made ExeM pop its frame and told the CALLING
+ * command string that the macro had finished normally -- it then carried on
+ * with the next command,  and an enclosing loop re-ran the broken macro once
+ * per iteration.  ErrUTC() has already said why.
+ */
+		DBGFEX(4,DbgFNm,"FAILURE, unterminated loop");
+		return FAILURE;
 	}
 	DBGFEX(4,DbgFNm,"SUCCESS");
 	return SUCCESS;

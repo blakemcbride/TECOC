@@ -276,8 +276,7 @@ BOOLEAN NoWait;				/* return immediately? */
 		if (!GotCtC) {
 			ZErMsg();
 			ErrMsg(ERR_URC);
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 	}
 	GotCtC = FALSE;
@@ -439,6 +438,18 @@ VVOID ZDoCmd(charptr GBfBeg, charptr GBfPtr)	/* die and pass command to OS */
 	*GBfPtr = '\0';
 	buf[sizeof(buf)-1] = '\0';
 	(void)strncpy(buf, (char *)GBfBeg, sizeof(buf)-1);
+/*
+ * In a CURSES build ZClnUp() does nothing -- its whole body is inside
+ * "#if !CURSES" -- and endwin() is the only thing that takes the terminal back
+ * out of the raw, no-echo mode ZTrmnl() put it in.  EG *replaces* the TECO
+ * process,  so there is no "after" in which to do it:  without this the shell,
+ * and everything the user runs from it,  inherited a terminal in "-icanon
+ * -echo" mode with no TECO left to fix it.
+ */
+#if CURSES
+	nodelay(stdscr,FALSE);		/* as in ZExit(), below */
+	endwin();
+#endif
 	ZClnUp();
 /*
  * "sh -c" takes the WHOLE command line as one argument;  whatever follows it
@@ -798,6 +809,8 @@ characteristics.  It returns:
 		25856 under MS-DOS	(101*256 = IBM-PC, 0 = MS-DOS)
 		25857 under OS/2    (101*256 = IBM-PC, 1 = OS/2)
         25858 under Linux   (101*256 = IBM-PC, 2 = Linux)
+		26112 under AmigaDOS 1.3 (102*256 = Amiga, 0 = AmigaDOS 1.3)
+		26368 under macOS   (103*256 = Apple Mac, 0 = macOS/Darwin)
 	0EJ	process id on VAXen or Unix/Linux, 0 on anything else
 	1EJ	0 on all systems
 	2EJ	UIC, in longword format (unlike TECO-11) on VAX/VMS,
@@ -816,12 +829,31 @@ DEFAULT ZExeEJ()			/* execute an EJ command */
 		}
 	}
 	if (NArgmt == -1) {
-		DBGFEX(1,DbgFNm,"PushEx(25858)");
-		return PushEx((LONG)25858, OPERAND);	/* means "PC Linux" */
+/*
+ * -1EJ is the one value of EJ whose whole purpose is to let a macro find out
+ * what it is running on,  so it must not be copied from zlinux.c:  25858 is
+ * 101*256+2,  which the table above decodes as an IBM-PC running Linux.
+ * 103 is the first machine code the tables in the other port files leave
+ * free (100 = Sun, 101 = IBM-PC, 102 = Amiga).
+ */
+		DBGFEX(1,DbgFNm,"PushEx(26368)");
+		return PushEx((LONG)26368, OPERAND);	/* means "Apple macOS" */
 	}
 	if (NArgmt == 0) {
 		DBGFEX(1,DbgFNm,"PushEx(getpid())");
 		return PushEx((LONG)getpid(), OPERAND);
+	}
+	if ((NArgmt == 1) || (NArgmt == 2)) {
+/*
+ * The manual documents 1EJ ("console keyboard number ... on single-terminal
+ * systems this is always a 0") and 2EJ ("your operating system's user
+ * identification number") as always available,  and the table above says both
+ * are 0 everywhere except VAX/VMS.  Falling through to ExeNYI() contradicted
+ * that table AND abandoned the whole command string,  so a macro carried over
+ * from TECO-32 -- where zvms.c does implement them -- died on arrival.
+ */
+		DBGFEX(1,DbgFNm,"PushEx(0)");
+		return PushEx(0L, OPERAND);
 	}
 	DBGFEX(1,DbgFNm,"ExeNYI()");
 	return ExeNYI();
@@ -829,6 +861,13 @@ DEFAULT ZExeEJ()			/* execute an EJ command */
 /*****************************************************************************
 	ZExit()
 	This function terminates TECO-C with a status value.
+	Every path out of the process has to come through here.  ZClnUp()
+restores the termios settings only in the non-CURSES build -- its whole body
+is inside "#if !CURSES" -- so under CURSES the endwin() below is the only thing
+that takes the terminal out of the raw, no-echo mode ZTrmnl() put it in.  The
+failure paths in ZChIn and ZOClos used to call "ZClnUp(); exit()" (and one of
+them a bare exit()) instead,  which left the shell TECO returned to in
+"-icanon -echo" mode.
 *****************************************************************************/
 VVOID ZExit(estat)		/* terminate TECO-C */
 DEFAULT estat;
@@ -973,8 +1012,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				if (remove(TmpFsp) != 0) {	/* delete it */
 					ZErMsg();
 					ErrMsg(ERR_UCO);
-					ZClnUp();
-					exit(EXIT_FAILURE);
+					ZExit(EXIT_FAILURE);
 				}
 			}
 		} else {
@@ -992,8 +1030,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 					if (remove(TmpFsp) != 0) {  /* delete it */
 						ZErMsg();
 						ErrMsg(ERR_UCO);
-						ZClnUp();
-						exit(EXIT_FAILURE);
+						ZExit(EXIT_FAILURE);
 					}
 				}
 			} else if (ver==(-2) || ver==0) {
@@ -1001,8 +1038,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			} else if (ver==(-1)) {			/* can't read dir */
 				ZErMsg();
 				ErrMsg(ERR_UCO);		/* una to close o */
-				ZClnUp();
-				exit(EXIT_FAILURE);
+				ZExit(EXIT_FAILURE);
 			} else {				/* ver > 0 */
 				ver++;
 				strcat(TmpFsp, ";");
@@ -1026,15 +1062,14 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			ZDspBf(OFiles[OfIndx].OFNam,
 				   strlen(OFiles[OfIndx].OFNam));
 			ErrMsg(ERR_UCO);
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 		} else { /* Delete original if not backing up */
 			if (remove(OFiles[OfIndx].OTNam) != 0) {
 				ZErMsg();
 				ErrMsg(ERR_UCO);
 				DBGFEX(2,DbgFNm,"remove() failed");
-				exit(EXIT_FAILURE);
+				ZExit(EXIT_FAILURE);
 			}
 		}
 #if DEBUGGING
@@ -1046,8 +1081,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 					 OFiles[OfIndx].OTNam)) {
 			ZErMsg();
 			ErrMsg(ERR_UCO);
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 	}
 	IsOpnO[OfIndx] = FALSE;
