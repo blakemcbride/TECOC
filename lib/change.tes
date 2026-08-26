@@ -79,7 +79,7 @@ EI
                      QA-13"E           ! if it's a <CR>                      !
                              0,32ET    ! set "read with no wait"             !
                                     ! get the line feed that follows      !
-                             0,32ET    ! set "read with wait"             !
+                             32,0ET    ! set "read with wait"             !
                              1;        ! and get out of the loop             !
                            |           ! else (not <DEL>, <ESC>, or <CR>)    !
                              QA:^UB   ! append it to q-register B           !
@@ -140,7 +140,7 @@ QA-27"E                                ! if it's an <ESC>                    !
                        QE"E            ! if carriage returns terminate       !
                              0,32ET    ! set "read with no wait"             !
                                     ! get the line feed that follows      !
-                             0,32ET    ! set "read with wait"                !
+                             32,0ET    ! set "read with wait"                !
                              1;        ! and get out of the loop             !
 |
 QA:^UB
@@ -182,7 +182,7 @@ QA-27"E                                ! if it's an <ESC>                    !
                        QE"E            ! if carriage returns terminate       !
                              0,32ET    ! set "read with no wait"             !
                                     ! get the line feed that follows      !
-                             0,32ET    ! set "read with wait"                !
+                             32,0ET    ! set "read with wait"                !
                              1;        ! and get out of the loop             !
 |
 QA:^UB

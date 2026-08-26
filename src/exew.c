@@ -307,7 +307,15 @@ DEFAULT ExeW()			/* execute an W command */
 
 #if VIDEO
 
-	if (EStTop == EStBot) {			/* if no numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  and this command's value-producing form belongs in the middle of an
+ * expression:  "1+%A" and "1+:C" used to hand GetNmA an operator and die with
+ * ?IFE where "1+QA" has always worked.  ^R, ^T, ED, \ and Qq use this form.
+ */
+	if ((EStTop == EStBot) ||		    /* if no numeric arg or */
+	    (EStack[EStTop].ElType != OPERAND)) {   /* partial expression */
 		NArgmt = (CmdMod & COLON) ? 0 : 16;
 	} else {
 		if (GetNmA() == FAILURE) {	/* get the numeric argument */

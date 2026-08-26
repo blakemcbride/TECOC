@@ -58,7 +58,7 @@ TECOC.RNH, DEFERR.H, VRBMSG.H and ERR.C.
 #define ERR_SYS 44	/* %s */
 #define ERR_UCD 45	/* unable to close and delete output file */
 #define ERR_UCI 46	/* unable to close input file */
-#define ERR_UCO 47	/* unable to close output file */
+#define ERR_UCO 47	/* unable to close output file "x" */
 #define ERR_UFI 48	/* unable to open file "x" for input */
 #define ERR_UFO 49	/* unable to open file "x" for output */
 #define ERR_URC 50	/* unable to read character from terminal */

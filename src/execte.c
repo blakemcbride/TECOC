@@ -14,7 +14,16 @@ when the edit buffer is written to the output file.
 DEFAULT ExeCtE()		/* execute a ^E (control-E) command */
 {
     DBGFEN(1,"ExeCtE",NULL);
-   if (EStTop > EStBot) {			/* if numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  so "(^E)" and "1+^E" used to take the "set the flag" arm,  hand
+ * GetNmA an operator and die with ?IFE -- yet ^E is the form feed flag,  which
+ * belongs in the middle of an expression.  ^R, ^T, ED, \ and Qq have always
+ * used this form.
+ */
+   if ((EStTop > EStBot) &&			/* if numeric argument */
+       (EStack[EStTop].ElType == OPERAND)) {	/* ...and not a partial one */
 	if (GetNmA() == FAILURE) {		/* get numeric arg */
 	    DBGFEX(1,DbgFNm,"FAILURE");
 	    return FAILURE;
@@ -24,7 +33,15 @@ DEFAULT ExeCtE()		/* execute a ^E (control-E) command */
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	return SUCCESS;
     }
-    CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * The READ form ends in the PushEx below,  so it is a VALUE PRODUCER and has to
+ * leave MARGIS alone:  the "m," of "m,^E" belongs to the command that takes the
+ * result,  and clearing it here turned "0,^ET" into "<flag>T".  The SET arm
+ * above consumes its own argument -- and with it any "m," that came with it --
+ * so it goes on clearing the whole of CmdMod.  See the commentary on FSAray in
+ * skpcmd.c.
+ */
+    CmdMod &= MARGIS;				/* clear modifiers flags */
     DBGFEX(1,DbgFNm,"PushEx(FFPage)");
     return PushEx(FFPage, OPERAND);
 }

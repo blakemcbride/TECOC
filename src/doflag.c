@@ -24,8 +24,15 @@ LONG *Flag;
  * to be cleared here too,  not just on the "set the flag" path below.  ":ED"
  * used to leave the colon set for the next command,  which then saw a colon it
  * was never given:  ":EDGA" typed Q-register A instead of inserting it.
+ *	MARGIS is the exception.  Reading a flag ends in the PushEx below,  so
+ * it is a VALUE PRODUCER:  the value becomes the "n" of the command that
+ * follows,  and any "m," written in front of it belongs to THAT command.
+ * Clearing the flag here turned "0,EDT" into "<flag>T" and typed whole lines
+ * where the user asked for a character range.  The set path below consumes the
+ * pair itself and goes on clearing the whole of CmdMod.  See the commentary on
+ * FSAray in skpcmd.c.
  */
-		CmdMod = '\0';				/* clear modifiers */
+		CmdMod &= MARGIS;			/* clear modifiers */
 		DBGFEX(2,DbgFNm,"PushEx");
 		return PushEx(*Flag, OPERAND);		/* return the flag */
 	}

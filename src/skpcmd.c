@@ -8,10 +8,12 @@
 #include "dchars.h"		/* define identifiers for characters */
 #include "deferr.h"		/* define identifiers for error messages */
 #if USE_PROTOTYPES
+static DEFAULT SkpAgV(void);	/* SkpArg for a value-producing command */
 static DEFAULT SkpArg(void);	/* skip command with text argument */
 static DEFAULT SkpCrt(void);	/* skip a ^ (caret) command */
 static DEFAULT SkpCtA(void);	/* skip control-A command */
 static DEFAULT SkpCtU(void);	/* skip control-U command */
+static DEFAULT SkpCUV(void);	/* SkpCtU for a value-producing command */
 static DEFAULT SkpDAr(void);	/* skip "double text argument" command */
 static DEFAULT SkpDqu(void);	/* skip a " (double quote) command */
 static DEFAULT SkpE(void);	/* skip one of the E commands */
@@ -40,6 +42,25 @@ static DEFAULT SkpArg()		/* skip command with text argument */
 		}
 	TraceM = TTrace;			/* restore trace mode flag */
 	CmdMod = '\0';				/* clear modifiers flags */
+	return SUCCESS;
+}
+/*****************************************************************************
+	SkpAgV()
+	SkpArg for a command that has a VALUE-PRODUCING form:  EB, EI, EN, ER
+and EW.  ":EBfile$", ":EIfile$", ":ENfile$", ":ERfile$" and ":EWfile$" all end
+in a PushEx and so leave MARGIS alone,  while the plain forms clear the lot.
+A skipper cannot tell the colon form from the plain one -- the same problem
+A, C, J and R have in SkpVal -- and the value-producing form is again the one
+that can stand between a modifier and its command.  FindES needs the at-sign
+while it scans,  so SkpArg does the work and the "m," is put back afterwards.
+*****************************************************************************/
+static DEFAULT SkpAgV()		/* skip a value-producing text-arg command */
+{
+	char SvMArg;
+	SvMArg = CmdMod & MARGIS;		/* the "m," belongs to the... */
+	if (SkpArg() == FAILURE)		/* ...command AFTER this one */
+		return FAILURE;
+	CmdMod |= SvMArg;
 	return SUCCESS;
 }
 /*****************************************************************************
@@ -166,6 +187,20 @@ static DEFAULT SkpCtU()		/* skip control-U command */
 	return SUCCESS;
 }
 /*****************************************************************************
+	SkpCUV()
+	SkpCtU for E%,  whose colon form ":E%qfile$" ends in a PushEx and so
+leaves MARGIS alone.  See SkpAgV above.
+*****************************************************************************/
+static DEFAULT SkpCUV()		/* skip a value-producing ^U-shaped command */
+{
+	char SvMArg;
+	SvMArg = CmdMod & MARGIS;		/* the "m," belongs to the... */
+	if (SkpCtU() == FAILURE)		/* ...command AFTER this one */
+		return FAILURE;
+	CmdMod |= SvMArg;
+	return SUCCESS;
+}
+/*****************************************************************************
 	SkpDAr()
 *****************************************************************************/
 static DEFAULT SkpDAr()		/* skip "double text argument" command */
@@ -268,6 +303,12 @@ a skipper cannot tell the colon form from the plain one -- the same problem
 ^R and ^T have,  and the value-producing form is again the one that can stand
 between a modifier and its command.  The at-sign still goes,  as it does for
 every skipped command.
+	^E, ^Q, ^X, D, P, Y, ED, EH, ES, ET, EU, EV, EZ and EY are here too.
+^Q is a pure value producer;  the flags have a READ form that is one -- DoFlag's
+read path and ExeCtE's read arm both end in a PushEx now -- and a write form
+that consumes its argument;  ":D", ":P" and ":Y" are the value-producing forms
+of the other three.  As SkpSkp they cleared an "m," the executor keeps,  which
+is the divergence round 7 section 4 forbids.
 *****************************************************************************/
 static DEFAULT SkpVal()		/* skip a value-producing command */
 {
@@ -337,11 +378,11 @@ static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 {
 	static DEFAULT (*FCAray[])(VVOID) = {
 /* ^A*/ SkpCtA,   /* ^B*/ ExeNul,   /* ^C*/ SkpSkp,   /* ^D*/ SkpSkp,
-/* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,   /* ^H*/ ExeNul,
+/* ^E*/ SkpVal,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,   /* ^H*/ ExeNul,
 /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,   /* FF*/ SkpSkp,
 /* CR*/ ExeNul,   /* ^N*/ ExeNul,   /* ^O*/ SkpSkp,   /* ^P*/ SkpSkp,
-/* ^Q*/ SkpSkp,   /* ^R*/ ExeNul,   /* ^S*/ ExeNul,   /* ^T*/ ExeNul,
-/* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,   /* ^X*/ SkpSkp,
+/* ^Q*/ SkpVal,   /* ^R*/ ExeNul,   /* ^S*/ ExeNul,   /* ^T*/ ExeNul,
+/* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,   /* ^X*/ SkpVal,
 /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /* ^[*/ SkpSkp,   /* ^\*/ SkpSkp,
 /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul
 	};
@@ -356,7 +397,13 @@ static DEFAULT SkpCrt()		/* skip a ^ (caret) command */
 	else if (Is_Lower(*CBfPtr))
 		CDummy = *CBfPtr - 'a';		/* convert to upper case */
 	else {
-		ErrMsg(ERR_IUC);		/* illegal char after ^ */
+/*
+ * ErrChr,  not ErrMsg:  Errors[ERR_IUC] is "Illegal character \"%s\" following
+ * ^",  and ErrMsg has no argument to substitute,  so a bad caret command inside
+ * skipped code showed the user the format specifier itself.  ExeCrt and BldStr
+ * report the same message with ErrChr.
+ */
+		ErrChr(ERR_IUC, *CBfPtr);	/* illegal char after ^ */
 		return FAILURE;
 	}
 	return (*FCAray[CDummy])();
@@ -375,13 +422,13 @@ static DEFAULT SkpE()			/* skip one of the E commands */
  * really did change where the skip stopped.
  */
 	static DEFAULT (*FEAray[])(VVOID) = {
-/* A */ SkpSkp,    /* B */ SkpArg,    /* C */ SkpSkp,    /* D */ SkpSkp,
-/* E */ SkpSkp,    /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpSkp,
-/* I */ SkpArg,    /* J */ SkpSkp,    /* K */ SkpSkp,    /* L */ SkpArg,
-/* M */ SkpSkp,    /* N */ SkpArg,    /* O */ SkpSkp,    /* P */ SkpSkp,
-/* Q */ SkpCtU,    /* R */ SkpArg,    /* S */ SkpSkp,    /* T */ SkpSkp,
-/* U */ SkpSkp,    /* V */ SkpSkp,    /* W */ SkpArg,    /* X */ SkpSkp,
-/* Y */ SkpSkp,    /* Z */ SkpSkp
+/* A */ SkpSkp,    /* B */ SkpAgV,    /* C */ SkpSkp,    /* D */ SkpVal,
+/* E */ SkpSkp,    /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpVal,
+/* I */ SkpAgV,    /* J */ SkpSkp,    /* K */ SkpSkp,    /* L */ SkpArg,
+/* M */ SkpSkp,    /* N */ SkpAgV,    /* O */ SkpSkp,    /* P */ SkpSkp,
+/* Q */ SkpCtU,    /* R */ SkpAgV,    /* S */ SkpVal,    /* T */ SkpVal,
+/* U */ SkpVal,    /* V */ SkpVal,    /* W */ SkpAgV,    /* X */ SkpSkp,
+/* Y */ SkpVal,    /* Z */ SkpVal
 	};
 	if (CBfPtr == CStEnd) {
 		ErrUTC();			/* unterminated command */
@@ -398,7 +445,7 @@ static DEFAULT SkpE()			/* skip one of the E commands */
  * SkpCtU skips exactly what those two commands consume.
  */
 	if (TmpChr == '%')
-		return SkpCtU();
+		return SkpCUV();
 	else if (TmpChr == '_')
 		return SkpArg();
 	else if (!Is_Upper(TmpChr))	/* EE is ?NYI now, not ?IEC */
@@ -463,12 +510,12 @@ DEFAULT SkpCmd()		/* skip a "command" */
 {
 	static DEFAULT (*FSAray[])(VVOID) = {
 /*NUL*/ ExeNul,   /* ^A*/ SkpCtA,   /* ^B*/ ExeNul,   /* ^C*/ SkpSkp,
-/* ^D*/ SkpSkp,   /* ^E*/ SkpSkp,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,
+/* ^D*/ SkpSkp,   /* ^E*/ SkpVal,   /* ^F*/ SkpSkp,   /* ^G*/ SkpSkp,
 /* BS*/ ExeNul,   /*TAB*/ SkpArg,   /* LF*/ ExeNul,   /* VT*/ SkpSkp,
 /* FF*/ SkpSkp,   /* CR*/ ExeNul,   /* ^N*/ ExeNul,   /* ^O*/ SkpSkp,
-/* ^P*/ SkpSkp,   /* ^Q*/ SkpSkp,   /* ^R*/ ExeNul,   /* ^S*/ ExeNul,
+/* ^P*/ SkpSkp,   /* ^Q*/ SkpVal,   /* ^R*/ ExeNul,   /* ^S*/ ExeNul,
 /* ^T*/ ExeNul,   /* ^U*/ SkpCtU,   /* ^V*/ SkpSkp,   /* ^W*/ SkpSkp,
-/* ^X*/ SkpSkp,   /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /*ESC*/ SkpSkp,
+/* ^X*/ SkpVal,   /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /*ESC*/ SkpSkp,
 /* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul,
 /* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ ExeNul,
 /* $ */ SkpSkp,   /* % */ SkpQRV,   /* & */ ExeNul,   /* ' */ ExeNul,
@@ -479,20 +526,20 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* 8 */ ExeNul,   /* 9 */ ExeNul,   /* : */ ExeCln,   /* ; */ SkpSkp,
 /* < */ SkpSkp,   /* = */ SkpSkp,   /* > */ SkpSkp,   /* ? */ SkpSkp,
 /* @ */ ExeAtS,   /* A */ SkpVal,   /* B */ ExeNul,   /* C */ SkpVal,
-/* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRC,
+/* D */ SkpVal,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRC,
 /* H */ ExeNul,   /* I */ SkpArg,   /* J */ SkpVal,   /* K */ SkpSkp,
 /* L */ SkpSkp,   /* M */ SkpMac,   /* N */ SkpArg,   /* O */ SkpArg,
-/* P */ SkpSkp,   /* Q */ SkpQRV,   /* R */ SkpVal,   /* S */ SkpArg,
+/* P */ SkpVal,   /* Q */ SkpQRV,   /* R */ SkpVal,   /* S */ SkpArg,
 /* T */ SkpSkp,   /* U */ SkpQRC,   /* V */ SkpSkp,   /* W */ SkpSkp,
-/* X */ SkpQRC,   /* Y */ SkpSkp,   /* Z */ ExeNul,   /* [ */ SkpQRg,
+/* X */ SkpQRC,   /* Y */ SkpVal,   /* Z */ ExeNul,   /* [ */ SkpQRg,
 /* \ */ SkpSkp,   /* ] */ SkpQRg,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
 /* ` */ SkpSkp,   /* a */ SkpVal,   /* b */ ExeNul,   /* c */ SkpVal,
-/* d */ SkpSkp,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRC,
+/* d */ SkpVal,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRC,
 /* h */ ExeNul,   /* i */ SkpArg,   /* j */ SkpVal,   /* k */ SkpSkp,
 /* l */ SkpSkp,   /* m */ SkpMac,   /* n */ SkpArg,   /* o */ SkpArg,
-/* p */ SkpSkp,   /* q */ SkpQRV,   /* r */ SkpVal,   /* s */ SkpArg,
+/* p */ SkpVal,   /* q */ SkpQRV,   /* r */ SkpVal,   /* s */ SkpArg,
 /* t */ SkpSkp,   /* u */ SkpQRC,   /* v */ SkpSkp,   /* w */ SkpSkp,
-/* x */ SkpQRC,   /* y */ SkpSkp,   /* z */ ExeNul,   /* { */ SkpSkp,
+/* x */ SkpQRC,   /* y */ SkpVal,   /* z */ ExeNul,   /* { */ SkpSkp,
 /* | */ SkpSkp,   /* } */ SkpSkp,   /* ~ */ SkpSkp,   /*DEL*/ SkpSkp,
 /*129*/ SkpSkp,   /*130*/ SkpSkp,   /*131*/ SkpSkp,   /*132*/ SkpSkp,
 /*133*/ SkpSkp,   /*134*/ SkpSkp,   /*135*/ SkpSkp,   /*136*/ SkpSkp,

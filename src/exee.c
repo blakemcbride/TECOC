@@ -80,7 +80,7 @@ static DEFAULT ExeEW(void);
 static DEFAULT ExeEX(void);
 static DEFAULT ExeEZ(void);
 static DEFAULT GetWha(charptr TxtPtr, ptrdiff_t TxtLen);
-static DEFAULT OpnEI(DEFAULT EInd);
+static DEFAULT OpnEI(DEFAULT EInd, BOOLEAN RepFNF);
 static DEFAULT OpnInp(DEFAULT IfIndx, BOOLEAN EIFile, BOOLEAN RepFNF);
 static DEFAULT OpnOut(DEFAULT OfIndx, BOOLEAN RepErr, BOOLEAN Backup);
 static DEFAULT ReadEI(DEFAULT IfIndx, charptr *ZBfPtr, charptr *EscPtr);
@@ -230,7 +230,16 @@ static DEFAULT ExeEB()			/* execute an EB command */
 	}
 
 	RepFNF = !(CmdMod & COLON);		/* report file not found? */
-	CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * The colon form of this command ends in a PushEx,  so it is a VALUE PRODUCER
+ * and has to leave MARGIS alone:  the "m," in front of it belongs to the
+ * command that takes the result,  and clearing it here turned "0,4+<colon
+ * form>T" into "<value>T",  which types whole LINES where the user asked for a
+ * character range.  The plain form produces nothing,  so an "m," left in front
+ * of it has nowhere to go and is dropped.  See the commentary on FSAray in
+ * skpcmd.c.
+ */
+	CmdMod = (RepFNF) ? '\0' : (CmdMod & MARGIS);	/* clear modifiers */
 /*
  * OpnOut refuses to work when an output file is already open,  so the SECOND
  * EB of a session always fails -- but it used to fail only after OpnInp had
@@ -715,25 +724,31 @@ find the file one of the following ways:
 
 As soon as one of these forms is found and opened,  this function returns.
 
+	RepFNF says whether a missing file is to be reported.  It used to be
+hard-wired TRUE,  so ":EIfilespec$" -- the manual's own "execute this file if
+it exists" idiom,  which Appendix F.10 shows RSX-11 TECO starting up with and
+which src/clpars.tes is written around -- could not suppress the ?UFI.
+
 *****************************************************************************/
 
-static DEFAULT OpnEI(EInd)	/* open an EI file */
+static DEFAULT OpnEI(EInd, RepFNF)	/* open an EI file */
 DEFAULT EInd;
+BOOLEAN RepFNF;				/* report "file not found" error? */
 {
 #ifdef OPNEI_FINISHED
-	if (OpnInp(EInd, FALSE, TRUE) == SUCCESS)
+	if (OpnInp(EInd, FALSE, RepFNF) == SUCCESS)
 		return(SUCCESS);
-	if (OpnInp(EInd, TRUE, TRUE) == SUCCESS)
+	if (OpnInp(EInd, TRUE, RepFNF) == SUCCESS)
 		return(SUCCESS);
 	save contents of FBf
 	use :EGDEF command to fill FBf with default directory (how?)
 	append saved FBf to actual FBf
-	if (OpnInp(EInd, FALSE, TRUE) == SUCCESS)
+	if (OpnInp(EInd, FALSE, RepFNF) == SUCCESS)
 		return(SUCCESS);
-	if (OpnInp(EInd, TRUE, TRUE) == SUCCESS)
+	if (OpnInp(EInd, TRUE, RepFNF) == SUCCESS)
 		return(SUCCESS);
 #else
-	return OpnInp(EInd, TRUE, TRUE);
+	return OpnInp(EInd, TRUE, RepFNF);
 #endif
 }
 
@@ -828,6 +843,7 @@ memory will always be freed.
 
 	EI		Close current indirect command file
 	EIfilespec$	Open indirect command file
+	:EIfilespec$	EI, return status
 
 *****************************************************************************/
 
@@ -843,6 +859,7 @@ static DEFAULT EIIndx = EIFL-1;
 static DEFAULT ExeEI()			/* execute an EI command */
 {
     int	status;
+    BOOLEAN RepFNF;			/* report "file not found" ? */
 /*
  * ZBfBeg/ZBfEnd/ZBfRdP are single globals,  but EI files nest (see EIIndx
  * below).  A nested EI used to overwrite them with its own buffer and then
@@ -860,6 +877,16 @@ static DEFAULT ExeEI()			/* execute an EI command */
 	DBGFEX(1,DbgFNm,"FAILURE, BldStr() failed");
 	return FAILURE;
     }
+
+/*
+ * ExeEI never looked at the colon,  and OpnEI was hard-wired to report a
+ * missing file,  so ":EIfilespec$" -- "execute this file IF IT EXISTS",  the
+ * form Appendix F.10 shows RSX-11 TECO starting up with and the one
+ * src/clpars.tes:114 is written around -- pushed no value and abandoned the
+ * command string when the file was absent.  ":EI" now behaves like ":ER" and
+ * ":EB":  -1 if the file was found and run,  0 if it was not there.
+ */
+    RepFNF = !(CmdMod & COLON);			/* report file not found? */
 
     if (FBfPtr == FBfBeg) {			/* if it's EI$ */
 	if (EIIndx >= EIFL) {			/* if EI file is open */
@@ -902,9 +929,8 @@ static DEFAULT ExeEI()			/* execute an EI command */
     SvZBfE = ZBfEnd;
     SvZBfR = ZBfRdP;
 
-    if (OpnEI(EIIndx) != SUCCESS) {		/* open EI file */
-	status = FAILURE;
-    } else {
+    status = OpnEI(EIIndx, RepFNF);		/* open EI file */
+    if (status == SUCCESS) {
 	ZBfBeg = (charptr)ZAlloc(ZBFINIT);	/* allocate input buffer */
 	if (ZBfBeg == NULL) {			/* if allocation failed */
 	    ErrMsg(ERR_MEM);			/* MEM = memory overflow */
@@ -915,6 +941,8 @@ static DEFAULT ExeEI()			/* execute an EI command */
 	    ZFree((voidptr)ZBfBeg);		/* free allocated memory */
 	}
 	ZIClos(EIIndx);
+    } else if (status != FILENF) {
+	status = FAILURE;			/* OpnInp has already said why */
     }
 
     ZBfBeg = SvZBfB;				/* restore it */
@@ -922,12 +950,34 @@ static DEFAULT ExeEI()			/* execute an EI command */
     ZBfRdP = SvZBfR;
 
     EIIndx--;					/* decrement nesting count */
+
+    if (!RepFNF) {				/* if it's :EIfilespec$ */
+/*
+ * The colon form ends in a PushEx,  so it is a VALUE PRODUCER:  it keeps
+ * MARGIS,  and it leaves the expression stack alone so that the value it
+ * pushes lands on top of whatever expression the user was building.  Only
+ * "file not found" is turned into a 0;  a macro that ran and then failed still
+ * reports the failure,  exactly as ":ER" does.
+ */
+	CmdMod &= MARGIS;			/* clear modifiers flags */
+	if (status == FILENF) {
+	    DBGFEX(1,DbgFNm,"PushEx(0)");
+	    return PushEx(0L,OPERAND);
+	}
+	if (status == FAILURE) {
+	    DBGFEX(1,DbgFNm,"FAILURE");
+	    return FAILURE;
+	}
+	DBGFEX(1,DbgFNm,"PushEx(-1)");
+	return PushEx(-1L,OPERAND);
+    }
+
     CmdMod = '\0';				/* clear modifiers flags */
     EStTop = EStBot;				/* clear expression stack */
 
-    DBGFEX(1,DbgFNm,"SUCCESS");
+    DBGFEX(1,DbgFNm,(status == SUCCESS) ? "SUCCESS" : "FAILURE");
 
-    return status;
+    return (status == SUCCESS) ? SUCCESS : FAILURE;
 }
 
 /*****************************************************************************
@@ -1046,7 +1096,7 @@ static DEFAULT ExeEN()			/* execute an EN command */
 			return SUCCESS;
 		}
 		if (CmdMod & COLON) {		/* if it's :EN */
-			CmdMod = '\0';		/* clear modifiers flags */
+			CmdMod &= MARGIS;	/* clear modifiers flags */
 /*
  * There used to be an "EStTop = EStBot" here.  EN takes no numeric argument,
  * so anything on the stack when it runs is a pending expression the user wrote,
@@ -1063,7 +1113,11 @@ static DEFAULT ExeEN()			/* execute an EN command */
 
 	case SUCCESS:
 		if (CmdMod & COLON) {		/* if it's :EN */
-			CmdMod = '\0';		/* clear modifiers flags */
+/*
+ * ":EN" is a VALUE PRODUCER,  so it keeps MARGIS;  see the commentary on ExeEB
+ * above and on FSAray in skpcmd.c.
+ */
+			CmdMod &= MARGIS;	/* clear modifiers flags */
 			DBGFEX(1,DbgFNm,"PushEx(-1)");
 			return PushEx(-1L,OPERAND);
 		}
@@ -1094,7 +1148,15 @@ static DEFAULT ExeEO()			/* execute an EO command */
 {
 	DEFAULT status;
 
-	status = ((EStTop > EStBot)		/* is it nEO ? */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  so "(EO)" and "147-EO" -- exactly the shapes a portable macro writes
+ * around the version-check command -- decided they had been given an argument
+ * and answered ?NYI.  ^R, ^T, ED, \ and Qq have always used this form.
+ */
+	status = (((EStTop > EStBot) &&		/* is it nEO ? */
+		   (EStack[EStTop].ElType == OPERAND))
 	    ? ExeNYI()				/* ...yes, not supported */
 	    : PushEx((LONG)TVERSION,OPERAND));	/* ...no, return version */
 /*
@@ -1174,7 +1236,16 @@ static DEFAULT ExeEPr()			/* execute an E% command */
 	}
 
 	RepErr = !(CmdMod & COLON);
-	CmdMod = '\0';
+/*
+ * The colon form of this command ends in a PushEx,  so it is a VALUE PRODUCER
+ * and has to leave MARGIS alone:  the "m," in front of it belongs to the
+ * command that takes the result,  and clearing it here turned "0,4+<colon
+ * form>T" into "<value>T",  which types whole LINES where the user asked for a
+ * character range.  The plain form produces nothing,  so an "m," left in front
+ * of it has nowhere to go and is dropped.  See the commentary on FSAray in
+ * skpcmd.c.
+ */
+	CmdMod = (RepErr) ? '\0' : (CmdMod & MARGIS);	/* clear modifiers */
 	if (OpnOut(EPRCFL, RepErr, FALSE) == FAILURE) {
 #if DEBUGGING
 		sprintf(DbgSBf,"%s, OpnOut() failed",
@@ -1394,7 +1465,16 @@ static DEFAULT ExeER()			/* execute an ER command */
 	}
 
 	RepFNF = !(CmdMod & COLON);		/* report file not found? */
-	CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * The colon form of this command ends in a PushEx,  so it is a VALUE PRODUCER
+ * and has to leave MARGIS alone:  the "m," in front of it belongs to the
+ * command that takes the result,  and clearing it here turned "0,4+<colon
+ * form>T" into "<value>T",  which types whole LINES where the user asked for a
+ * character range.  The plain form produces nothing,  so an "m," left in front
+ * of it has nowhere to go and is dropped.  See the commentary on FSAray in
+ * skpcmd.c.
+ */
+	CmdMod = (RepFNF) ? '\0' : (CmdMod & MARGIS);	/* clear modifiers */
 	status = OpnInp(CurInp, FALSE, RepFNF);	/* open input file */
 	if (status != SUCCESS) {
 		if (status == FILENF) {
@@ -1604,7 +1684,16 @@ static DEFAULT ExeEW()			/* execute an EW command */
 	}
 
 	RepErr = !(CmdMod & COLON);
-	CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * The colon form of this command ends in a PushEx,  so it is a VALUE PRODUCER
+ * and has to leave MARGIS alone:  the "m," in front of it belongs to the
+ * command that takes the result,  and clearing it here turned "0,4+<colon
+ * form>T" into "<value>T",  which types whole LINES where the user asked for a
+ * character range.  The plain form produces nothing,  so an "m," left in front
+ * of it has nowhere to go and is dropped.  See the commentary on FSAray in
+ * skpcmd.c.
+ */
+	CmdMod = (RepErr) ? '\0' : (CmdMod & MARGIS);	/* clear modifiers */
 	if (OpnOut(CurOut, RepErr, FALSE) == FAILURE) {
 #if DEBUGGING
 		sprintf(DbgSBf,"%s, OpnOut() failed",

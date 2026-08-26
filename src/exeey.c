@@ -14,8 +14,13 @@ DEFAULT ExeEY()			/* execute an EY command */
  * Only the COLON bit used to be cleared here,  so "@EY" -- and "@Y",  which
  * comes straight here -- leaked their at-sign into the next command.  SkpCmd
  * skips both with SkpSkp,  which clears the whole of CmdMod.
+ *	":EY" is a VALUE PRODUCER -- both of its exits below are PushEx calls --
+ * so it keeps MARGIS:  the "m," in front of it belongs to the command that
+ * takes the result.  A plain "EY" produces nothing,  so an "m," left in front
+ * of it has nowhere to go and is dropped.  This is the ExeA / DoCJR pattern;
+ * see the commentary on FSAray in skpcmd.c.
  */
-	CmdMod = '\0';				/* clear modifiers flags */
+	CmdMod = (ColonMod) ? (CmdMod & MARGIS) : '\0';	/* clear modifiers */
 	GapBeg = EBfBeg;			/* clear the...   */
 	GapEnd = EBfEnd;			/*   ...edit buffer */
 	if (IsEofI[CurInp]) {			/* if at end-of-file */

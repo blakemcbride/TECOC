@@ -149,6 +149,19 @@ char **argv;
 {
 	DBGFEN(2,"Init",NULL);
 	ZTrmnl();		/* open terminal for input and output */
+/*
+ * "ET&128 -- abort-on-error bit.  Initially set,  when TECO starts up;  cleared
+ * each time TECO issues its asterisk prompt."  ExeCSt honours the bit in both
+ * of the places that matter -- a ^C and a failed command -- but nothing in the
+ * tree ever turned it on,  so it could never fire:  "tecoc mung script.tec"
+ * printed the error and then dropped into the interactive "*" prompt,  which
+ * in a Makefile or a shell script is a hang rather than a failure,  and a ^C
+ * during command-line processing did not terminate TECO either.  ZTrmnl has
+ * just ASSIGNED EtFlag,  so the bit has to go on after it;  ReadCS clears it
+ * where it writes the prompt.  lib/squ.tes:122 already tests the bit on entry
+ * and then sets it,  so the shipped squeezer assumes a TECO where this is live.
+ */
+	EtFlag |= ET_MUNG_MODE;	/* abort on error until the first prompt */
 	MemIni();		/* allocate memory and initialize variables */
 #if CONSISTENCY_CHECKING
 	init_consistency_check();

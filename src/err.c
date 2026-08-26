@@ -71,7 +71,7 @@ static char *Errors[] = {
 /* 44*/  "SYS   %s",
 /* 45*/  "UCD   unable to close and delete output file %s",
 /* 46*/  "UCI   unable to close input file",
-/* 47*/  "UCO   unable to close output file",
+/* 47*/  "UCO   unable to close output file %s",
 /* 48*/  "UFI   unable to open file %s for input",
 /* 49*/  "UFO   unable to open file %s for output",
 /* 50*/  "URC   unable to read character from terminal",

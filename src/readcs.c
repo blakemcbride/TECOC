@@ -140,7 +140,16 @@ static unsigned char FirstChar()
 	    DoEvEs(EvFlag);		/* handle EV flag */
 	}
 #if CURSES
-	if (ScroLn > 0 && !skiprefresh)
+/*
+ * "ED&128  Automatic refresh inhibit.  If scroll mode is enabled (that is, if
+ * 7:W is non-zero),  TECO normally refreshes the text buffer display just
+ * before printing its * prompt.  Setting the 128 bit in ED inhibits this
+ * automatic refresh."  The bit was defined-but-commented-out and read nowhere,
+ * so it was accepted and ignored;  this is the one place the manual describes,
+ * and "-1W" -- TECOC's own way of saying the same thing -- already turns
+ * skiprefresh on beside it.
+ */
+	if (ScroLn > 0 && !skiprefresh && !(EdFlag & ED_NO_W))
 	    redraw();
 #endif
 	ZDspCh('*');			/* prompt */
@@ -353,6 +362,14 @@ VVOID ReadCS()
     int             i;
     ctrstr[0] = '^';		/* caret */
     ctrstr[2] = '\0';		/* end-of-string */
+/*
+ * "ET&128 ... cleared each time TECO issues its asterisk prompt."  FirstChar
+ * below writes the prompt,  and every other prompt this function writes -- the
+ * ones after ^C, ^G^G, ^G* and ^W -- happens while we are already here,  so
+ * clearing the bit once on the way in covers all of them.  Init sets it;  see
+ * the comment there for what it is for.
+ */
+    EtFlag &= ~ET_MUNG_MODE;	/* the prompt clears abort-on-error */
     CRCnt = 0;			/* count of carriage-returns */
     PrvChr = PRV_DEF;		/* no previous characters */
     TmpChr = FirstChar();	/* get first character */

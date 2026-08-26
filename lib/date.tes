@@ -1,4 +1,4 @@
-!DATE.TEC!
+!DATE.TES!
 ! display the current date and time:                    !
 !   ^B == ((year-1900)*16+month)*32+day                 !
 !   ^H == (seconds since midnight)/2                    !

@@ -250,7 +250,7 @@ static char *ParaTx[] = {
 	/*169*/ NULL,
 	/* ERR_UCI 46   unable to close input file */
 	/*170*/ NULL,
-	/* ERR_UCO 47   unable to close output file */
+	/* ERR_UCO 47   unable to close output file "x" */
 	/*171*/ NULL,
 	/* ERR_UFI 48   unable to open file "x" for input */
 	/*172*/ NULL,

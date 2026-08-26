@@ -242,7 +242,14 @@ DEFAULT ZChIn(BOOLEAN NoWait)	/* input a character from the terminal */
 		if (!$VMS_STATUS_SUCCESS(status)) {
 			ZErMsg(status, 0);
 			ErrMsg(ERR_URC);
-			exit(EXIT_FAILURE);
+/*
+ * ZExit,  not exit:  every exit has to go through ZExit so that the terminal
+ * modes ZTrmnl changed are put back.  Round 5 section 5 and round 9 section 8
+ * closed the other instances of this;  ZChIn's two were missed.  (The ZErMsg
+ * above is given the failing status explicitly,  so this port has none of the
+ * stale-errno problem the Unix ones had.)
+ */
+			ZExit(EXIT_FAILURE);
 		}
 		switch (ttread_iosb.io_status) {
 		case SS$_NORMAL:
@@ -264,7 +271,7 @@ DEFAULT ZChIn(BOOLEAN NoWait)	/* input a character from the terminal */
 			if (status != RMS$_NORMAL) {
 				ZErMsg(status, TIRab.rab$l_stv);
 				ErrMsg(ERR_URC);
-				exit(EXIT_FAILURE);
+				ZExit(EXIT_FAILURE);	/* not exit() */
 			}
 			TIBERc = &TIBBeg[TIRab.rab$w_rsz];
 			*TIBERc++ = CRETRN;
@@ -722,10 +729,24 @@ DEFAULT ZExeEJ(void)			/* execute an EJ command */
 {
 	LONG	RetVal;
 	DBGFEN(1,"ZExeEJ","");
-	if (EStTop == EStBot) {			/* if no numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  so "(EJ)" and "1+EJ" used to hand GetNmA an operator and die with
+ * ?IFE instead of yielding the documented default of 0EJ.  ^R, ^T, ED, \ and
+ * Qq have always used this form.
+ */
+/*
+ * UMinus has to run BEFORE the test:  a bare "-" is on the stack as an
+ * OPERATOR,  and it is UMinus that turns the lone one into the operand -1.
+ * Testing first made "-EJ" all look like
+ * partial expressions and take their default of 1.
+ */
+	UMinus();				/* if -EJ, make it -1EJ */
+	if ((EStTop == EStBot) ||		    /* if no numeric arg or */
+	    (EStack[EStTop].ElType != OPERAND)) {   /* partial expression */
 		NArgmt = 0;			/* default is 0EJ */
 	} else {
-		UMinus();			/* if -EJ, make it -1EJ */
 		if (GetNmA() == FAILURE) {	/* get numeric argument */
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
@@ -886,8 +907,17 @@ VVOID ZOClDe(DEFAULT OfIndx)		/* close and delete output file */
 		if (status != RMS$_NORMAL) {
 			ZErMsg(status, OFiles[OfIndx].OFab.fab$l_stv);
 			if (!$VMS_STATUS_SUCCESS(status)) {
-				ErrMsg(ERR_UCD);
-				exit(EXIT_FAILURE);
+/*
+ * ErrStr,  not ErrMsg:  Errors[ERR_UCD] and Errors[ERR_UCO] both carry a "%s",
+ * and ErrMsg has no argument to substitute,  so both of these used to show the
+ * user the format specifier itself.  Unlike the other ports this one keeps no
+ * copy of the output file name -- OFiles here is three RMS blocks and nothing
+ * else -- so the substitution is empty;  the ?SYS line above has already said
+ * what RMS thought of it.  ZExit,  not exit(),  for the reason round 5
+ * section 5 gives.
+ */
+				ErrStr(ERR_UCD, "");
+				ZExit(EXIT_FAILURE);
 			}
 		}
 		IsOpnO[OfIndx] = FALSE;
@@ -911,8 +941,8 @@ VVOID ZOClos(DEFAULT OfIndx)	/* close output file */
 		if (status != RMS$_NORMAL) {
 			ZErMsg(status, OFiles[OfIndx].OFab.fab$l_stv);
 			if (!$VMS_STATUS_SUCCESS(status)) {
-				ErrMsg(ERR_UCO);
-				exit(EXIT_FAILURE);
+				ErrStr(ERR_UCO, "");	/* see ZOClDe */
+				ZExit(EXIT_FAILURE);	/* not exit() */
 			}
 		}
 		IsOpnO[OfIndx] = FALSE;

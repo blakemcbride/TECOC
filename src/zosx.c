@@ -272,6 +272,7 @@ BOOLEAN NoWait;				/* return immediately? */
  * a real character is now always >= 0.
  */
 	int Charac;
+	BOOLEAN RdErr;			/* did the read really FAIL? */
 	static	BOOLEAN	LastLF = FALSE;
 	if (LastLF) {
 		LastLF = FALSE;
@@ -286,6 +287,7 @@ BOOLEAN NoWait;				/* return immediately? */
  * hung on the first poll.  The MS-DOS, Win32, OS/2 and VMS ports have always
  * honoured it.
  */
+	RdErr = FALSE;				/* nothing has failed yet */
 #if CURSES
 	if (NoWait) {
 		nodelay(stdscr, TRUE);		/* poll instead of blocking */
@@ -309,9 +311,12 @@ BOOLEAN NoWait;				/* return immediately? */
 				return (DEFAULT)-1; /* nothing typed yet */
 			}
 		}
-		Charac = (read(fileno(stdin), &InByte, 1) == 1)
-				? (int)InByte
-				: -1;
+		{
+			int NRead;
+			NRead = (int)read(fileno(stdin), &InByte, 1);
+			RdErr = (BOOLEAN)(NRead < 0);	/* 0 is end of file */
+			Charac = (NRead == 1) ? (int)InByte : -1;
+		}
 	}
 #endif
 	if (Charac < 0) {
@@ -331,8 +336,19 @@ BOOLEAN NoWait;				/* return immediately? */
 		if (NoWait) {			/* if 32ET, nothing there */
 			return (DEFAULT)-1;
 		}
+/*
+ * A read() that returns 0 is a clean end of input,  not an operating-system
+ * failure,  and it does not set errno -- so calling ZErMsg for it printed
+ * whatever the last unrelated failed call had left there:  "?SYS Inappropriate
+ * ioctl for device",  from the tcgetattr ZTrmnl did on a pipe, or "?SYS No such
+ * file or directory",  which reads like a missing file and sends the user
+ * looking for one.  Only a read() of -1 has an errno worth reporting;  ?URC
+ * alone says the rest.  getch() answering ERR is end of input too.
+ */
 		if (!GotCtC) {
-			ZErMsg();
+			if (RdErr) {		/* a real read() failure */
+				ZErMsg();
+			}
 			ErrMsg(ERR_URC);
 			ZExit(EXIT_FAILURE);
 		}
@@ -926,10 +942,24 @@ characteristics.  It returns:
 DEFAULT ZExeEJ()			/* execute an EJ command */
 {
 	DBGFEN(1,"ZExeEJ",NULL);
-	if (EStTop == EStBot) {			/* if no numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  so "(EJ)" and "1+EJ" used to hand GetNmA an operator and die with
+ * ?IFE instead of yielding the documented default of 0EJ.  ^R, ^T, ED, \ and
+ * Qq have always used this form.
+ */
+/*
+ * UMinus has to run BEFORE the test:  a bare "-" is on the stack as an
+ * OPERATOR,  and it is UMinus that turns the lone one into the operand -1.
+ * Testing first made "-EJ" all look like
+ * partial expressions and take their default of 1.
+ */
+	UMinus();				/* if -EJ, make it -1EJ */
+	if ((EStTop == EStBot) ||		    /* if no numeric arg or */
+	    (EStack[EStTop].ElType != OPERAND)) {   /* partial expression */
 		NArgmt = 0;			/* default is 0EJ */
 	} else {
-		UMinus();			/* if -EJ, make it -1EJ */
 		if (GetNmA() == FAILURE) {	/* get numeric argument */
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
@@ -1154,7 +1184,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 	}
 	if (fclose(OFiles[OfIndx].OStrem) == EOF) {	/* close it */
 		ZErMsg();
-		ErrMsg(ERR_UCO);			/* unable to close */
+		ErrStr(ERR_UCO, OFiles[OfIndx].OFNam);		/* unable to close */
 		ZExit(EXIT_FAILURE);
 	}
 	if (OFiles[OfIndx].OTNam[0] != '\0') {	/* if temporary output file */
@@ -1211,7 +1241,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 #endif
 				if (remove(TmpFsp) != 0) {	/* delete it */
 					ZErMsg();
-					ErrMsg(ERR_UCO);
+					ErrStr(ERR_UCO, TmpFsp);
 					ZExit(EXIT_FAILURE);
 				}
 			}
@@ -1231,7 +1261,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 #endif
 					if (remove(TmpFsp) != 0) {  /* delete it */
 						ZErMsg();
-						ErrMsg(ERR_UCO);
+						ErrStr(ERR_UCO, TmpFsp);
 						ZExit(EXIT_FAILURE);
 					}
 				}
@@ -1239,7 +1269,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				(void)strcat(TmpFsp, ";1");
 			} else if (ver==(-1)) {			/* can't read dir */
 				ZErMsg();
-				ErrMsg(ERR_UCO);		/* una to close o */
+				ErrStr(ERR_UCO, TmpFsp);	/* una to close o */
 				ZExit(EXIT_FAILURE);
 			} else {				/* ver > 0 */
 				ver++;
@@ -1264,7 +1294,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			: rename(OFiles[OfIndx].OTNam, TmpFsp))) {
 			ZErMsg();
 			ZSvdIn(OfIndx);		/* name the temporary file */
-			ErrMsg(ERR_UCO);
+			ErrStr(ERR_UCO, OFiles[OfIndx].OTNam);
 			ZExit(EXIT_FAILURE);
 		}
 		} else { /* Delete original if not backing up */
@@ -1272,7 +1302,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			    remove(OFiles[OfIndx].OTNam) != 0) {
 				ZErMsg();
 				ZSvdIn(OfIndx);	/* ...say where the text is */
-				ErrMsg(ERR_UCO);
+				ErrStr(ERR_UCO, OFiles[OfIndx].OTNam);
 				DBGFEX(2,DbgFNm,"remove() failed");
 				ZExit(EXIT_FAILURE);
 			}
@@ -1291,7 +1321,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				   OFiles[OfIndx].OTNam)) {
 				ZErMsg();
 				ZSvdIn(OfIndx);	/* ...say where the text is */
-				ErrMsg(ERR_UCO);
+				ErrStr(ERR_UCO, OFiles[OfIndx].OTNam);
 				ZExit(EXIT_FAILURE);
 			}
 			(void)remove(OFiles[OfIndx].OFNam);
@@ -1299,7 +1329,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 					 OFiles[OfIndx].OTNam)) {
 			ZErMsg();
 			ZSvdIn(OfIndx);		/* ...say where the text is */
-			ErrMsg(ERR_UCO);
+			ErrStr(ERR_UCO, OFiles[OfIndx].OTNam);
 			ZExit(EXIT_FAILURE);
 		}
 	}

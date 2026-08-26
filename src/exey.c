@@ -10,7 +10,15 @@
 DEFAULT ExeY()                          /* Y command */
 {
 	DBGFEN(1,"ExeY",NULL);
-	if (EStTop > EStBot) {			/* if numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  and this command's value-producing form belongs in the middle of an
+ * expression:  "1+%A" and "1+:C" used to hand GetNmA an operator and die with
+ * ?IFE where "1+QA" has always worked.  ^R, ^T, ED, \ and Qq use this form.
+ */
+	if ((EStTop > EStBot) &&		/* if numeric argument */
+	    (EStack[EStTop].ElType == OPERAND)) { /* ...and not a partial one */
 		ErrMsg(ERR_NYA);		/* numeric argument with Y */
 		DBGFEX(1,DbgFNm,"FAILURE");
 		return FAILURE;

@@ -19,14 +19,17 @@ TECO-11, and may be implemented in TECO-C someday.
 #define ED_PRES_DOT	16	/* preserve "dot" on failing searches */
 /*#define ED_IMMED_OK	32*/	/* allow immediate escape-sequence commands */
 #define ED_DOT_BY_ONE	64	/* move dot by one on iter. search failure */
-/*#define ED_NO_W	128*/	/* don't do automatic "^W" before prompt */
+#define ED_NO_W		128	/* don't do automatic "^W" before prompt */
 /*
  * The six below are DEAD:  nothing in the tree reads any of them.  Each was
  * superseded by the EZ_ bit of the same name in zport.h,  which is what the
  * code and the macro library actually use;  only ED_CARET_OK, ED_YANK_OK,
- * ED_PRES_DOT and ED_DOT_BY_ONE above are live.  They are left defined so
- * that a macro written against TECO-11's ED bit numbering still compiles,  but
- * setting one of them changes nothing -- use the EZ_ equivalent.
+ * ED_PRES_DOT, ED_DOT_BY_ONE and ED_NO_W above are live.  They are left
+ * defined so that a macro written against TECO-11's ED bit numbering still
+ * compiles,  but setting one of them changes nothing -- use the EZ_ equivalent.
+ *	ED_IMMED_OK stays commented out for a different reason:  section 4.4's
+ * immediate ESCape-sequence commands are a feature TECOC has never had,  not
+ * merely a bit nothing reads.
  */
 #if defined(unix) || defined(AMIGA)
 #define ED_UNIXNL	256	/* unused: see EZ_UNIXNL */

@@ -569,10 +569,24 @@ characteristics.  It returns:
 DEFAULT ZExeEJ(void)			/* execute an EJ command */
 {
 	DBGFEN(1,"ZExeEJ",NULL);
-	if (EStTop == EStBot) {			/* if no numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  so "(EJ)" and "1+EJ" used to hand GetNmA an operator and die with
+ * ?IFE instead of yielding the documented default of 0EJ.  ^R, ^T, ED, \ and
+ * Qq have always used this form.
+ */
+/*
+ * UMinus has to run BEFORE the test:  a bare "-" is on the stack as an
+ * OPERATOR,  and it is UMinus that turns the lone one into the operand -1.
+ * Testing first made "-EJ" all look like
+ * partial expressions and take their default of 1.
+ */
+	UMinus();				/* if -EJ, make it -1EJ */
+	if ((EStTop == EStBot) ||		    /* if no numeric arg or */
+	    (EStack[EStTop].ElType != OPERAND)) {   /* partial expression */
 		NArgmt = 0;			/* default is 0EJ */
 	} else {
-		UMinus();			/* if -EJ, make it -1EJ */
 		if (GetNmA() == FAILURE) {	/* get numeric argument */
 			DBGFEX(1,DbgFNm,"FAILURE, GetNmA() failed");
 			return FAILURE;
@@ -734,7 +748,7 @@ VVOID ZOClos(DEFAULT OfIndx)	/* close output file */
 	}
 	if (fclose(OFiles[OfIndx].OStrem) == EOF) {	/* close it */
 		ZErMsg();
-		ErrMsg(ERR_UCO);			/* unable to close */
+		ErrStr(ERR_UCO, OFiles[OfIndx].OFNam);		/* unable to close */
 		DBGFEX(2,DbgFNm,"fclose() failed");
 		ZExit(EXIT_FAILURE);
 	}
@@ -783,7 +797,7 @@ VVOID ZOClos(DEFAULT OfIndx)	/* close output file */
 #endif
 			if (remove(TmpFsp) != 0) {	/* delete it */
 				ZErMsg();
-				ErrMsg(ERR_UCO);
+				ErrStr(ERR_UCO, TmpFsp);
 				DBGFEX(2,DbgFNm,"remove() failed");
 				ZExit(EXIT_FAILURE);
 			}
@@ -799,7 +813,7 @@ VVOID ZOClos(DEFAULT OfIndx)	/* close output file */
 		if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0 &&
 		    rename(OFiles[OfIndx].OTNam,TmpFsp)) {
 			ZErMsg();
-			ErrMsg(ERR_UCO);
+			ErrStr(ERR_UCO, OFiles[OfIndx].OTNam);
 			DBGFEX(2,DbgFNm,"rename() failed, calling ZExit()");
 			ZExit(EXIT_FAILURE);
 		}
@@ -813,7 +827,7 @@ VVOID ZOClos(DEFAULT OfIndx)	/* close output file */
  */
 		if (rename(OFiles[OfIndx].OFNam,OFiles[OfIndx].OTNam)) {
 			ZErMsg();
-			ErrMsg(ERR_UCO);
+			ErrStr(ERR_UCO, OFiles[OfIndx].OTNam);
 			DBGFEX(2,DbgFNm,"rename() failed, calling ZExit()");
 			ZExit(EXIT_FAILURE);
 		}

@@ -98,8 +98,18 @@ charptr YBfEnd;
 	    ZDspBf(YBfBeg, YBfPtr-YBfBeg);
 	    YBfBeg = YBfPtr;
 	} else if (((*YBfPtr > USCHAR) && (*YBfPtr < DELETE)) ||
+		   (*YBfPtr == BAKSPC) ||
 		   (*YBfPtr == TABCHR) ||
 		   (*YBfPtr == CRETRN)) {
+/*
+ * <BS> belongs in this list.  The header comment above says so -- "all control
+ * characters EXCEPT <BS>, <TAB>, <LF>, <CR> ... to the ^x format" -- and EchoIt,
+ * the other display path,  passes it straight through.  It was missing here,
+ * so it fell into the switch below and came out as the two characters "^H":
+ * "T" and "^T" rendered the same byte two different ways,  and so did "T" and
+ * the echo of the command that inserted it.  Round 3 section 14 closed the same
+ * split for <VT> and <FF>,  in the other direction.
+ */
 	    ++YBfPtr;
 	} else if (*YBfPtr  & '\200') {		/* MSB set? */
 	    if (EtFlag & ET_EIGHTBIT) {
@@ -120,8 +130,6 @@ charptr YBfEnd;
 	    }
 	    switch (*YBfPtr) {
 		case ESCAPE:	ZDspCh('$');
-				break;
-		case BAKSPC:	ZDspBf("^H",2);
 				break;
 		case FORMFD:	ZDspCh('\r');
 				/* fall through */

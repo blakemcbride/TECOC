@@ -446,6 +446,31 @@ J::STE"S-2D                          !+ if it's a TE command !
 !
     !NOFIND!
 
+!+***************************************************************************
+  Everything TECOC recognises has now been taken out of the command line,  so
+  a switch character still preceded by whitespace is one we do not know.  It
+  used to be left where it stood,  and the whitespace-stripping loop below
+  then glued it onto the file name:  "teco f.txt -xyzzy" edited -- and offered
+  to create -- "f.txt-xyzzy",  so a user who mistyped a switch lost the file
+  they meant to edit and gained an empty one they did not.  "-SEEALL" and
+  "-HOLD" fell into the same hole,  since they exist here only as suffixes of
+  "-SCROLL".
+  Two guards.  Under VMS the switch character is a slash,  which is also a
+  path separator,  so the test is made only where it is a dash.  And a
+  filespec containing a space reaches us in quotes,  where a dash is part of
+  the name,  so a line that still holds a quote is left alone.
+****************************************************************************!
+
+    QY-^^-"E                              !+ if switches begin with a dash !
+      J:S""F                              !+ and nothing is quoted !
+        J:S^ES^EUY"S                       !+ and a switch is still here !
+            ?Unrecognized switch ".-1,ZT"1310
+            
+        '
+      '
+    '
+
+
 !+ If there's more to the command,  then delete preceding whitespace and
    if the remainder of the command line contains a quoted string,  do a ZJ. !
 
@@ -588,6 +613,31 @@ J::STE"S-2D                          !+ if it's a TE command !
 J::SMA"S-2D
     <0A"AD|1;'>                        !+ delete letters following MA !
     ::S^ES"S^SD'                     !+ delete trailing whitespace !
+
+!+***************************************************************************
+  Everything TECOC recognises has now been taken out of the command line,  so
+  a switch character still preceded by whitespace is one we do not know.  It
+  used to be left where it stood,  and the whitespace-stripping loop below
+  then glued it onto the file name:  "teco f.txt -xyzzy" edited -- and offered
+  to create -- "f.txt-xyzzy",  so a user who mistyped a switch lost the file
+  they meant to edit and gained an empty one they did not.  "-SEEALL" and
+  "-HOLD" fell into the same hole,  since they exist here only as suffixes of
+  "-SCROLL".
+  Two guards.  Under VMS the switch character is a slash,  which is also a
+  path separator,  so the test is made only where it is a dash.  And a
+  filespec containing a space reaches us in quotes,  where a dash is part of
+  the name,  so a line that still holds a quote is left alone.
+****************************************************************************!
+
+    QY-^^-"E                              !+ if switches begin with a dash !
+      J:S""F                              !+ and nothing is quoted !
+        J:S^ES^EUY"S                       !+ and a switch is still here !
+            ?Unrecognized switch ".-1,ZT"1310
+            
+        '
+      '
+    '
+
     J
     <
         .-Z;

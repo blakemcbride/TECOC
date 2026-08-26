@@ -15,7 +15,15 @@ DEFAULT ExeP()			/* execute a P or PW command */
 	BOOLEAN	SavEof;
 	DBGFEN(1,"ExeP",NULL);
 	SavEof = IsEofI[CurInp];		/* save end-of-file flag */
-	if (EStTop == EStBot) {			/* if no numeric argument */
+/*
+ * The test asks whether there is an OPERAND on top of the stack,  not merely
+ * whether the stack is non-empty.  A "(" or a pending "+" leaves an OPERATOR
+ * there,  and this command's value-producing form belongs in the middle of an
+ * expression:  "1+%A" and "1+:C" used to hand GetNmA an operator and die with
+ * ?IFE where "1+QA" has always worked.  ^R, ^T, ED, \ and Qq use this form.
+ */
+	if ((EStTop == EStBot) ||		    /* if no numeric arg or */
+	    (EStack[EStTop].ElType != OPERAND)) {   /* partial expression */
 		NArgmt = 1;			/* default is 1P */
 	} else {
 		if (GetNmA() == FAILURE) {	/* get numeric argument */
@@ -51,8 +59,12 @@ DEFAULT ExeP()			/* execute a P or PW command */
 /*
  * This arm consumed the colon but left it set,  so the NEXT command saw a
  * colon it was never given:  ":PGA" typed Q-register A instead of inserting it.
+ *	MARGIS is the exception:  this arm ends in a PushEx,  so it is a VALUE
+ * PRODUCER and the "m," in front of it belongs to the command that takes the
+ * result.  The plain "nP" below produces nothing and goes on clearing all of
+ * CmdMod.  See the commentary on FSAray in skpcmd.c.
  */
-		CmdMod = '\0';			/* clear modifiers flags */
+		CmdMod &= MARGIS;		/* clear modifiers flags */
 		DBGFEX(1,DbgFNm,SavEof ? "PushEx(0)" : "PushEx(-1)");
 		return PushEx(SavEof ? 0L : -1L, OPERAND);
 	}
