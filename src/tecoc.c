@@ -782,7 +782,7 @@ char *DbgMsg;				/* message to display */
 	}
 	if (DbgSBf[DBGSBF] != '\0') {		/* check sprintf() overrun */
 		puts("DbgSBf[] overrun");
-		exit(EXIT_FAILURE);
+		ZExit(EXIT_FAILURE);		/* not exit():  restore the tty */
 	}
 /*
  * If you enable consistency checking and code checksumming here, pointers
@@ -1089,14 +1089,24 @@ VVOID check_consistency()
 /*
  * The order of pointers into the editing buffer should be:
  *
- *   EBfBeg <= GapBeg <= GapEnd <= EBfEnd <= IBfEnd
+ *   EBfBeg <= GapBeg <= GapEnd+1 <= EBfEnd+1 <= IBfEnd+1
+ *
+ * GapEnd points at the LAST byte of the gap,  not one past it -- everything
+ * in the tree computes the gap size as GapEnd-GapBeg+1,  InsStr included --
+ * so an EMPTY gap is GapBeg == GapEnd+1.  That state is legal and is reached
+ * whenever an insertion exactly fills the gap;  testing GapBeg > GapEnd fired
+ * on it and killed TECO,  which is what made this checker unusable.
  */
     if (EBfBeg > GapBeg) ex=errprt("EBfBeg > GapBeg",EBfBeg,GapBeg);
-    if (GapBeg > GapEnd) ex=errprt("GapBeg > GapEnd",GapBeg,GapEnd);
+    if (GapBeg > GapEnd+1) ex=errprt("GapBeg > GapEnd+1",GapBeg,GapEnd);
     if (GapEnd > EBfEnd) ex=errprt("GapEnd > EBfEnd",GapEnd,EBfEnd);
     if (EBfEnd > IBfEnd) ex=errprt("EBfEnd > IBfEnd",EBfEnd,IBfEnd);
     if (ex == EXIT_FAILURE) {
-	exit(EXIT_FAILURE);
+/*
+ * ZExit,  not exit:  a CURSES session that leaves through exit() puts the
+ * terminal back to its caller still in raw mode.
+ */
+	ZExit(EXIT_FAILURE);
     }
 }
 #endif	/* #if CONSISTENCY_CHECKING */

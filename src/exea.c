@@ -59,9 +59,14 @@ DEFAULT ExeA()			/* execute an A command */
  */
 	CmdMod = '\0';				/* clear modifiers flags */
 	if (ColonMod) {				/* if it's n:A */
-	    if (NArgmt < 1) {
+/*
+ * The manual says of n:A only that "the value of n must not be negative".
+ * Refusing 0 as well made "0:A" an error;  it should append no lines and
+ * return -1,  which is what the loop below does when NArgmt is 0.
+ */
+	    if (NArgmt < 0) {
 	        ErrMsg(ERR_IPA);
-		DBGFEX(1,DbgFNm,"FAILURE, n:A, n < 1");
+		DBGFEX(1,DbgFNm,"FAILURE, n:A, n < 0");
 		return FAILURE;
 	    }
 	    while (NArgmt-- > 0) {

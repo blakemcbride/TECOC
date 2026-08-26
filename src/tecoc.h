@@ -20,15 +20,22 @@ TECO-11, and may be implemented in TECO-C someday.
 /*#define ED_IMMED_OK	32*/	/* allow immediate escape-sequence commands */
 #define ED_DOT_BY_ONE	64	/* move dot by one on iter. search failure */
 /*#define ED_NO_W	128*/	/* don't do automatic "^W" before prompt */
+/*
+ * The six below are DEAD:  nothing in the tree reads any of them.  Each was
+ * superseded by the EZ_ bit of the same name in zport.h,  which is what the
+ * code and the macro library actually use;  only ED_CARET_OK, ED_YANK_OK,
+ * ED_PRES_DOT and ED_DOT_BY_ONE above are live.  They are left defined so
+ * that a macro written against TECO-11's ED bit numbering still compiles,  but
+ * setting one of them changes nothing -- use the EZ_ equivalent.
+ */
 #if defined(unix) || defined(AMIGA)
-#define ED_UNIXNL	256	/* use Unix-style newline line terminators */
+#define ED_UNIXNL	256	/* unused: see EZ_UNIXNL */
 #endif
-#define ED_VTGR		512
-#define ED_NOSCDEL	1024	/* old style delete handler */
-#define ED_BTEE		2048	/* use BTEE instead of DIAMOND */
-#define ED_STDOUT	4096	/* use standout for doeves pointer */
-#define ED_INVCR	8192	/* don't show CR in scope - closer to TECO-11
-	but really not as good in my opinion (Mark Henderson)*/
+#define ED_VTGR		512	/* unused: see EZ_VT100GRAPHICS */
+#define ED_NOSCDEL	1024	/* unused: old style delete handler */
+#define ED_BTEE		2048	/* unused: see EZ_BTEE */
+#define ED_STDOUT	4096	/* unused: standout for doeves pointer */
+#define ED_INVCR	8192	/* unused: see EZ_INVCR */
 
 /*****************************************************************************
 	Value for EH flag.

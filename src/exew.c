@@ -177,7 +177,15 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
  * "VtSize - ScroLn - 1 - winline" arithmetic all through redraw() goes
  * negative and setscrreg() is handed a bogus region.
  */
-	    if ((MArgmt < 0) || (MArgmt >= VtSize)) {
+/*
+ * ...and when EZ_WIN_LINE is set the separator line costs one more,  so the
+ * text window is VtSize-ScroLn-1-winline lines and the largest legal ScroLn is
+ * one smaller again.  Scope() has not run yet,  so "winline" itself still
+ * holds the value from the LAST time the scope was entered;  take the count
+ * from EzFlag,  which is what Scope() is about to do.
+ */
+	    if ((MArgmt < 0) ||
+		(MArgmt >= VtSize - ((EzFlag & EZ_WIN_LINE) ? 1 : 0))) {
 		ErrMsg(ERR_ARG);
 		return FAILURE;
 	    }
@@ -265,6 +273,12 @@ DEFAULT ExeW()			/* execute an W command */
  * FAILURE,  because that'll terminate the current macro.
  */
 	if (!(EtFlag & ET_WAT_SCOPE)) {		/* if scope not available */
+/*
+ * The arguments were pushed for this command,  so this command has to take
+ * them,  exactly as the VIDEO path below does with GetNmA().  Leaving them on
+ * the expression stack made "5W" hand its 5 to whatever command came next.
+ */
+		EStTop = EStBot;		/* consume our arguments */
 		CmdMod = '\0';
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;

@@ -33,6 +33,16 @@ DEFAULT PopMac()		/* restore environment after macro exit */
 	}
     }
 /*
+ * Belt and braces for the modifier leak ExeEsc's <ESC><ESC> arm describes:  a
+ * macro can also simply run off the end of its text with an "@", ":" or "::"
+ * still pending,  in which case ExeEsc never runs at all.  The modifiers the
+ * CALLER wrote were consumed before the macro was entered -- ExeM clears all
+ * but MARGIS,  and MARGIS is the M command's own,  which it has now finished
+ * with -- so nothing set here belongs to anybody but the macro.  (The
+ * expression stack is deliberately NOT cleared:  that is the return value.)
+ */
+    CmdMod = '\0';			/* clear modifiers flags */
+/*
  * restore old environment
  */
     MSp = &MStack[MStTop];

@@ -366,6 +366,7 @@ charptr TxtPtr;			/* if setting,  value to set */
 {
     char *envvar_name;
     char *envval;
+    size_t envlen;
     DBGFEN(1,"ZClnEG",NULL);
     switch (EGWhat) {
 	case EG_INI:	envvar_name = "TEC_INIT";	break;
@@ -384,8 +385,18 @@ charptr TxtPtr;			/* if setting,  value to set */
 	DBGFEX(1,DbgFNm,"1 (supported, but failed)");
 	return 1;				/* supported, but failed */
     }
-    strcpy(FBfBeg, envval);
-    FBfPtr = FBfBeg + strlen(envval);
+/*
+ * FBf is a single ZAlloc(FILENAME_MAX) block,  so an environment variable
+ * longer than that used to be copied straight off the end of it.  Refuse the
+ * value instead.
+ */
+    envlen = strlen(envval);
+    if (envlen >= FILENAME_MAX) {
+	DBGFEX(1,DbgFNm,"1 (supported, but too long for FBf)");
+	return 1;				/* supported, but failed */
+    }
+    MEMMOVE(FBfBeg, envval, (SIZE_T)(envlen + 1));
+    FBfPtr = FBfBeg + envlen;
     DBGFEX(1,DbgFNm,"-1 (success)");
     return -1;					/* return "success" */
 }
@@ -1350,9 +1361,21 @@ DEFAULT ZSetTT(		/* tell operating system that we set the terminal */
 DEFAULT TTWhat,		/* what terminal parameter to set */
 DEFAULT TTVal)		/* what to set it to */
 {
-	TTWhat = TTWhat;   /* avoid "parameter not used" Turbo C warning */
+/*
+ * This used to be a bare "return ExeNYI()",  which made every one of TECO's
+ * own callers fail:  an nET that flipped the 8-bit bit reported ?NYI after
+ * DoFlag had already stored the new value,  and "m,1:W" / "m,2:W" could never
+ * set the screen size.  Nothing here has to be told about any of the three.
+ */
 	TTVal = TTVal;	   /* avoid "parameter not used" Turbo C warning */
-	return ExeNYI();
+	switch (TTWhat) {
+	case TT8BIT:		/* the terminals we drive are always 8-bit */
+	case TTWIDTH:		/* the caller stores HtSize/VtSize itself  */
+	case TTHEIGHT:
+		return SUCCESS;
+	default:
+		return ExeNYI();
+	}
 }
 /*****************************************************************************
 	ZSWild()

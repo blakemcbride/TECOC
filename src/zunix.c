@@ -290,8 +290,17 @@ BOOLEAN NoWait;				/* return immediately? */
 #endif
 		if (GotHUp)			/* terminal went away */
 			TAbort(EXIT_FAILURE);	/* ...safe to do it here */
-		if (GotCtC || SupGotCtC)
+		if (GotCtC || SupGotCtC) {
+/*
+ * SupGotCtC says a ^C was TRAPPED (ET&32768) and is waiting to be handed to
+ * the caller as a character.  Handing it over consumes it.  It used to be
+ * cleared only by the NEXT ^C,  so after one trapped interrupt every later
+ * failed read answered CTRL_C for the rest of the session -- including a
+ * genuine end of input,  which ought to give ?URC.
+ */
+			SupGotCtC = 0;
 			return (DEFAULT)CTRL_C;
+		}
 		if (NoWait) {			/* if 32ET, nothing there */
 			return (DEFAULT)-1;
 		}
@@ -455,6 +464,7 @@ charptr TxtPtr;			/* if setting,  value to set */
 {
     char *envvar_name;
     char *envval;
+    size_t envlen;
     DBGFEN(1,"ZClnEG",NULL);
     switch (EGWhat) {
 	case EG_INI:	envvar_name = "TEC_INIT";	break;
@@ -473,8 +483,18 @@ charptr TxtPtr;			/* if setting,  value to set */
 	DBGFEX(1,DbgFNm,"1 (supported, but failed)");
 	return 1;				/* supported, but failed */
     }
-    strcpy(FBfBeg, envval);
-    FBfPtr = FBfBeg + strlen(envval);
+/*
+ * FBf is a single ZAlloc(FILENAME_MAX) block,  so an environment variable
+ * longer than that used to be copied straight off the end of it.  Refuse the
+ * value instead.
+ */
+    envlen = strlen(envval);
+    if (envlen >= FILENAME_MAX) {
+	DBGFEX(1,DbgFNm,"1 (supported, but too long for FBf)");
+	return 1;				/* supported, but failed */
+    }
+    MEMMOVE(FBfBeg, envval, (SIZE_T)(envlen + 1));
+    FBfPtr = FBfBeg + envlen;
     DBGFEX(1,DbgFNm,"-1 (success)");
     return -1;					/* return "success" */
 }
@@ -1039,6 +1059,60 @@ DEFAULT	OfIndx;				/* index into OFiles array */
 	DBGFEX(2,DbgFNm,NULL);
 }
 /*****************************************************************************
+	ZCopyF()
+
+	This function copies the contents of one file onto another,  creating
+the destination if it does not exist and truncating it if it does.  It
+returns 0 on success and non-zero on failure,  so that it can stand in for
+movefile() in the tests below.
+
+	It is used only for the /NORENAME switch (EZ_NORENAME).  TECO's
+ordinary output path writes a temporary file and moves it over the file being
+edited,  which replaces the file with a DIFFERENT one:  its inode changes,
+hard links to it stop following the edits,  and editing through a symbolic
+link leaves the link moved aside and a plain file in its place.  Copying the
+new text onto the original keeps all of that intact,  which is what "no
+rename" means.  Unlike fastcopy() below it does NOT unlink the source.
+
+*****************************************************************************/
+
+static int ZCopyF(FrmNam, ToNam)	/* copy one file onto another */
+char *FrmNam;				/* file to copy from */
+char *ToNam;				/* file to copy onto */
+{
+	FILE	*FrmFil;
+	FILE	*ToFil;
+	char	CpyBuf[8192];
+	size_t	NumRed;
+	int	Failed;
+
+	if ((FrmFil = fopen(FrmNam, "r")) == NULL) {
+		return -1;
+	}
+	if ((ToFil = fopen(ToNam, "w")) == NULL) {
+		(void)fclose(FrmFil);
+		return -1;
+	}
+
+	Failed = 0;
+	while ((NumRed = fread(CpyBuf, (size_t)1,
+			       sizeof(CpyBuf), FrmFil)) > 0) {
+		if (fwrite(CpyBuf, (size_t)1, NumRed, ToFil) != NumRed) {
+			Failed = -1;
+			break;
+		}
+	}
+	if (ferror(FrmFil)) {
+		Failed = -1;
+	}
+	(void)fclose(FrmFil);
+	if (fclose(ToFil) == EOF) {
+		Failed = -1;
+	}
+	return Failed;
+}
+
+/*****************************************************************************
 	ZOClos()
 	This function closes the current output stream.  It is only called
 when an output stream is defined.  It must
@@ -1083,7 +1157,13 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 		    char *NamPtr = strrchr(TmpFsp, '/');
 		    char *DotPtr;
 		    NamPtr = (NamPtr == NULL) ? TmpFsp : NamPtr + 1;
-		    DotPtr = strchr(NamPtr, '.');	/* find the "." */
+/*
+ * The LAST dot of the name,  not the first.  A VMS "name.type" has only one,
+ * but a Unix name may have several,  and taking the first one made the backup
+ * for "doc.tar.gz" be "doc.bak" -- an unrelated file,  which the code below
+ * then deletes.
+ */
+		    DotPtr = strrchr(NamPtr, '.');	/* find the "." */
 		    if (DotPtr != NULL) {		/* if "." exists */
 			*DotPtr = '\0';			/* make it null */
 		    }
@@ -1091,7 +1171,16 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 #endif
 	      if (EzFlag&EZ_NO_VER) {
 		(void)strcat(TmpFsp, ".bak");		/* append ".bak" */
-		if (access(TmpFsp, 0) == 0) {		/* old "x.bak"? */
+/*
+ * A file whose own name ends in ".bak" strips back to itself,  so the backup
+ * name computed above IS the file being edited.  Removing it would destroy
+ * the user's file,  and the move below would then fail and take the exit
+ * path,  leaving the edit stranded in the temporary file.  There is no other
+ * name to move the original aside to,  so skip the backup entirely and let
+ * the new text be moved into place.
+ */
+		if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0 &&
+		    access(TmpFsp, 0) == 0) {		/* old "x.bak"? */
 #if DEBUGGING
 			sprintf(DbgSBf,
 				"deleting old version of %s\r\n",
@@ -1110,7 +1199,9 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 		if (ver==(-3)) {
 			puts("\nWARNING: Versioning disabled\n");
 			(void)strcat(TmpFsp, ".bak");	/* append ".bak" */
-			if (access(TmpFsp, 0) == 0) {	/* old "x.bak"? */
+			if (strcmp(TmpFsp,		/* not itself?  */
+				   OFiles[OfIndx].OTNam) != 0 &&
+			    access(TmpFsp, 0) == 0) {	/* old "x.bak"? */
 #if DEBUGGING
 				sprintf(DbgSBf,
 					"deleting old version of %s\r\n",
@@ -1145,11 +1236,19 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			OFiles[OfIndx].OTNam, TmpFsp);
 		DbgFMs(2,DbgFNm,DbgSBf);
 #endif
-		if (movefile(OFiles[OfIndx].OTNam, TmpFsp, move_err)) {
-			ErrStr(ERR_SYS, move_err);
+		if ((strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0) &&
+		    ((EzFlag & EZ_NORENAME)		/* /NORENAME:  keep the */
+			? ZCopyF(OFiles[OfIndx].OTNam, TmpFsp)	/* original */
+			: movefile(OFiles[OfIndx].OTNam, TmpFsp, move_err))) {
+			if (EzFlag & EZ_NORENAME) {
+				ZErMsg();
+			} else {
+				ErrStr(ERR_SYS, move_err);
+			}
 			ZDspBf("Edit saved in ", 14);
 			ZDspBf(OFiles[OfIndx].OFNam,
 			       strlen(OFiles[OfIndx].OFNam));
+			ZDspBf("\r\n", 2);		/* ...and end the line */
 			ErrMsg(ERR_UCO);
 			ZClnUp();
 			exit(EXIT_FAILURE);
@@ -1159,7 +1258,20 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			OFiles[OfIndx].OFNam, OFiles[OfIndx].OTNam);
 		DbgFMs(2,DbgFNm,DbgSBf);
 #endif
-		if (movefile(OFiles[OfIndx].OFNam,
+		if (EzFlag & EZ_NORENAME) {
+/*
+ * /NORENAME:  copy the new text ONTO the file being edited rather than moving
+ * a different file into its place,  then throw the temporary away.
+ */
+			if (ZCopyF(OFiles[OfIndx].OFNam,
+				   OFiles[OfIndx].OTNam)) {
+				ZErMsg();
+				ErrMsg(ERR_UCO);
+				ZClnUp();
+				exit(EXIT_FAILURE);
+			}
+			(void)remove(OFiles[OfIndx].OFNam);
+		} else if (movefile(OFiles[OfIndx].OFNam,
 			     OFiles[OfIndx].OTNam,
 			     move_err)) {
 			ErrStr(ERR_SYS, move_err);
@@ -1650,7 +1762,21 @@ DEFAULT ZSetTT(TTWhat, TTVal)	/* tell operating system we set the term. */
 DEFAULT TTWhat;		/* what terminal parameter to set */
 DEFAULT TTVal;		/* what to set it to */
 {
-	return ExeNYI();
+/*
+ * This used to be a bare "return ExeNYI()",  which made every one of TECO's
+ * own callers fail:  an nET that flipped the 8-bit bit reported ?NYI after
+ * DoFlag had already stored the new value,  and "m,1:W" / "m,2:W" could never
+ * set the screen size.  Nothing here has to be told about any of the three.
+ */
+	switch (TTWhat) {
+	case TT8BIT:		/* the terminals we drive are always 8-bit */
+	case TTWIDTH:		/* the caller stores HtSize/VtSize itself, */
+	case TTHEIGHT:		/* ...and curses is told by Scope()        */
+		TTVal = TTVal;	/* avoid "parameter not used" warning */
+		return SUCCESS;
+	default:
+		return ExeNYI();
+	}
 }
 /*****************************************************************************
 	ZSWild()
@@ -1824,6 +1950,20 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	cur.c_lflag &= ~ECHO;
 	cur.c_oflag &= ~ONLCR;
 	cur.c_iflag &= ~(ICRNL | INLCR);
+/*
+ * "^Z^Z^Z" is how a user leaves TECO (see the RCS_CTZ case in ReadCS),  but
+ * ISIG is left on -- ^C has to keep raising SIGINT for CntrlC to trap -- so
+ * the tty driver used to swallow ^Z as VSUSP and the SIGTSTP handler suspended
+ * TECO instead.  The command could only ever be used from a pipe.  Turn off
+ * just that one character while we own the terminal;  ZClnUp puts the whole
+ * termios structure back,  and a SIGTSTP arriving any other way (kill -TSTP,
+ * or the CURSES build,  where ncurses handles it) still works.
+ */
+#ifdef VSUSP
+#ifdef _POSIX_VDISABLE
+	cur.c_cc[VSUSP] = _POSIX_VDISABLE;
+#endif
+#endif
 	tcsetattr(0, TCSANOW, &cur);
 #else
 	cur.sg_flags |= CBREAK;		/* don't wait for CRs (CBREAK) */

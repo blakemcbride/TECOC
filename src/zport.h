@@ -634,6 +634,13 @@ for everyone else.
 
 #if defined(unix) | defined(OSX)
 #define EZ_NO_VER	  1	/* do not do VMS style versions */
+/*
+ * The /NORENAME switch has always set this bit -- clpars does "0,2EZ" for it
+ * -- but only zos2.c ever looked at it,  and even there the name was never
+ * defined,  so on every other port the switch was accepted, parsed, and did
+ * nothing at all.  ZOClos now honours it:  see ZCopyF.
+ */
+#define EZ_NORENAME	  2	/* replace file contents, not the file */
 #define EZ_ARROW	  8	/* */
 #define EZ_AUDIO_BEEP	  16	/* (CURSES only) on = beep , off = flash */
 #define EZ_WIN_LINE	  32	/* (CURSES only) line between windows */

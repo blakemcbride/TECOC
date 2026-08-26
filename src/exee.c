@@ -90,6 +90,14 @@ charptr ZBfBeg;
 charptr ZBfEnd;
 charptr ZBfRdP;		/* pointer where to start reading into ZBf */
 
+/*
+ * The filespec of the last "ENfilespec$".  "EN$" walks the list that preset
+ * and leaves FBf EMPTY when it does,  so the ?FNF that reports the list
+ * exhausted used to name no file at all -- File not found "".  Remembering
+ * the pattern lets both forms say which wildcard ran out.
+ */
+static char WldSpc[FILENAME_MAX+1] = "";
+
 /*****************************************************************************
 
 	OpnInp()
@@ -564,6 +572,30 @@ charptr *EscPtr;	/* returned ptr to $$ in EI string  (+1) */
  */
 	previous_char_was_escape = FALSE;
 
+/*
+ * DoEI leaves whatever followed the $$ at the front of ZBf and points ZBfRdP
+ * past it,  so one or more whole command strings may already be sitting in
+ * the buffer when we are called.  The loop below only ever examines the bytes
+ * it reads on this pass,  so without this entry scan that leftover was never
+ * looked at again:  of the command strings that landed in one buffered chunk
+ * only the first two ever ran,  and the rest were thrown away in silence when
+ * DoEI's loop exited on end-of-file.  Carry previous_char_was_escape out of
+ * this scan exactly as the main loop does.
+ */
+	for (TmpPtr = ZBfBeg; TmpPtr < ZBfRdP; ++TmpPtr) {
+		if (*TmpPtr == ESCAPE) {
+			if (previous_char_was_escape) {
+				*ZBfPtr = ZBfRdP;
+				*EscPtr = ++TmpPtr;
+				DBGFEX(1,DbgFNm,"SUCCESS, $$ already in ZBf");
+				return (SUCCESS);
+			}
+			previous_char_was_escape = TRUE;
+		} else {
+			previous_char_was_escape = FALSE;
+		}
+	}
+
 	FOREVER {
 
 /*
@@ -943,9 +975,19 @@ static DEFAULT ExeEN()			/* execute an EN command */
  * before returning it.
  *	Both forms take the same three-way answer,  so they share it.
  */
-	status = (FBfPtr == FBfBeg)	/* if it's EN$ or :EN$ */
-		? ZSWild()		/* ...find the next match */
-		: ZPWild();		/* ...else preset the filespec */
+	if (FBfPtr == FBfBeg) {		/* if it's EN$ or :EN$ */
+		status = ZSWild();	/* ...find the next match */
+	} else {			/* ...else preset the filespec */
+		size_t SpcLen;
+
+		SpcLen = (size_t)(FBfPtr - FBfBeg);
+		if (SpcLen > FILENAME_MAX) {
+			SpcLen = FILENAME_MAX;
+		}
+		MEMMOVE(WldSpc, FBfBeg, (SIZE_T)SpcLen);
+		WldSpc[SpcLen] = '\0';	/* remember it for the ?FNF below */
+		status = ZPWild();
+	}
 
 	switch (status) {
 	case FILENF:
@@ -961,7 +1003,7 @@ static DEFAULT ExeEN()			/* execute an EN command */
 			DBGFEX(1,DbgFNm,"PushEx(0)");
 			return PushEx(0L,OPERAND);
 		}
-		ErrStr(ERR_FNF, "");		/* file not found */
+		ErrStr(ERR_FNF, WldSpc);	/* file not found */
 		DBGFEX(1,DbgFNm,"FAILURE");
 		return FAILURE;
 
@@ -1137,6 +1179,7 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
 {
 	ptrdiff_t	FSize;		/* file size */
 	LONG		SvFFPg;		/* saved FFPage value */
+	LONG		SvEzFl;		/* saved EzFlag value */
 	DEFAULT		SvCrIn;		/* saved CurInp value */
 	ptrdiff_t	SvEbSz;		/* saved edit buffer size */
 	QRptr		SvQR;		/* the q-register the user named */
@@ -1185,6 +1228,14 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
 	SvCrIn = CurInp;				/* save CurInp */
 	SvEbSz = (EBfEnd - EBfBeg) - (GapEnd - GapBeg);	/* save EBfEnd */
 	SvFFPg = FFPage;				/* save FFPage */
+/*
+ * The manual says of EQ that "no <NULL>s or <FF>s are removed from the file".
+ * RdPage goes through ZRdLin,  which throws a form feed away and stops the
+ * page unless EZ_FF is set,  so set it for the duration of the read.  It also
+ * saves the loop below having to go round once per page.
+ */
+	SvEzFl = EzFlag;				/* save EzFlag */
+	EzFlag |= EZ_FF;				/* EQ keeps form feeds */
 	CurInp = EQFL;
 	do {
 		if (RdPage() == FAILURE) {
@@ -1242,6 +1293,7 @@ static DEFAULT ExeEQ()			/* execute an EQ command */
 
 	Status = SUCCESS;
 exeeqdone:
+	EzFlag = SvEzFl;			/* restore EzFlag */
 	FFPage = SvFFPg;			/* restore FFpage */
 	EBfEnd = EBfBeg + SvEbSz +
 		 (GapEnd - GapBeg);		/* restore EBfEnd */
@@ -1360,6 +1412,14 @@ static DEFAULT ExeET()			/* execute an ET command */
 	    } else if (!(TmpET & ET_EIGHTBIT) &&  /* eightbit flag set? */
 		(EtFlag & ET_EIGHTBIT)) {
 		status = ZSetTT(TT8BIT, 1);
+	    }
+/*
+ * DoFlag has already stored the new value,  so a ZSetTT that fails would
+ * otherwise leave ET reporting an error for a change it had made.  Put the
+ * flag back before failing.
+ */
+	    if (status == FAILURE) {
+		EtFlag = TmpET;
 	    }
 	}
 
@@ -1565,7 +1625,13 @@ DEFAULT	ExeE()				/* execute an E command */
 	static DEFAULT (*FEAray[])(VVOID) = {
 		/* A */ ExeEA,    /* B */ ExeEB,
 		/* C */ ExeEC,    /* D */ ExeED,
-		/* E */ ExeIll,   /* F */ ExeEF,
+/*
+ * EE is the ESCape-surrogate flag.  TECO-C has never implemented it -- ET&8192
+ * (accent grave) is its substitute -- but rejecting it as an illegal E
+ * character said the command does not exist,  which is not what is wrong with
+ * it.  Answer ?NYI,  as EL and EM below already do.
+ */
+		/* E */ ExeNYI,   /* F */ ExeEF,
 		/* G */ ExeEG,    /* H */ ExeEH,
 		/* I */ ExeEI,    /* J */ ExeEJ,
 		/* K */ ExeEK,    /* L */ ExeNYI,
@@ -1592,7 +1658,7 @@ DEFAULT	ExeE()				/* execute an E command */
 		return ExeEUn();
 	}
 
-	if (!Is_Upper(TmpChr) || (TmpChr == 'E')) {
+	if (!Is_Upper(TmpChr)) {
 		ErrChr(ERR_IEC, TmpChr);
 		return FAILURE;
 	}

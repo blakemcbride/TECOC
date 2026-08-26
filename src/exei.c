@@ -54,6 +54,15 @@ DEFAULT ExeI()			/* execute an I command */
 				DBGFEX(1,DbgFNm,"FAILURE, illegal insert arg");
 				return FAILURE;
 			}
+/*
+ * The <DELIM> is part of the syntax of nI$,  so consume it -- ExeCtU does the
+ * same for the identically-shaped n^Uq$,  and SkpArg consumes it on the skip
+ * side.  Leaving CBfPtr on the "I" worked only because ExeCSt then handed the
+ * stray ESCAPE to ExeEsc,  which swallowed it;  but ExeEsc also clears the
+ * expression stack,  so anything the user had pending in front of the "n" was
+ * thrown away,  which n^Uq$ does not do.
+ */
+			++CBfPtr;	/* consume the delimiter */
 		}
 		InChar = (char)NArgmt;
 		if (InsStr(&InChar, (ptrdiff_t)1) == FAILURE) {

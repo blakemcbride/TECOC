@@ -345,7 +345,7 @@ static DEFAULT SkpE()			/* skip one of the E commands */
  */
 	static DEFAULT (*FEAray[])(VVOID) = {
 /* A */ SkpSkp,    /* B */ SkpArg,    /* C */ SkpSkp,    /* D */ SkpSkp,
-/* E */ 0,         /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpSkp,
+/* E */ SkpSkp,    /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpSkp,
 /* I */ SkpArg,    /* J */ SkpSkp,    /* K */ SkpSkp,    /* L */ SkpArg,
 /* M */ SkpSkp,    /* N */ SkpArg,    /* O */ SkpSkp,    /* P */ SkpSkp,
 /* Q */ SkpCtU,    /* R */ SkpArg,    /* S */ SkpSkp,    /* T */ SkpSkp,
@@ -370,7 +370,7 @@ static DEFAULT SkpE()			/* skip one of the E commands */
 		return SkpCtU();
 	else if (TmpChr == '_')
 		return SkpArg();
-	else if (!Is_Upper(TmpChr) || (TmpChr=='E'))
+	else if (!Is_Upper(TmpChr))	/* EE is ?NYI now, not ?IEC */
 		{
 		ErrChr(ERR_IEC, *CBfPtr);
 		return FAILURE;

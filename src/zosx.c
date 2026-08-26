@@ -276,8 +276,17 @@ BOOLEAN NoWait;				/* return immediately? */
 	if (Charac < 0) {
 		if (GotHUp)			/* terminal went away */
 			TAbort(EXIT_FAILURE);	/* ...safe to do it here */
-		if (GotCtC || SupGotCtC)
+		if (GotCtC || SupGotCtC) {
+/*
+ * SupGotCtC says a ^C was TRAPPED (ET&32768) and is waiting to be handed to
+ * the caller as a character.  Handing it over consumes it.  It used to be
+ * cleared only by the NEXT ^C,  so after one trapped interrupt every later
+ * failed read answered CTRL_C for the rest of the session -- including a
+ * genuine end of input,  which ought to give ?URC.
+ */
+			SupGotCtC = 0;
 			return (DEFAULT)CTRL_C;
+		}
 		if (NoWait) {			/* if 32ET, nothing there */
 			return (DEFAULT)-1;
 		}
@@ -301,6 +310,47 @@ BOOLEAN NoWait;				/* return immediately? */
 	}
 	return (DEFAULT)Charac;
 }
+/*****************************************************************************
+	ZMemFl()
+
+	This function fills FBf with the name of the file TECO uses to
+remember the last file edited,  in the form ":EG" wants:  a dollar sign
+followed by a filespec.  ClPars understands that form -- it is the same one
+the documented TEC_MEMORY value uses -- and does the reading and the writing
+itself,  so no file handling is needed here.
+
+	The name is "/tmp/teco<pid of our PARENT>.tmp",  which is what
+doc/readme.txt documents,  what zunix.c's do_egmem builds,  and what the
+comment below has always claimed happens.  It is the parent's pid,  not ours,
+because the name has to be the SAME from one invocation to the next for the
+memory to be worth anything;  the shell that invoked us is the thing that
+stays put.  (Do not reach for 0EJ instead:  TECO-11 defines that as this
+process's own id,  and macros rely on that.)
+
+	Until this existed,  ZClnEG answered "unsupported" for MEM whenever
+TEC_MEMORY was unset -- the default -- and ClPars fell back to its own .T
+subroutine,  which builds "teco<0EJ>.tmp" in the CURRENT directory.  With a
+per-invocation pid in it that name could never be found again,  so the
+filespec memory never worked at all and every "teco file" left another
+tecoNNNN.tmp behind in the user's working directory,  for ever.
+
+*****************************************************************************/
+
+static LONG ZMemFl(VVOID)	/* build filespec-memory file name */
+{
+	char	NamBuf[64];	/* "$/tmp/teco" + pid + ".tmp" + NUL */
+	size_t	NamLen;
+
+	sprintf(NamBuf, "$/tmp/teco%ld.tmp", (long)getppid());
+	NamLen = strlen(NamBuf);
+	if (NamLen >= FILENAME_MAX) {	/* FBf is FILENAME_MAX bytes */
+		return 0L;		/* return failure */
+	}
+	MEMMOVE(FBfBeg, NamBuf, (SIZE_T)(NamLen + 1));
+	FBfPtr = FBfBeg + NamLen;
+	return -1L;			/* return success */
+}
+
 /*****************************************************************************
 	ZClnEG()
 	This function executes a :EG command.  The :EG commands are used to
@@ -360,6 +410,14 @@ stored in /tmp so it gets deleted when the system boots.
 		if (EGOper == GET_VAL) {
 			size_t cplen;
 			if ((cp = getenv(cp)) == NULL) {
+/*
+ * No TEC_MEMORY,  which is the ordinary case.  MEM is still supported:  hand
+ * back the name of the file we keep it in.  Everything else really is
+ * unsupported without its environment variable.
+ */
+				if (EGWhat == EG_MEM) {
+					return ZMemFl();
+				}
 				retval = 0L;            /* return failure */
 			} else if ((cplen = strlen(cp)) >= FILENAME_MAX) {
 				retval = 0L;            /* too long for FBf */
@@ -960,6 +1018,60 @@ DEFAULT	OfIndx;				/* index into OFiles array */
 	DBGFEX(2,DbgFNm,NULL);
 }
 /*****************************************************************************
+	ZCopyF()
+
+	This function copies the contents of one file onto another,  creating
+the destination if it does not exist and truncating it if it does.  It
+returns 0 on success and non-zero on failure,  so that it can stand in for
+rename() in the tests below.
+
+	It is used only for the /NORENAME switch (EZ_NORENAME).  TECO's
+ordinary output path writes a temporary file and renames it over the file
+being edited,  which replaces the file with a DIFFERENT one:  its inode
+changes,  hard links to it stop following the edits,  and editing through a
+symbolic link leaves the link renamed aside and a plain file in its place.
+Copying the new text onto the original keeps all of that intact,  which is
+what "no rename" means.
+
+*****************************************************************************/
+
+static int ZCopyF(FrmNam, ToNam)	/* copy one file onto another */
+char *FrmNam;				/* file to copy from */
+char *ToNam;				/* file to copy onto */
+{
+	FILE	*FrmFil;
+	FILE	*ToFil;
+	char	CpyBuf[8192];
+	size_t	NumRed;
+	int	Failed;
+
+	if ((FrmFil = fopen(FrmNam, "r")) == NULL) {
+		return -1;
+	}
+	if ((ToFil = fopen(ToNam, "w")) == NULL) {
+		(void)fclose(FrmFil);
+		return -1;
+	}
+
+	Failed = 0;
+	while ((NumRed = fread(CpyBuf, (size_t)1,
+			       sizeof(CpyBuf), FrmFil)) > 0) {
+		if (fwrite(CpyBuf, (size_t)1, NumRed, ToFil) != NumRed) {
+			Failed = -1;
+			break;
+		}
+	}
+	if (ferror(FrmFil)) {
+		Failed = -1;
+	}
+	(void)fclose(FrmFil);
+	if (fclose(ToFil) == EOF) {
+		Failed = -1;
+	}
+	return Failed;
+}
+
+/*****************************************************************************
 	ZOClos()
 	This function closes the current output stream.  It is only called
 when an output stream is defined.  It must
@@ -1003,14 +1115,29 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			char *NamPtr = strrchr(TmpFsp, '/');
 			char *DotPtr;
 			NamPtr = (NamPtr == NULL) ? TmpFsp : NamPtr + 1;
-			DotPtr = strchr(NamPtr, '.');	/* find the "." */
+/*
+ * The LAST dot of the name,  not the first.  A VMS "name.type" has only one,
+ * but a Unix name may have several,  and taking the first one made the backup
+ * for "doc.tar.gz" be "doc.bak" -- an unrelated file,  which the code below
+ * then deletes.
+ */
+			DotPtr = strrchr(NamPtr, '.');	/* find the "." */
 			if (DotPtr != NULL) {		/* if "." exists */
 				*DotPtr = '\0';			/* make it null */
 			}
 		}
 		if (EzFlag&EZ_NO_VER) {
 			(void)strcat(TmpFsp, ".bak");		/* append ".bak" */
-			if (access(TmpFsp, 0) == 0) {		/* old "x.bak"? */
+/*
+ * A file whose own name ends in ".bak" strips back to itself,  so the backup
+ * name computed above IS the file being edited.  Removing it would destroy
+ * the user's file,  and the rename below would then fail with ENOENT and take
+ * the exit path,  leaving the edit stranded in the temporary file.  There is
+ * no other name to move the original aside to,  so skip the backup entirely
+ * and let the new text be renamed into place.
+ */
+			if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0 &&
+			    access(TmpFsp, 0) == 0) {		/* old "x.bak"? */
 #if DEBUGGING
 				sprintf(DbgSBf,
 						"deleting old version of %s\r\n",
@@ -1028,7 +1155,9 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			if (ver==(-3)) {
 				puts("\nWARNING: Versioning disabled\n");
 				(void)strcat(TmpFsp, ".bak");	/* append ".bak" */
-				if (access(TmpFsp, 0) == 0) {	/* old "x.bak"? */
+				if (strcmp(TmpFsp,		/* not itself?  */
+					   OFiles[OfIndx].OTNam) != 0 &&
+				    access(TmpFsp, 0) == 0) {	/* old "x.bak"? */
 #if DEBUGGING
 					sprintf(DbgSBf,
 							"deleting old version of %s\r\n",
@@ -1064,16 +1193,21 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				OFiles[OfIndx].OTNam, TmpFsp);
 		DbgFMs(2,DbgFNm,DbgSBf);
 #endif
-		if (rename(OFiles[OfIndx].OTNam, TmpFsp)) { /* TAA changed to use rename */
+		if ((strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0) &&
+		    ((EzFlag & EZ_NORENAME)		/* /NORENAME:  keep the */
+			? ZCopyF(OFiles[OfIndx].OTNam, TmpFsp)	/* original */
+			: rename(OFiles[OfIndx].OTNam, TmpFsp))) {
 			ZErMsg();
 			ZDspBf((unsigned char *)"Edit saved in ", 14);
 			ZDspBf(OFiles[OfIndx].OFNam,
 				   strlen(OFiles[OfIndx].OFNam));
+			ZDspBf((unsigned char *)"\r\n", 2);	/* end the line */
 			ErrMsg(ERR_UCO);
 			ZExit(EXIT_FAILURE);
 		}
 		} else { /* Delete original if not backing up */
-			if (remove(OFiles[OfIndx].OTNam) != 0) {
+			if (!(EzFlag & EZ_NORENAME) &&	/* /NORENAME keeps it */
+			    remove(OFiles[OfIndx].OTNam) != 0) {
 				ZErMsg();
 				ErrMsg(ERR_UCO);
 				DBGFEX(2,DbgFNm,"remove() failed");
@@ -1085,7 +1219,19 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				OFiles[OfIndx].OFNam, OFiles[OfIndx].OTNam);
 		DbgFMs(2,DbgFNm,DbgSBf);
 #endif
-		if (rename(OFiles[OfIndx].OFNam,
+		if (EzFlag & EZ_NORENAME) {
+/*
+ * /NORENAME:  copy the new text ONTO the file being edited rather than
+ * renaming a different file into its place,  then throw the temporary away.
+ */
+			if (ZCopyF(OFiles[OfIndx].OFNam,
+				   OFiles[OfIndx].OTNam)) {
+				ZErMsg();
+				ErrMsg(ERR_UCO);
+				ZExit(EXIT_FAILURE);
+			}
+			(void)remove(OFiles[OfIndx].OFNam);
+		} else if (rename(OFiles[OfIndx].OFNam,
 					 OFiles[OfIndx].OTNam)) {
 			ZErMsg();
 			ErrMsg(ERR_UCO);
@@ -1685,7 +1831,21 @@ DEFAULT ZSetTT(TTWhat, TTVal)	/* tell operating system we set the term. */
 DEFAULT TTWhat;		/* what terminal parameter to set */
 DEFAULT TTVal;		/* what to set it to */
 {
-	return ExeNYI();
+/*
+ * This used to be a bare "return ExeNYI()",  which made every one of TECO's
+ * own callers fail:  an nET that flipped the 8-bit bit reported ?NYI after
+ * DoFlag had already stored the new value,  and "m,1:W" / "m,2:W" could never
+ * set the screen size.  Nothing here has to be told about any of the three.
+ */
+	switch (TTWhat) {
+	case TT8BIT:		/* the terminals we drive are always 8-bit */
+	case TTWIDTH:		/* the caller stores HtSize/VtSize itself, */
+	case TTHEIGHT:		/* ...and curses is told by Scope()        */
+		TTVal = TTVal;	/* avoid "parameter not used" warning */
+		return SUCCESS;
+	default:
+		return ExeNYI();
+	}
 }
 /*****************************************************************************
 	ZSWild()
@@ -1880,6 +2040,20 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	cur.c_lflag &= ~ECHO;
 	cur.c_oflag &= ~ONLCR;
 	cur.c_iflag &= ~(ICRNL | INLCR);
+/*
+ * "^Z^Z^Z" is how a user leaves TECO (see the RCS_CTZ case in ReadCS),  but
+ * ISIG is left on -- ^C has to keep raising SIGINT for CntrlC to trap -- so
+ * the tty driver used to swallow ^Z as VSUSP and the SIGTSTP handler suspended
+ * TECO instead.  The command could only ever be used from a pipe.  Turn off
+ * just that one character while we own the terminal;  ZClnUp puts the whole
+ * termios structure back,  and a SIGTSTP arriving any other way (kill -TSTP,
+ * or the CURSES build,  where ncurses handles it) still works.
+ */
+#ifdef VSUSP
+#ifdef _POSIX_VDISABLE
+	cur.c_cc[VSUSP] = _POSIX_VDISABLE;
+#endif
+#endif
 	tcsetattr(0, TCSANOW, &cur);
 #endif
 	SetSig(SIGINT, CntrlC, FALSE);	/* call CntrlC on interrupt */

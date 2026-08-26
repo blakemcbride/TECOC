@@ -31,6 +31,59 @@ before calling this function to do the search.
 #include "deferr.h"		/* define identifiers for error messages */
 #include "dchars.h"		/* define identifiers for characters */
 
+#if USE_PROTOTYPES
+static BOOLEAN SemiNx(void);
+#endif
+
+/*****************************************************************************
+
+	SemiNx()
+
+	TECO-C has no "did the last search succeed" flag.  Instead Search
+looks ahead at the command string and,  when the command that follows the
+search is a semi-colon,  pushes -1 or 0 for that semi-colon to consume.
+
+	The lookahead used to be a single test of the character immediately
+after the search command,  which got two things wrong.  ":;" -- documented as
+"branch out of the current iteration if the immediately preceding search
+SUCCEEDED",  the exact complement of ";" -- begins with a colon,  so nothing
+was ever pushed for it and it always reported ?NAS.  And SPACE, CR and LF are
+no-ops everywhere else in a command string,  so "S b$ ;" had to be written
+without the space to work at all.
+
+	This function steps over those no-ops and recognises both forms.
+
+*****************************************************************************/
+
+static BOOLEAN SemiNx()		/* is the next command ";" or ":;"? */
+{
+	charptr	cp;
+
+	cp = CBfPtr + 1;		/* character after the search command */
+
+	while ((cp <= CStEnd) &&	/* step over the no-op characters */
+	       ((*cp == SPACE) || (*cp == CRETRN) || (*cp == LINEFD))) {
+		++cp;
+	}
+	if (cp > CStEnd) {
+		return FALSE;
+	}
+	if (*cp == ';') {		/* plain ";" */
+		return TRUE;
+	}
+	if (*cp != ':') {
+		return FALSE;
+	}
+
+	++cp;				/* a colon -- is it modifying a ";"? */
+	while ((cp <= CStEnd) &&
+	       ((*cp == SPACE) || (*cp == CRETRN) || (*cp == LINEFD))) {
+		++cp;
+	}
+
+	return (BOOLEAN)((cp <= CStEnd) && (*cp == ';'));
+}
+
 DEFAULT Search(RepCmd)		/* main search code */
 BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 {
@@ -119,8 +172,7 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 
 	if ((CmdMod & COLON) ||			/* if colon modifier or */
 	    ((LStTop != LStBot) &&		/* (in loop and         */
-	     (CBfPtr < CStEnd) &&		/* (guard the lookahead */
-	     (*(CBfPtr+1) == ';'))) {		/* next cmd = ;)        */
+	     SemiNx())) {			/*  next cmd = ; or :;) */
 		if (Matchd) {			/* if successful search */
 			if (EsFlag&& LStTop == LStBot && MStTop < 0) {
 			        /* if ES flag is set, not in loop or macro */

@@ -28,6 +28,17 @@ DEFAULT ExeEsc()		/* execute an ESCAPE command */
 		if (TraceM) {			/* if tracing is on */
 			ZDspCh('$');		/* echo the escape */
 		}
+/*
+ * NOT the expression stack:  leaving it alone is how a macro returns a value,
+ * and PopMac picks it up.  CmdMod has no such role,  and neither ExeM nor
+ * PopMac used to clear it,  so a macro whose text ended with a pending "@",
+ * ":" or "::" handed the modifier to the CALLER's next command -- an "@" made
+ * the caller's next text argument take its own first character as the
+ * delimiter,  a ":" silently turned the next search into a 0/-1 test,  and a
+ * "::" got the next command refused as illegal.  The same leak happened at
+ * top level,  from one command string to the next.
+ */
+		CmdMod = '\0';			/* clear modifiers flags */
 		CBfPtr = CStEnd;		/* exit this macro level */
 	} else {
 		CmdMod = '\0';			/* clear modifiers flags */

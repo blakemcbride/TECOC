@@ -83,7 +83,7 @@ Q1U0                     !+ Q0 = Q1 !
         .U.1                    !+ remember where we are in edit buffer !
         Iteco                  !+ start building "tecoxxxx.tmp" !
         0EJ\                    !+ insert process id into edit buffer !
-        .-Q1U.L                 !+ length of "tecoxxxx" part of filename !
+        .-Q.1U.L                !+ length of "tecoxxxx" part of filename !
         Q.L-8"G                 !+ if it's longer than 8 characters !
             Q.1+4J              !+ go to front of the digits !
             Q.L-8D              !+ prune most significant digits from front !
@@ -285,7 +285,7 @@ Q1#64U1
 J:S^ES^EUYNOR"SONORENAME'
 J:S^EUYNOR"FONONORENAME'
 !NORENAME!
-^SD::SA"S-D::SG"S-D::SE"S-D'''
+^SD::SE"S-D::SN"S-D::SA"S-D::SM"S-D::SE"S-D'''''
 ::S^ES"S^SD0A"AI ''
 Q1#512U1
 !NONORENAME!
