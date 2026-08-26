@@ -264,4 +264,4 @@ uminus.o: uminus.c zport.h tecoc.h defext.h
 wrpage.o: wrpage.c zport.h tecoc.h defext.h dchars.h deferr.h
 zfrsrc.o: zfrsrc.c zport.h tecoc.h defext.h dchars.h chmacs.h deferr.h
 zosx.o: zosx.c tecoc.h clpars.h dchars.h deferr.h
-zlinux.o: defext.h dscren.h vrbmsg.h
+zosx.o: defext.h dscren.h vrbmsg.h

@@ -591,6 +591,8 @@ VVOID ZOClos(OfIndx)		/* close output file */
 DEFAULT	OfIndx;			/* index into OFiles array */
 {
 	char	*DotPtr;
+	char	*NamPtr;
+	char	*ColPtr;
 /*
  * TmpFsp holds a copy of the output file name with ".bak", ";1" or ";<n>"
  * appended.  The name it is copied from is a FILENAME_MAX byte array, so the
@@ -605,16 +607,40 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 	if (fclose(OFiles[OfIndx].OStrem) == EOF) {	/* close it */
 		ZErMsg();
 		ErrMsg(ERR_UCO);			/* unable to close */
-		exit(EXIT_FAILURE);
+		ZExit(EXIT_FAILURE);
 	}
 	if (OFiles[OfIndx].OTNam[0] != '\0') {	/* if temporary output file */
 		(void)strcpy(TmpFsp, OFiles[OfIndx].OTNam);/* copy to TmpFsp */
-		DotPtr = strchr(TmpFsp, '.');		/* find the "." */
+/*
+ * Look for the extension in the NAME,  not in the whole filespec,  and take
+ * the LAST dot of the name rather than the first.  Searching the whole
+ * filespec from the front made "df0:my.dir/doc" back up to "df0:my.bak" -- a
+ * different directory and an unrelated name,  which the remove() below then
+ * deleted.  A dot in position 0 of the name is part of the name,  not an
+ * extension separator.
+ */
+		NamPtr = strrchr(TmpFsp, '/');
+		ColPtr = strrchr(TmpFsp, ':');		/* AmigaDOS device */
+		if ((NamPtr == NULL) || (ColPtr != NULL && ColPtr > NamPtr)) {
+			NamPtr = ColPtr;
+		}
+		NamPtr = (NamPtr == NULL) ? TmpFsp : NamPtr + 1;
+		DotPtr = (*NamPtr == '\0') ? NULL
+					   : strrchr(NamPtr + 1, '.');
 		if (DotPtr != NULL) {			/* if "." exists */
 			*DotPtr = '\0';			/* make it null */
 		}
 		(void)strcat(TmpFsp, ".bak");		/* append ".bak" */
-		if (access(TmpFsp, 0) == 0) {		/* old "x.bak"? */
+/*
+ * A file whose own name ends in ".bak" strips back to itself,  so the backup
+ * name computed above IS the file being edited.  Removing it would destroy
+ * the user's file,  and the rename below would then fail and take the exit
+ * path,  leaving the edit stranded in the temporary file.  There is no other
+ * name to move the original aside to,  so skip the backup entirely and let
+ * the new text be renamed into place.
+ */
+		if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0 &&
+		    access(TmpFsp, 0) == 0) {		/* old "x.bak"? */
 #if DEBUGGING
 			sprintf(DbgSBf,
 				"deleting old version of %s\r\n",
@@ -624,7 +650,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			if (remove(TmpFsp) != 0) {	/* delete it */
 				ZErMsg();
 				ErrMsg(ERR_UCO);
-				exit(EXIT_FAILURE);
+				ZExit(EXIT_FAILURE);
 			}
 		}
 #if DEBUGGING
@@ -632,10 +658,11 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			OFiles[OfIndx].OTNam, TmpFsp);
 		DbgFMs(2,DbgFNm,DbgSBf);
 #endif
-		if (rename(OFiles[OfIndx].OTNam,TmpFsp)) {
+		if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0 &&
+		    rename(OFiles[OfIndx].OTNam,TmpFsp)) {
 			ZErMsg();
 			ErrMsg(ERR_UCO);
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 #if DEBUGGING
 		sprintf(DbgSBf,"renaming %s to %s\r\n",
@@ -645,7 +672,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 		if (rename(OFiles[OfIndx].OFNam,OFiles[OfIndx].OTNam)) {
 			ZErMsg();
 			ErrMsg(ERR_UCO);
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 	}
 	IsOpnO[OfIndx] = FALSE;

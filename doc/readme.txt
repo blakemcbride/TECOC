@@ -82,9 +82,21 @@ TEC_MEMORY = ~/teco.mem
 TEC_MEMORY = \$$TEC_MEMORY
 export TEC_MEMORY
 will cause the name of the last edit file to be stored in the file
-teco.mem in the home directory. By default the file name is tecoN.tmp in
-the current directory, where "N" is the process ID of the parent process to
-teco.
+teco.mem in the home directory. By default the file name is /tmp/tecoN.tmp,
+where "N" is the process ID of the parent process to teco -- the shell, so
+that the name is the same from one invocation to the next.
+
+Note that /tmp is world-writable and that the parent process ID is
+enumerable, so on a shared machine another user can predict the name and
+create the file first, as a regular file or as a symbolic link.  TECO writes
+the memory file through the same supersede-and-rename path it uses for any
+other output file, so it replaces a planted symbolic link rather than
+following it, but the READ side does follow one: "teco" with no arguments
+would then open the file the other user chose (for editing, with a backup
+made beside it).  TECO announces the name it opened -- 'Editing file "..."'
+-- so this is noisy rather than silent, and nothing here runs with elevated
+privilege.  Set TEC_MEMORY to a file in your own directory if that matters
+to you.
 **************
 The Libary directory
 Defining the environment variable TEC_LIBRARY to be a directory path
@@ -124,9 +136,14 @@ EZ&256	If set,  don't do newline translation on file read/write -- binary mode.
         line termination. Normally on file input newline (line feed) 
         characters are converted to CRLF pairs unless preceded
         by a CR -- this allows reading DOS format files. On output CRLF pairs
-        are converted back to new line characters. Set this bit before starting
-        to edit a binary file, or when editing a DOS file for which no format
-        conversion is desired (ie file is saved back in DOS format).
+        are converted back to new line characters, EXCEPT that a file that was
+        read with CRLF line terminators is written back with CRLF line
+        terminators:  TECO remembers what the file arrived as and gives it
+        back the same way, so an ordinary edit of a DOS file does not silently
+        convert it to Unix line endings.  (A file with MIXED line endings is
+        normalized to whichever convention it was first seen to use.)  Set
+        this bit before starting to edit a binary file, or when you want the
+        bytes of the file passed through untouched in both directions.
 EZ&8192 This bit is set by default, but has no significance in this release.
 EZ&16384 Normally the backup file name is created by replacing the file extension
          with "bak" -- foo.c becomes foo.bak, however if this bit is set then

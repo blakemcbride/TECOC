@@ -173,6 +173,17 @@ Other elements of this array are used to access input files for the EI
 command.
 *****************************************************************************/
 FILE *IFiles[NIFDBS];
+/*
+ * IFisCR records that the character just read was a CR,  so that a CR+LF pair
+ * in the file becomes one CR+LF in the edit buffer rather than CR+CR+LF -- a
+ * DOS file used to be read here with a stray CR at the end of every line,
+ * which L, T and searches all saw.  IFhadCR remembers that the file really
+ * did arrive with CR+LF line endings,  so that ZWrBfr can give them back
+ * instead of silently rewriting the whole file with Unix line endings;  see
+ * OFisCR below.  (Both flags are the ones zlinux.c and zosx.c carry.)
+ */
+static int IFisCR[NIFDBS] = {0};
+static int IFhadCR[NIFDBS] = {0};
 /*****************************************************************************
 	OFiles holds the file data blocks for the output files.  There are
 three output streams:   the primary output stream,  the secondary output
@@ -184,6 +195,24 @@ static struct {
 	char	OTNam[FILENAME_MAX];	/* temporary output file name */
 	FILE	*OStrem;		/* stream */
 } OFiles[NOFDBS];
+/*****************************************************************************
+	OFisCR()
+	Does this output stream have to write CR+LF line terminators?  The
+primary and secondary output streams are paired with the primary and
+secondary input streams -- that pairing is what EB is -- so the answer is
+whether the input file this text came from used CR+LF.  Any other output
+stream (E%q) has no input file to copy the convention from and gets the
+default.
+*****************************************************************************/
+static BOOLEAN OFisCR(OfIndx)
+DEFAULT OfIndx;			/* index into OFiles array */
+{
+	switch (OfIndx) {
+		case POUTFL:	return (BOOLEAN)(IFhadCR[PINPFL] != 0);
+		case SOUTFL:	return (BOOLEAN)(IFhadCR[SINPFL] != 0);
+		default:	return FALSE;
+	}
+}
 /*****************************************************************************
 	ZErMsg()
 	This function displays error message from the operating system on
@@ -411,14 +440,19 @@ DEFAULT EGOper;			/* operation: get, set or clear */
 charptr TxtPtr;			/* if setting,  value to set */
 {
     FILE *memfile;
-    static char memname[20];
+/*
+ * memname was 20 bytes:  "/tmp/teco" is 9,  ".tmp" is 4 and the NUL is 1,
+ * which left room for SIX digits of parent pid.  Linux's pid_max is routinely
+ * 4194304,  so a seven-digit ppid is ordinary and every "teco file" clobbered
+ * a byte past the array the first time :EGMEM was touched.  64 bytes,  and
+ * one sprintf rather than a MakDBf that also writes the global digit buffer
+ * ExeEqu and TypBuf use,  the way zlinux.c's ZMemFl does it.
+ */
+    static char memname[64];
     static BOOLEAN first_time_called = TRUE;
     if (first_time_called) {
 	first_time_called = FALSE;
-	strcpy(memname, "/tmp/teco");
-	MakDBf((LONG)getppid(), 10);
-	strncat(memname, DBfBeg, DBfPtr-DBfBeg);
-	strcat(memname, ".tmp");
+	sprintf(memname, "/tmp/teco%ld.tmp", (long)getppid());
     }
     switch (EGOper) {
 	case GET_VAL:
@@ -1163,7 +1197,16 @@ DEFAULT	OfIndx;			/* index into OFiles array */
  * for "doc.tar.gz" be "doc.bak" -- an unrelated file,  which the code below
  * then deletes.
  */
-		    DotPtr = strrchr(NamPtr, '.');	/* find the "." */
+/*
+ * A dot in position 0 of the NAME is not an extension separator on Unix,  it
+ * is what makes the file hidden.  Stripping it turned ".profile" into an
+ * empty name,  so every dotfile in a directory backed up to the single file
+ * ".bak" -- one dotfile's backup overwrote the next one's,  and a file that
+ * really was called ".bak" was deleted outright.  Start the search one byte
+ * in so the leading dot is part of the name.
+ */
+		    DotPtr = (*NamPtr == '\0') ? NULL
+				    : strrchr(NamPtr + 1, '.');
 		    if (DotPtr != NULL) {		/* if "." exists */
 			*DotPtr = '\0';			/* make it null */
 		    }
@@ -1223,12 +1266,15 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			ZClnUp();
 			exit(EXIT_FAILURE);
 		} else {				/* ver > 0 */
-			int ln = strlen(TmpFsp);
 			ver++;
 			strcat(TmpFsp, ";");
 			MakDBf((LONG)ver, 10);
+/*
+ * strncat has already terminated the string.  The explicit store that used to
+ * follow put a second NUL one byte PAST that terminator,  which is off the
+ * end of TmpFsp when the name runs to the size of the buffer.
+ */
 			strncat(TmpFsp, DBfBeg, DBfPtr-DBfBeg);
-			*(TmpFsp+ln+(1+DBfPtr-DBfBeg)+1) = '\0';
 		}
 	      }
 #if DEBUGGING
@@ -1329,6 +1375,8 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 #endif
     *FBfPtr = '\0';			/* terminate the file name */
     if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+	IFisCR[IfIndx] = 0;
+	IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	return SUCCESS;
     }
@@ -1337,7 +1385,25 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	char TmpBfr[FILENAME_MAX];
 	ptrdiff_t TmpLen = FBfPtr-FBfBeg;
 	BOOLEAN noDot;
-	if (noDot = strchr(FBfBeg,'.') == NULL) {	/* if no dot */
+	charptr NamPtr;
+/*
+ * Look for the extension in the NAME,  not in the whole filespec.  Searching
+ * from FBfBeg meant that any dot in the directory part -- "./mac", "../lib/mac"
+ * -- counted as an extension,  so the documented "as given, but with a .TEC
+ * type" step of the EI file search was silently skipped for those.
+ */
+	for (NamPtr = FBfPtr;
+	     (NamPtr > FBfBeg) && (*(NamPtr-1) != '/');
+	     --NamPtr) {
+	    ;
+	}
+/*
+ * A dot in position 0 of the NAME makes the file hidden on Unix;  it is not
+ * an extension separator.  Testing it made "EI.mymacro$" look like a name
+ * that already had a type,  so ".mymacro.tec" was never tried.
+ */
+	if (noDot = ((*NamPtr == '\0') ||
+		     (strchr((char *)NamPtr + 1,'.') == NULL))) { /* if no dot */
 	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
 		errno = ENOENT;			/* nothing was tried: say */
 		goto open_failed;		/* ..."not found" */
@@ -1345,6 +1411,8 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+		IFisCR[IfIndx] = 0;
+		IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;
 	      }
@@ -1362,6 +1430,8 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	FBfPtr += TmpLen;
 	*FBfPtr = '\0';				/* terminate file name */
 	if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+	    IFisCR[IfIndx] = 0;
+	    IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 	    DBGFEX(1,DbgFNm,"SUCCESS");
 	    return SUCCESS;
 	}
@@ -1373,6 +1443,8 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+		IFisCR[IfIndx] = 0;
+		IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;
 	      }
@@ -1652,16 +1724,27 @@ DEFAULT *retlen;		/* returned length of string */
 		if (character == LINEFD) {
 			*retlen = shortBuf - charsLeft + 1;
 			if ((EzFlag & EZ_UNIXNL) == 0) {
-				ibuf[(*retlen) -1] = CRETRN;
-				ibuf[(*retlen)] = LINEFD;
-				(*retlen)++;
+				if (IFisCR[IfIndx] == 0) {
+					ibuf[(*retlen) -1] = CRETRN;
+					ibuf[(*retlen)] = LINEFD;
+					(*retlen)++;
+				} else {
+/*
+ * The LF was already preceded by a CR,  so no CR is inserted and the buffer
+ * holds one CR+LF.  Remember it:  ZWrBfr strips a CR from in front of every
+ * LF,  so without this the file would be written back with Unix line endings.
+ */
+					IFhadCR[IfIndx] = 1;
+				}
 			}
+			IFisCR[IfIndx] = 0;
 #if DEBUGGING
 			sprintf(DbgSBf,"SUCCESS, retlen = %d", *retlen);
 			DbgFEx(3,DbgFNm,DbgSBf);
 #endif
 			return SUCCESS;
 		}
+		IFisCR[IfIndx] = character == CRETRN;	/* DOS file? */
 		if (character == FORMFD && !(EzFlag & EZ_FF)) {
 			/* toss form feed, then finished */
 			*retlen = shortBuf - charsLeft;
@@ -1679,9 +1762,23 @@ DEFAULT *retlen;		/* returned length of string */
  * beyond the end of the buffer.  Both callers guarantee far more room than that
  * today,  so this is a landmine rather than a live bug,  but "<=" removes it.
  */
-		if (--charsLeft <= 0) {
-			/* no more room, so return */
-			*retlen = shortBuf;
+		/* TAA Mod 5/04 -- must allow for extra character if
+		 * UNIXNL since LF becomes CRLF */
+		if (--charsLeft <= ((EzFlag&EZ_UNIXNL) ? 0 : 1)) {
+/*
+ * No more room, so return what we have.  When EZ_UNIXNL is clear one byte is
+ * held back for the CR that would be inserted in front of a LF, so only
+ * shortBuf-1 characters were actually stored; reporting shortBuf appended an
+ * uninitialised byte to the edit buffer.  "shortBuf - charsLeft" is the count
+ * actually stored in either case.
+ *
+ * The sentinel has to be 1 rather than 0 for the same reason: with "<= 0" a
+ * LF could still be stored at index shortBuf-1, and the CR insertion above
+ * then wrote LINEFD at index shortBuf -- the byte RdLine deliberately holds
+ * back -- leaving EBfEnd == IBfEnd, so a following P or PW stored its form
+ * feed one byte past the edit-buffer allocation.
+ */
+			*retlen = shortBuf - charsLeft;
 #if DEBUGGING
 			sprintf(DbgSBf,"SUCCESS, retlen = %d", *retlen);
 			DbgFEx(3,DbgFNm,DbgSBf);
@@ -1942,6 +2039,24 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	cbreak();			/* don't wait for CRs (CBREAK) */
 	noecho();			/* don't echo characters (ECHO) */
 	nonl();				/* don't add CRs to NEWLINEs (CRMOD) */
+/*
+ * "^Z^Z^Z" is how a user leaves TECO (see the RCS_CTZ case in ReadCS).  The
+ * non-video branch below turns VSUSP off so that the first ^Z reaches ZChIn;
+ * the video build needs exactly the same thing.  cbreak() leaves ISIG on and
+ * does not touch c_cc[VSUSP],  so without this the tty driver raises SIGTSTP
+ * and ncurses suspends the editor instead -- the documented way out of TECO
+ * could not work in any video build.  endwin() restores the modes ncurses
+ * saved at initscr() time,  so nothing extra is needed on the way out.
+ */
+#if defined(VSUSP) && defined(_POSIX_VDISABLE)
+	{
+		struct termios ttmp;
+		if (tcgetattr(0, &ttmp) != -1) {
+			ttmp.c_cc[VSUSP] = _POSIX_VDISABLE;
+			(void)tcsetattr(0, TCSANOW, &ttmp);
+		}
+	}
+#endif
 	curwin = stdscr;
 	ScopeFlg = 0;			/* not writing in scope */
 #else  /* NOT CURSES */
@@ -1956,8 +2071,10 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
  * the tty driver used to swallow ^Z as VSUSP and the SIGTSTP handler suspended
  * TECO instead.  The command could only ever be used from a pipe.  Turn off
  * just that one character while we own the terminal;  ZClnUp puts the whole
- * termios structure back,  and a SIGTSTP arriving any other way (kill -TSTP,
- * or the CURSES build,  where ncurses handles it) still works.
+ * termios structure back,  and a SIGTSTP arriving any other way (kill -TSTP)
+ * still works.  The CURSES branch above does the same thing for the video
+ * build -- ncurses "handling" SIGTSTP means suspending the editor,  which is
+ * not what the user asked for.
  */
 #ifdef VSUSP
 #ifdef _POSIX_VDISABLE
@@ -2059,8 +2176,13 @@ charptr BfrEnd;			/* address of output buffer end */
  * line feed (newline) instead of a carriage-return/line-feed pair,  then
  * we can just fwrite the buffer.  Otherwise,  we have to scan the buffer
  * and convert CR/LF pairs to just LF before output.
+ *
+ * ...unless the file this text came from used CR+LF line terminators in the
+ * first place,  in which case the buffer already holds exactly what the file
+ * should be given back and stripping the CRs would silently rewrite every
+ * line of it.  See OFisCR and IFhadCR at the top of this file.
  */
-	if (EzFlag & EZ_UNIXNL) {
+	if ((EzFlag & EZ_UNIXNL) || OFisCR(OfIndx)) {
 	    ptrdiff_t bufsiz = BfrEnd-BfrBeg+1;
 	    if (fwrite(BfrBeg, sizeof(char), bufsiz,
 		       OFiles[OfIndx].OStrem) != bufsiz) {

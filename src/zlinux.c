@@ -136,6 +136,17 @@ FILE *IFiles[NIFDBS];
  * have CRLF -> CRLF instead of CRLFLF in case input file is DOS
  * format. */
 static int IFisCR[NIFDBS] = {0};
+/*
+ * IFisCR is an input-side flag with no output-side counterpart:  because it
+ * suppresses the CR that would otherwise be inserted in front of a LF,  a DOS
+ * file holds one CR+LF in the edit buffer rather than CR+CR+LF -- and ZWrBfr,
+ * which strips a CR from in front of every LF,  then wrote the file back with
+ * Unix line endings.  An ordinary "EBdos.txt$Y$EX$$" with no editing at all
+ * silently rewrote every line of the file.  IFhadCR remembers that the file
+ * really did arrive with CR+LF line endings so that ZWrBfr can give them
+ * back;  see OFisCR below.
+ */
+static int IFhadCR[NIFDBS] = {0};
 /*****************************************************************************
 	OFiles holds the file data blocks for the output files.  There are
 three output streams:   the primary output stream,  the secondary output
@@ -148,6 +159,24 @@ static struct {
 	FILE	*OStrem;		/* stream */
 	BOOLEAN forBackup;          /* TAA Mod */
 } OFiles[NOFDBS];
+/*****************************************************************************
+	OFisCR()
+	Does this output stream have to write CR+LF line terminators?  The
+primary and secondary output streams are paired with the primary and
+secondary input streams -- that pairing is what EB is -- so the answer is
+whether the input file this text came from used CR+LF.  Any other output
+stream (E%q) has no input file to copy the convention from and gets the
+default.
+*****************************************************************************/
+static BOOLEAN OFisCR(OfIndx)
+DEFAULT OfIndx;			/* index into OFiles array */
+{
+	switch (OfIndx) {
+		case POUTFL:	return (BOOLEAN)(IFhadCR[PINPFL] != 0);
+		case SOUTFL:	return (BOOLEAN)(IFhadCR[SINPFL] != 0);
+		default:	return FALSE;
+	}
+}
 /*****************************************************************************
 	ZErMsg()
 	This function displays error message from the operating system on
@@ -1103,7 +1132,16 @@ DEFAULT	OfIndx;			/* index into OFiles array */
  * for "doc.tar.gz" be "doc.bak" -- an unrelated file,  which the code below
  * then deletes.
  */
-			DotPtr = strrchr(NamPtr, '.');	/* find the "." */
+/*
+ * A dot in position 0 of the NAME is not an extension separator on Unix,  it
+ * is what makes the file hidden.  Stripping it turned ".profile" into an
+ * empty name,  so every dotfile in a directory backed up to the single file
+ * ".bak" -- one dotfile's backup overwrote the next one's,  and a file that
+ * really was called ".bak" was deleted outright.  Start the search one byte
+ * in so the leading dot is part of the name.
+ */
+			DotPtr = (*NamPtr == '\0') ? NULL
+					: strrchr(NamPtr + 1, '.');
 			if (DotPtr != NULL) {		/* if "." exists */
 				*DotPtr = '\0';			/* make it null */
 			}
@@ -1271,6 +1309,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
     if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	IFisCR[IfIndx] = 0;
+	IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 	return SUCCESS;
     }
     if (EIFile) {
@@ -1290,7 +1329,13 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	     --NamPtr) {
 	    ;
 	}
-	if (noDot = strchr(NamPtr,'.') == NULL) {	/* if no dot */
+/*
+ * A dot in position 0 of the NAME makes the file hidden on Unix;  it is not
+ * an extension separator.  Testing it made "EI.mymacro$" look like a name
+ * that already had a type,  so ".mymacro.tec" was never tried.
+ */
+	if (noDot = ((*NamPtr == '\0') ||
+		     (strchr(NamPtr + 1,'.') == NULL))) { /* if no dot */
 	    if ((FBfPtr + 4) > FBfEnd) {	/* if ".tec" doesn't fit */
 		errno = ENOENT;			/* nothing was tried: say */
 		goto open_failed;		/* ..."not found" */
@@ -1300,6 +1345,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		IFisCR[IfIndx] = 0;
+		IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 		return SUCCESS;
 	      }
 	}
@@ -1318,6 +1364,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
 	    DBGFEX(1,DbgFNm,"SUCCESS");
 	    IFisCR[IfIndx] = 0;
+	    IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 	    return SUCCESS;
 	}
 	if (noDot) {					/* if no dot */
@@ -1329,6 +1376,7 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    FBfPtr += 4;
 	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
 		IFisCR[IfIndx] = 0;
+		IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;
 	      }
@@ -1703,10 +1751,19 @@ DEFAULT *retlen;		/* returned length of string */
 		*iBuf++ = character;
 		if (character == LINEFD) {
 			*retlen = shortBuf - charsLeft + 1;
-			if ((EzFlag & EZ_UNIXNL) == 0 && IFisCR[IfIndx] == 0) {
-				ibuf[(*retlen) -1] = CRETRN;
-				ibuf[(*retlen)] = LINEFD;
-				(*retlen)++;
+			if ((EzFlag & EZ_UNIXNL) == 0) {
+				if (IFisCR[IfIndx] == 0) {
+					ibuf[(*retlen) -1] = CRETRN;
+					ibuf[(*retlen)] = LINEFD;
+					(*retlen)++;
+				} else {
+/*
+ * The LF was already preceded by a CR,  so no CR is inserted and the buffer
+ * holds one CR+LF.  Remember it:  ZWrBfr strips a CR from in front of every
+ * LF,  so without this the file would be written back with Unix line endings.
+ */
+					IFhadCR[IfIndx] = 1;
+				}
 			}
 			IFisCR[IfIndx] = 0;
 #if DEBUGGING
@@ -2060,6 +2117,24 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
 	cbreak();			/* don't wait for CRs (CBREAK) */
 	noecho();			/* don't echo characters (ECHO) */
 	nonl();				/* don't add CRs to NEWLINEs (CRMOD) */
+/*
+ * "^Z^Z^Z" is how a user leaves TECO (see the RCS_CTZ case in ReadCS).  The
+ * non-video branch below turns VSUSP off so that the first ^Z reaches ZChIn;
+ * the video build needs exactly the same thing.  cbreak() leaves ISIG on and
+ * does not touch c_cc[VSUSP],  so without this the tty driver raises SIGTSTP
+ * and ncurses suspends the editor instead -- the documented way out of TECO
+ * could not work in any video build.  endwin() restores the modes ncurses
+ * saved at initscr() time,  so nothing extra is needed on the way out.
+ */
+#if defined(VSUSP) && defined(_POSIX_VDISABLE)
+	{
+		struct termios ttmp;
+		if (tcgetattr(0, &ttmp) != -1) {
+			ttmp.c_cc[VSUSP] = _POSIX_VDISABLE;
+			(void)tcsetattr(0, TCSANOW, &ttmp);
+		}
+	}
+#endif
 	curwin = stdscr;
 	ScopeFlg = 0;			/* not writing in scope */
 #else  /* NOT CURSES */
@@ -2074,8 +2149,10 @@ VVOID ZTrmnl()			/* set up I/O to the terminal */
  * the tty driver used to swallow ^Z as VSUSP and the SIGTSTP handler suspended
  * TECO instead.  The command could only ever be used from a pipe.  Turn off
  * just that one character while we own the terminal;  ZClnUp puts the whole
- * termios structure back,  and a SIGTSTP arriving any other way (kill -TSTP,
- * or the CURSES build,  where ncurses handles it) still works.
+ * termios structure back,  and a SIGTSTP arriving any other way (kill -TSTP)
+ * still works.  The CURSES branch above does the same thing for the video
+ * build -- ncurses "handling" SIGTSTP means suspending the editor,  which is
+ * not what the user asked for.
  */
 #ifdef VSUSP
 #ifdef _POSIX_VDISABLE
@@ -2177,8 +2254,13 @@ charptr BfrEnd;			/* address of output buffer end */
  * line feed (newline) instead of a carriage-return/line-feed pair,  then
  * we can just fwrite the buffer.  Otherwise,  we have to scan the buffer
  * and convert CR/LF pairs to just LF before output.
+ *
+ * ...unless the file this text came from used CR+LF line terminators in the
+ * first place,  in which case the buffer already holds exactly what the file
+ * should be given back and stripping the CRs would silently rewrite every
+ * line of it.  See OFisCR and IFhadCR at the top of this file.
  */
-	if (EzFlag & EZ_UNIXNL) {
+	if ((EzFlag & EZ_UNIXNL) || OFisCR(OfIndx)) {
 	    ptrdiff_t bufsiz = BfrEnd-BfrBeg+1;
 	    if (fwrite(BfrBeg, sizeof(char), bufsiz,
 		       OFiles[OfIndx].OStrem) != bufsiz) {

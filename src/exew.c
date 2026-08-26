@@ -49,7 +49,23 @@ static DEFAULT VGetW()		/* execute an n:W command */
     DBGFEX(1,DbgFNm,"PushEx()");
     return PushEx(	NArgmt==0 ? CrType :
 			NArgmt==1 ? HtSize :
-			NArgmt==2 ? VtSize :
+/*
+ * 2:W is the height of the SCOPE,  not the physical height of the terminal.
+ * The manual:  "Whenever the scrolling region's size is modified (that is,
+ * whenever an m,7:W command is executed),  TECO alters the scope's height
+ * (2:W) accordingly.  For example,  if 2:W is currently returning a value of
+ * 24,  then after a 5,7:W command 2:W will return a value of 19.  Executing a
+ * 0,7:W will restore 2:W to 24."  This used to answer the full screen height
+ * whatever ScroLn was,  so a macro that sized its own display from 2:W after
+ * turning scrolling on -- the obvious way to write one -- drew ScroLn lines
+ * too many.
+ *
+ * VtSize itself stays the PHYSICAL height:  every "VtSize - ScroLn - 1 -
+ * winline" in redraw(), Scope() and initialize_scope() depends on that, and
+ * so does case 7's own bounds test below.  Only what 2:W reports and what
+ * m,2:W stores change,  and the two stay each other's inverse.
+ */
+			NArgmt==2 ? VtSize - ScroLn :
 			NArgmt==3 ? SeeAll :
 			NArgmt==4 ? MrkFlg :
 			NArgmt==5 ? HldFlg :
@@ -138,7 +154,12 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
 	    }
 	    if (ZSetTT(TTHEIGHT, (DEFAULT)MArgmt) == FAILURE)
 		return FAILURE;
-	    VtSize = (DEFAULT)MArgmt;
+/*
+ * MArgmt is the scope height (see VGetW),  so the physical height it implies
+ * is that plus the command window.  With ScroLn 0 -- the state m,2:W is
+ * normally used in -- this is the plain assignment it always was.
+ */
+	    VtSize = (DEFAULT)MArgmt + ScroLn;
 	    break;
 	case 3:
 	    SeeAll = (DEFAULT)MArgmt;

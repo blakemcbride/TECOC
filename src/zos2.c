@@ -688,7 +688,7 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
         ZErMsg();
         ErrMsg(ERR_UCO);                        /* unable to close */
         DBGFEX(2,DbgFNm,"fclose() failed");
-        exit(EXIT_FAILURE);
+        ZExit(EXIT_FAILURE);
     }
 
     if (OFiles[OfIndx].OTNam[0] != '\0') {      /* if temporary output file */
@@ -703,12 +703,18 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
 
             SlaPtr1 = strrchr(TmpFsp, '/');
             SlaPtr2 = strrchr(TmpFsp, '\\');
-                        if ((SlaPtr1 == NULL) || 
+                        if ((SlaPtr1 == NULL) ||
                 (SlaPtr2 != NULL && SlaPtr2 > SlaPtr1))
                                 SlaPtr1 = SlaPtr2;
-                        DotPtr = strrchr(TmpFsp, '.');          /* find the "." */
-                        /* We will ignore dot if it is before a slash */
-                        if (DotPtr != NULL && (SlaPtr1==NULL || DotPtr > SlaPtr1)) {
+/*
+ * Take the LAST dot of the name rather than the first,  and treat a dot in
+ * position 0 of the name as part of the name rather than as an extension
+ * separator.  The old test only refused a dot that was before a slash.
+ */
+                        SlaPtr1 = (SlaPtr1 == NULL) ? TmpFsp : SlaPtr1 + 1;
+                        DotPtr = (*SlaPtr1 == '\0') ? NULL
+                                        : strrchr(SlaPtr1 + 1, '.');
+                        if (DotPtr != NULL) {           /* if "." exists */
                                 *DotPtr = '\0';                 /* make it null */
             }
                         strcat(TmpFsp, ".bak");                     /* append ".bak" */
@@ -717,7 +723,16 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
              * (maybe) delete an old "filename.bak" file
              */
 
-            if (access(TmpFsp, 0) == 0) {               /* old "x.bak"? */
+/*
+ * A file whose own name ends in ".bak" strips back to itself,  so the backup
+ * name computed above IS the file being edited.  Removing it would destroy
+ * the user's file,  and the rename below would then fail and take the exit
+ * path,  leaving the edit stranded in the temporary file.  There is no other
+ * name to move the original aside to,  so skip the backup entirely and let
+ * the new text be renamed into place.
+ */
+            if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0 &&
+                access(TmpFsp, 0) == 0) {               /* old "x.bak"? */
 #if DEBUGGING
                 sprintf(DbgSBf,"removing old version of %s", TmpFsp);
                 DbgFMs(2,DbgFNm,DbgSBf);
@@ -726,7 +741,7 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
                     ZErMsg();
                     ErrMsg(ERR_UCO);
                     DBGFEX(2,DbgFNm,"remove() failed");
-                    exit(EXIT_FAILURE);
+                    ZExit(EXIT_FAILURE);
                 }
             }
 
@@ -743,15 +758,20 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
                          * is a good thing for OS/2 anyway!
              */
 
-                        if (EzFlag&EZ_NORENAME ||
-                                (failflag = rename(OFiles[OfIndx].OTNam, TmpFsp))) {
-                                failflag = fastcopy(OFiles[OfIndx].OTNam, TmpFsp);
+                        failflag = 0;
+                        if (strcmp(TmpFsp, OFiles[OfIndx].OTNam) != 0) {
+                                if (EzFlag&EZ_NORENAME ||
+                                    (failflag = rename(OFiles[OfIndx].OTNam,
+                                                       TmpFsp))) {
+                                        failflag = fastcopy(
+                                                OFiles[OfIndx].OTNam, TmpFsp);
+                                }
                         }
             if (failflag) {
                 ZErMsg();
                 ErrMsg(ERR_UCO);
-                DBGFEX(2,DbgFNm,"rename() failed, calling exit()");
-                exit(EXIT_FAILURE);
+                DBGFEX(2,DbgFNm,"rename() failed, calling ZExit()");
+                ZExit(EXIT_FAILURE);
             }
 
 #if DEBUGGING
@@ -766,7 +786,7 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
                 ZErMsg();
                 ErrMsg(ERR_UCO);
                 DBGFEX(2,DbgFNm,"remove() failed");
-                exit(EXIT_FAILURE);
+                ZExit(EXIT_FAILURE);
             }
         }
 
@@ -784,8 +804,8 @@ VVOID ZOClos(DEFAULT OfIndx)    /* close output file */
         if (failflag) {
             ZErMsg();
             ErrMsg(ERR_UCO);
-            DBGFEX(2,DbgFNm,"rename() failed, calling exit()");
-            exit(EXIT_FAILURE);
+            DBGFEX(2,DbgFNm,"rename() failed, calling ZExit()");
+            ZExit(EXIT_FAILURE);
         }
                 /* delete the temporary file, if it is still around */
                 remove(OFiles[OfIndx].OFNam);

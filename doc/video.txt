@@ -44,7 +44,13 @@ Video
 	seeall is more unix style then you might expect
 5:w	Hold mode is not properly implemented. I don't like it anyway.
 7:W	Number of lines in command window. The size of the scope window
-	will be (Rows - 7:W (- 1 if ET&256))
+	will be (Rows - 7:W (- 1 if ET&256)).
+	2:W follows this: it reports the height of the SCOPE, not the
+	physical height of the terminal, so on a 24-line screen 2:W answers
+	24 to start with, 19 after a 5,7:W, and 24 again after a 0,7:W.
+	m,2:W is the inverse -- it takes a scope height too.
+	(Note that the separator line ET&256 costs is NOT subtracted from
+	2:W; only the command window is.)
 8:w	Attribute for special characters. This is highly implementation
 	dependent (curses implementation dependent). Under SUN OS 4.1
 		0	- no marking
