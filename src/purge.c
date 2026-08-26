@@ -8,9 +8,19 @@
 #endif
 /* POSIX specifies sys/dirent.h - could add another define ---*/
 #include <string.h>
+/*
+ * malloc, free, atoi and exit come from <stdlib.h> and unlink from
+ * <unistd.h>.  Without them malloc is implicitly declared as returning int,
+ * so the cast below truncates the pointer to 32 bits on any 64-bit host and
+ * this program dies on its first free() -- long before it gets as far as the
+ * bug it exists to have.
+ */
+#include <stdlib.h>
+#include <unistd.h>
 /* usage: purge [-n] files... */
+static int purge(char *target, int plevel);
 int plevel;
-main(argc,argv) 
+int main(argc,argv) 
 int argc;
 char *argv[];
 {
@@ -37,8 +47,9 @@ char *argv[];
 		}
 		fileindex++;
 	}
+	return(0);
 }
-int purge(target,plevel)
+static int purge(target,plevel)
 char *target;
 int plevel;
 {
@@ -66,6 +77,11 @@ return
 	n = strlen(target);
 	dirname=(char *)malloc(strlen(target)+4);
 	ftarget=(char *)malloc(strlen(target)+4);
+	if (dirname == NULL || ftarget == NULL) {
+		free(dirname);
+		free(ftarget);
+		return(-3);
+	}
 	strcpy(dirname, target);
 	s=dirname + n;
 	while (*s != '/' && s > dirname)
@@ -112,10 +128,16 @@ return
 		}
 	}
 	closedir(dirp);
-	if (!found) 
+	if (!found) {
+		free(dirname);
+		free(ftarget);
 		return(-2);
-	if (maxver==0)
+	}
+	if (maxver==0) {
+		free(dirname);
+		free(ftarget);
 		return(1);
+	}
 	dirp = opendir(dirname);
 	if (dirp == NULL) {
 		fprintf(stderr,"\nerror openning directory %s\n",dirname);
@@ -137,18 +159,42 @@ return
 					return(-3);
 				}
 				if (k <= maxver - plevel + 1) {
+/*
+ * d_name is relative to the directory we opened,  not to the one we are
+ * running in:  "purge /some/where/file" scanned /some/where and then unlinked
+ * "file;1" in the CURRENT directory,  deleting an unrelated file of that name
+ * or failing with ENOENT while the version it was told to purge survived.
+ * Join the two back together.  dirname is never empty -- it is "/", "." or a
+ * path -- and only the root case already ends in a separator.
+ */
 					char *st;
-					st=dp->d_name;
+					size_t dlen = strlen(dirname);
+
+					st=(char *)malloc(dlen +
+						strlen(dp->d_name) + 2);
+					if (st == NULL) {
+						free(dirname);
+						free(ftarget);
+						closedir(dirp);
+						return(-3);
+					}
+					strcpy(st, dirname);
+					if (st[dlen-1] != '/')
+						strcat(st, "/");
+					strcat(st, dp->d_name);
 					fprintf(stderr,"unlink %s -- ",st);
 					if(unlink(st)==(-1))
 						perror("failed : ");
 					else
 						fprintf(stderr,"succeeded");
 					fprintf(stderr,"\n");
+					free(st);
 				}
 			}
 		}
 	}
 	closedir(dirp);
+	free(dirname);
+	free(ftarget);
 	return(1);
 }
