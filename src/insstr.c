@@ -89,7 +89,6 @@ ptrdiff_t length;
 	sprintf(DbgSBf,"length = %d", length);
 	DbgFEn(3,DbgFNm,DbgSBf);
 #endif
-	RefLen = -length;		/* ^S = -length of last string */
 /*
  * Before trying to insert the text,  we have to be sure there's enough room
  * in the edit buffer gap for the text.
@@ -106,6 +105,14 @@ ptrdiff_t length;
  */
 	MEMMOVE(GapBeg, string, (SIZE_T)length);
 	GapBeg += length;
+/*
+ * ^S is the negative length of the last string inserted,  so it is only true
+ * once the insert has actually happened.  This used to be the first statement
+ * of the function,  before expand_gap had had its chance to answer ?MEM,  so a
+ * failed insert still moved ^S and a following FR or ^SC then acted on a string
+ * that was never inserted.
+ */
+	RefLen = -length;		/* ^S = -length of last string */
 	DBGFEX(3,DbgFNm,"SUCCESS");
 	return SUCCESS;
 }

@@ -206,7 +206,31 @@ static DEFAULT ExeFN()			/* execute an FN command */
 *****************************************************************************/
 static DEFAULT ExeFR()			/* execute an FR command */
 {
+	DEFAULT	SavMod;			/* FR's own delimiter modifiers */
+
 	DBGFEN(1,"ExeFR",NULL);
+/*
+ * "nFRtext`" is "nDItext`" and "m,nFRtext`" is "m,nDItext`" -- the manual says
+ * so in as many words.  Both forms used to be accepted and then IGNORED:  the
+ * argument was thrown away by the "EStTop = EStBot" below and the RefLen
+ * deletion happened anyway,  so the command deleted something the user never
+ * asked it to.  ExeD implements both shapes already -- it hands an m,n pair on
+ * to ExeK -- so let it do the deletion rather than duplicating the range checks
+ * here.  ExeD clears CmdMod when it is done and ExeI still needs FR's delimiter
+ * convention,  so carry those bits across it;  and ExeD must not see the COLON,
+ * or ":D" would push a value instead of reporting ?DTB.
+ */
+	if ((CmdMod & MARGIS) || (EStTop > EStBot)) {
+		SavMod = CmdMod & (COLON | ATSIGN);
+		CmdMod &= ~COLON;
+		if (ExeD() == FAILURE) {
+			DBGFEX(1,DbgFNm,"FAILURE, ExeD() failed");
+			return FAILURE;
+		}
+		CmdMod = SavMod;
+		DBGFEX(1,DbgFNm,"ExeI()");
+		return ExeI();
+	}
 /*
  * RefLen is the NEGATIVE of the length of the last string inserted or found
  * (see InsStr and SSerch),  so the test has to add it,  not subtract it.

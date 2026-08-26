@@ -161,6 +161,16 @@ DEFAULT ExeO()			/* execute an O command */
 	    DBGFEX(1,DbgFNm,"FAILURE, FindES() failed");
 	    return FAILURE;
 	}
+/*
+ * FindES has just consumed the at-sign the scan set for it by stepping over the
+ * "@" in front of this "!" -- SkpCmd maps "@" to ExeAtS,  the real executor --
+ * and nothing else clears it.  This is the one "!" in the tree that is parsed
+ * inline instead of through SkpCmd,  whose SkpExc ends with exactly this line,
+ * so without it the modifier leaks into the REST of the scan and the next
+ * construct that honours "@" is mis-delimited:  after "@!/c/" an ordinary
+ * "!tag!" was read as "delimiter t,  text empty" and the scan ran past the tag.
+ */
+	CmdMod = '\0';			/* clear the modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"found tag \"%.*s\"\n",(int)(CBfPtr-ArgPtr), ArgPtr);
 	DbgFMs(1,DbgFNm,DbgSBf);

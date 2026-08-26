@@ -161,8 +161,16 @@ system and imbedded in a TECO-style message with the SYS mnemonic.
 *****************************************************************************/
 static VVOID ZErMsg()
 {
-	if (errno < sys_nerr)
-		ErrStr(ERR_SYS, sys_errlist[errno]);
+/*
+ * strerror always answers something.  The test this replaced -- "if (errno <
+ * sys_nerr) ErrStr(...)" -- made NO Err* call at all when errno was outside the
+ * table,  which on Darwin includes several of its own error numbers.  The caller
+ * still returned FAILURE,  so the command string was abandoned with nothing
+ * printed and LstErr left holding the PREVIOUS error,  and a following "/" then
+ * printed the wrong paragraph.  sys_errlist and sys_nerr are also deprecated,
+ * not thread-safe and not localised.
+ */
+	ErrStr(ERR_SYS, strerror(errno));
 }
 /*****************************************************************************
 	ZAlloc()

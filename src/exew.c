@@ -110,7 +110,14 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
  * Do NOT store the rejected value:  this arm reports failure,  and CrType is
  * what ZScrOp (and,  on VMS,  a table lookup) uses to decide how to drive the
  * terminal.
+ *
+ * The list above IS the report -- there is no Err* call and so no LstErr --
+ * but LstErr was left holding the PREVIOUS error,  so a following "/" or "?"
+ * explained a command that had nothing to do with this one.  ERR_XXX is the
+ * "no error outstanding" value ReadCS tests for,  which makes both immediate
+ * commands do nothing rather than the wrong thing.
  */
+		LstErr = ERR_XXX;	/* the list above was the message */
 		return FAILURE;
 	    }
 	    CrType = (DEFAULT)MArgmt;

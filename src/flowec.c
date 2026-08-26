@@ -24,6 +24,26 @@ DEFAULT FlowEC()		/* flow to end of conditional */
 		} else if (*CBfPtr == '\'') {
 			--TmpNst;
 		}
+/*
+ * A conditional may be closed OUTSIDE the iteration its '"' was written inside:
+ * "< ... "E ... > '" is how a macro breaks out of a loop on a test,  and
+ * lib/squ.tes uses precisely that idiom.  The scan then walks past the ">",  so
+ * the loop it is leaving has to be popped;  otherwise ExeCSt reaches the end of
+ * the command string with LStTop still raised and reports an unterminated
+ * iteration.  FlowEL and ExeO's tag scan both keep the stack this way.  Pushing
+ * on "<" is what makes a loop written entirely inside the skipped region net out
+ * to zero,  and LStBot guards the pop so the skip can never take the stack below
+ * the current macro level.
+ */
+		if (*CBfPtr == '<') {
+			if ((LStTop + 1) < LPS_SIZE) {
+				++LStTop;
+				LStack[LStTop].LIndex = INFINITE;
+				LStack[LStTop].LAddr  = CBfPtr;
+			}
+		} else if ((*CBfPtr == '>') && (LStTop > LStBot)) {
+			--LStTop;
+		}
 		if (SkpCmd() == FAILURE) {
 			return FAILURE;
 		}

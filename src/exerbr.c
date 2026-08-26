@@ -11,6 +11,7 @@ DEFAULT ExeRBr()                /* execute ] command */
 {
 	QRptr		TmpQRp;
 	ptrdiff_t	TmpSiz;
+	charptr		NewTxt;
 	BOOLEAN		ColonMod;
 #if DEBUGGING
 	static char *DbgFNm = "ExeRBr";
@@ -42,21 +43,30 @@ DEFAULT ExeRBr()                /* execute ] command */
 	TmpQRp = &QStack[QStTop];
 	TmpSiz = TmpQRp->End_P1 - TmpQRp->Start;
 /*
- * Discard whatever the Q-register held first.  MakRom only ever GROWS a text
- * area,  so asking it for TmpSiz bytes on top of the old contents (which are
- * then overwritten from the start anyway) left the block permanently oversized.
+ * Whatever the destination Q-register held has to be discarded:  MakRom only
+ * ever GROWS a text area,  so asking it for TmpSiz bytes on top of the old
+ * contents (which are then overwritten from the start anyway) would leave the
+ * block permanently oversized.  Get the new block FIRST though.  Freeing the
+ * old one and then calling MakRom meant that a ?MEM left the register empty
+ * with QStTop still raised -- the pushed copy on the stack and the register it
+ * came from both gone,  from a command that reported a failure.
  */
+	if (TmpSiz > 0) {
+		NewTxt = (charptr)ZAlloc((SIZE_T)TmpSiz);
+		if (NewTxt == NULL) {
+			ErrMsg(ERR_MEM);	/* MEM = memory overflow */
+			DBGFEX(1,DbgFNm,"FAILURE");
+			return FAILURE;
+		}
+		MEMMOVE(NewTxt, TmpQRp->Start, (SIZE_T)TmpSiz);
+	}
 	if (QR->Start != NULL) {
 		ZFree((voidptr)QR->Start);
 		QR->Start = QR->End_P1 = NULL;
 	}
 	if (TmpSiz > 0) {
-		if (MakRom((SIZE_T)TmpSiz) == FAILURE) { /* adjust QR space */
-			DBGFEX(1,DbgFNm,"FAILURE");
-			return FAILURE;
-		}
-		MEMMOVE(QR->Start, TmpQRp->Start, (SIZE_T)TmpSiz);
-		QR->End_P1 = QR->Start + TmpSiz;
+		QR->Start  = NewTxt;
+		QR->End_P1 = NewTxt + TmpSiz;
 	}
 	QR->Number = TmpQRp->Number;
 /*

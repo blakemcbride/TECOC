@@ -951,7 +951,13 @@ static DEFAULT ExeEN()			/* execute an EN command */
 	case FILENF:
 		if (CmdMod & COLON) {		/* if it's :EN */
 			CmdMod = '\0';		/* clear modifiers flags */
-			EStTop = EStBot;	/* clear expression stack */
+/*
+ * There used to be an "EStTop = EStBot" here.  EN takes no numeric argument,
+ * so anything on the stack when it runs is a pending expression the user wrote,
+ * and the SUCCESS arm below leaves it alone -- as do :ER, :EB, :] and :Q.  This
+ * arm threw it away,  so "5+:EN" gave 4 while a match was left and 0 once the
+ * list was exhausted.
+ */
 			DBGFEX(1,DbgFNm,"PushEx(0)");
 			return PushEx(0L,OPERAND);
 		}

@@ -53,14 +53,12 @@ DEFAULT ExeCtU()		/* execute a ^U (control-U) command */
  * If there is a colon modifier, we are appending to the Q-register text.
  * If there isn't a colon modifier, we are replacing the text currently
  * in the Q-register.  If there is any text currently in the Q-register,
- * we have to zap it first.
+ * we have to zap it first -- but NOT until the argument has been parsed.
+ * This used to happen right here,  before FindES had even looked for the
+ * delimiter,  so "^Uqtext" with no closing $ destroyed the register's old
+ * contents on its way to reporting ?UTC.  Both arms below do it at the point
+ * where the command can no longer fail.
  */
-	if (!(CmdMod & COLON)) {		/* if no colon modifier */
-		if (QR->Start != NULL) {	/* if not empty */
-			ZFree((voidptr)QR->Start);	/* free the memory */
-			QR->Start = QR->End_P1 = NULL;
-		}
-	}
 /*
  * If there is a numeric argument n, we are dealing with a character to
  * place into or append to the Q-register.
@@ -121,6 +119,12 @@ DEFAULT ExeCtU()		/* execute a ^U (control-U) command */
  * and store the character.
  */
 		}
+		if (!(CmdMod & COLON)) {		/* if no colon modifier */
+			if (QR->Start != NULL) {	/* if not empty */
+				ZFree((voidptr)QR->Start); /* free the memory */
+				QR->Start = QR->End_P1 = NULL;
+			}
+		}
 /*
  * Increase the size of the text area by 1 character
  */
@@ -140,6 +144,17 @@ DEFAULT ExeCtU()		/* execute a ^U (control-U) command */
 		if (FindES(ESCAPE) == FAILURE) {
 			DBGFEX(1,DbgFNm,"FAILURE, FindES() failed");
 			return FAILURE;
+		}
+/*
+ * The zap has to happen even when the new text is empty:  "^Uq$" is how a
+ * Q-register is cleared.  ArgPtr points into the command buffer,  not into the
+ * register,  so freeing the text area cannot invalidate it.
+ */
+		if (!(CmdMod & COLON)) {		/* if no colon modifier */
+			if (QR->Start != NULL) {	/* if not empty */
+				ZFree((voidptr)QR->Start); /* free the memory */
+				QR->Start = QR->End_P1 = NULL;
+			}
 		}
 		TmpSiz = CBfPtr - ArgPtr;
 		if (TmpSiz > 0) {

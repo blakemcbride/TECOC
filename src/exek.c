@@ -26,9 +26,18 @@ DEFAULT ExeK()			/* execute a K command */
 			DBGFEX(1,DbgFNm,"SUCCESS");
 			return SUCCESS;
 		}
-		MEMMOVE(ErrTxt,
-			(*CBfPtr == 'D' || *CBfPtr=='d') ? "m,nD" : "m,nK",
-			5);
+/*
+ * ExeK is reached from "K",  from ExeD for "m,nD",  and from ExeFR for
+ * "m,nFR",  so name the command the user actually wrote in any ?POP GetAra
+ * reports.  CBfPtr is still sitting on the command character.
+ */
+		if (*CBfPtr == 'D' || *CBfPtr == 'd') {
+			MEMMOVE(ErrTxt, "m,nD", 5);
+		} else if (*CBfPtr == 'R' || *CBfPtr == 'r') {
+			MEMMOVE(ErrTxt, "m,nFR", 6);
+		} else {
+			MEMMOVE(ErrTxt, "m,nK", 5);
+		}
 		if (GetAra() == FAILURE) {
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;

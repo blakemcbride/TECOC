@@ -52,7 +52,6 @@ EXTERN	BOOLEAN	IsOpnI[];	/* input file is opened indicators */
 EXTERN	BOOLEAN	IsOpnO[];	/* output file is opened indicators */
 EXTERN	WORD	LStBot;		/* loop stack bottom */
 EXTERN	struct	LStck LStack[];	/* loop stack */
-EXTERN	struct	LStck LStack[]; /* loop stack */
 EXTERN	WORD	LstErr;		/* number of last error message */
 EXTERN	WORD	LStTop;		/* loop stack top */
 EXTERN	LONG	MArgmt;		/* m part of m,n numeric argument pair */

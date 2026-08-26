@@ -15,7 +15,17 @@ DEFAULT FlowEE()		/* flow to else or end (| or ') */
 	TmpNst = 1;
 	do {
 		if (CBfPtr == CStEnd) {
-			ErrUTC();		/* unterminated command */
+/*
+ * "?MAP  Missing ' -- every conditional (opened with the " command) must be
+ * closed with the ' command."  That is what a conditional with no "'" gets;
+ * ?UTC is documented for an unterminated text argument,  message,  tag or
+ * comment.  FlowEC has always answered ?MAP here.  FlowEE is the arm that runs
+ * when the test FAILS -- the common case -- and it answered ?UTC,  so the same
+ * missing "'" was reported two different ways depending on which way the test
+ * went.  F| outside a conditional reaches this line too,  and the manual gives
+ * ?MAP for that as well.
+ */
+			ErrMsg(ERR_MAP);	/* missing ' */
 			return FAILURE;
 		}
 		++CBfPtr;
@@ -26,6 +36,26 @@ DEFAULT FlowEE()		/* flow to else or end (| or ') */
 			++TmpNst;
 		} else if (*CBfPtr == '\'') {
 			--TmpNst;
+		}
+/*
+ * A conditional may be closed OUTSIDE the iteration its '"' was written inside:
+ * "< ... "E ... > '" is how a macro breaks out of a loop on a test,  and
+ * lib/squ.tes uses precisely that idiom.  The scan then walks past the ">",  so
+ * the loop it is leaving has to be popped;  otherwise ExeCSt reaches the end of
+ * the command string with LStTop still raised and reports an unterminated
+ * iteration.  FlowEL and ExeO's tag scan both keep the stack this way.  Pushing
+ * on "<" is what makes a loop written entirely inside the skipped region net out
+ * to zero,  and LStBot guards the pop so the skip can never take the stack below
+ * the current macro level.
+ */
+		if (*CBfPtr == '<') {
+			if ((LStTop + 1) < LPS_SIZE) {
+				++LStTop;
+				LStack[LStTop].LIndex = INFINITE;
+				LStack[LStTop].LAddr  = CBfPtr;
+			}
+		} else if ((*CBfPtr == '>') && (LStTop > LStBot)) {
+			--LStTop;
 		}
 		if (SkpCmd() == FAILURE) {
 			return FAILURE;
