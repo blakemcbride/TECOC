@@ -23,7 +23,8 @@ J:S^EUYNOC"FONONOCREATE'!NOCREATE!
 ::S^ES"SD0A"AI ''Q1#256U1!NONOCREATE!J:S^ES^EUYNOP"SONOPAGE'
 J:S^EUYNOP"FONONOPAGE'!NOPAGE!D::SA"S-D::SG"S-D::SE"S-D'''
 ::S^ES"SD0A"AI ''Q1#64U1!NONOPAGE!J:S^ES^EUYNOR"SONORENAME'
-J:S^EUYNOR"FONONORENAME'!NORENAME!D::SE"S-D::SN"S-D::SA"S-D::SM"S-D::SE"S-D'''''
+J:S^EUYNOR"FONONORENAME'!NORENAME!
+D::SE"S-D::SN"S-D::SA"S-D::SM"S-D::SE"S-D'''''
 ::S^ES"SD0A"AI ''Q1#512U1!NONORENAME!
 J::STE"S<0A"AC|1;'>::S^ES@"S0KIMUNG ''J::SMU"S-2D<0A"AD|1;'>
 ::S^ES"SD'(-1EJ-5)*(-1EJ-1024)"EJ::S""S-D::S^ES"SD'''ZU0
@@ -56,7 +57,7 @@ Q1#2048U1%Can't write to file -- opening for input only1310OREMEM
 'Q1&256"NQ1&32768"EONOTFND''%Can't find file ":G0"1310
 Q1&32768"E%Creating new file1310OCREATE|
 %Ignoring TECO's memory1310Q1#8192U10,0X0OREMEM'':ER^EQ0"S
-Q1#2048U1OSCOPES'!NOTFND!?Can't find file ":G0"?1310'
+Q1#2048U1OSCOPES'!NOTFND!?Can't find file ":G0"1310'
 J::SMA"S-2D<0A"AD|1;'>::S^ES"SD'J<.-Z;0A-9"EDF<'0A-32"EDF<'C
 -1A-""E:S""S(-1EJ-25857)*(-1EJ-25858)"E0J2<@FS/"//>ZJ'|ZJ''>
 Z"E?How can I MAKE nothing?1310'

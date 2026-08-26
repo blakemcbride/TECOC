@@ -77,8 +77,6 @@ int dotx,doty;			/* position of cursor in scope */
 int dotx1, doty1;		/* pos. after printing character in scope */
 int skiprefresh = 0;
 int cmdx,cmdy;			/* position of cursor in command buffer */
-int scope_start, scope_end;
-unsigned char *pscope_start;
 #define CT ((EzFlag & EZ_VT100GRAPHICS) ? ACS_PLMINUS : '^')
 #define LB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LLCORNER : '[')
 #define RB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LRCORNER : ']')
@@ -2042,6 +2040,27 @@ redraw()
 	if (ScroLn == 0)
 		return;
 	getyx(stdscr,cccmdy,cccmdx);
+/*
+ * p_scope_start is a raw pointer into the edit buffer,  and NOTHING in the
+ * tree adjusts it when that buffer moves:  expand_gap() in insstr.c and
+ * expand_ibf() in rdline.c both ZRaloc it and relocate GapBeg/GapEnd/EBfEnd/
+ * IBfEnd,  and neither has ever heard of this one.  Reading a file bigger than
+ * the initial buffer while split-screen scrolling is on therefore left it
+ * pointing into freed memory,  which the two loops below then read through.
+ *	scope_start is the same position expressed as a character offset,  and
+ * an offset survives the move.  Derive the pointer from it on every entry --
+ * the conversion is the one VSetW's "case 6" uses -- and clamp the offset
+ * first,  since a deletion can leave it past the end of the buffer.
+ */
+	if (scope_start < 0) {
+		scope_start = 0;
+	}
+	if ((LONG)scope_start > ((GapBeg-EBfBeg) + (EBfEnd-GapEnd))) {
+		scope_start = (int)((GapBeg-EBfBeg) + (EBfEnd-GapEnd));
+	}
+	p_scope_start = (scope_start > GapBeg - EBfBeg)
+			? (scope_start - (GapBeg - EBfBeg)) + GapEnd
+			: EBfBeg + scope_start;
 draw_all:
 	if (EBfBeg == GapBeg && EBfEnd==GapEnd) {
 		int i;
@@ -2093,6 +2112,15 @@ draw_all:
 	}
 	if (p_scope_start != EBfBeg || IsEOL(*p_scope_start))
 		++p_scope_start;
+/*
+ * The scan above moved the POINTER back to the start of the line and left the
+ * offset where it was,  so the two stopped describing the same position and
+ * the offset -- which is what the next entry to this function,  and 6:W,  and
+ * m,6:W all work from -- drifted a little further forward on every redraw.
+ * p_scope_start is at or before GapBeg here,  so the offset is just the
+ * distance from the start of the buffer.
+ */
+	scope_start = (int)(p_scope_start - EBfBeg);
 	}
 /*
  * note here p_scope_start may still be at GapBeg after all this number of

@@ -155,8 +155,17 @@ BOOLEAN Backup;				/* create backup? TAA Added */
 {
 	DBGFEN(2,"OpnOut",NULL);
 
+/*
+ * ":EB", ":EW" and ":E%" exist so that a macro can find out whether a file
+ * could be opened without an error message reaching the terminal.  This test
+ * did not consult RepErr,  so the colon forms both PRINTED "?OFO" and returned
+ * the 0 that says the same thing.  The ZOpOut failure below has always been
+ * guarded;  so is this one now.
+ */
 	if (IsOpnO[OfIndx]) {		/* if output file is open */
-		ErrMsg(ERR_OFO);	/* OFO = output file already open */
+		if (RepErr) {
+			ErrMsg(ERR_OFO);/* OFO = output file already open */
+		}
 		DBGFEX(2,DbgFNm,"FAILURE");
 		return FAILURE;
 	}
@@ -222,6 +231,30 @@ static DEFAULT ExeEB()			/* execute an EB command */
 
 	RepFNF = !(CmdMod & COLON);		/* report file not found? */
 	CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * OpnOut refuses to work when an output file is already open,  so the SECOND
+ * EB of a session always fails -- but it used to fail only after OpnInp had
+ * closed the file being edited and opened the new one,  which left TECO
+ * reading "b" and writing "a",  and the next EX overwrote "a" with "b".  It
+ * had just told the user the command failed.  Ask the question first,  so a
+ * rejected EB really is the no-op it claims to be.
+ *	This covers the mistyped-name shape too:  OpnInp closes the current
+ * input file before it tries to open the new one,  so an "EBnosuch$" while an
+ * output file was open used to leave no input stream at all and EX then wrote
+ * an empty buffer over the file being edited.  With an output file open we
+ * stop here now,  before OpnInp is ever called;  with none open there is
+ * nothing for a later EX to damage.
+ */
+	if (IsOpnO[CurOut]) {			/* if output file is open */
+		if (RepFNF) {			/* ...and it's not :EB */
+			ErrMsg(ERR_OFO);	/* output file already open */
+			DBGFEX(1,DbgFNm,"FAILURE, output file open");
+			return FAILURE;
+		}
+		DBGFEX(1,DbgFNm,"PushEx(0), output file open");
+		return PushEx(0L,OPERAND);
+	}
+
 	status = OpnInp(CurInp, FALSE, RepFNF);	/* open input file */
 	if (status != SUCCESS) {
 		if (status == FILENF) {
@@ -956,6 +989,7 @@ static DEFAULT ExeEJ()			/* execute an EJ command */
 static DEFAULT ExeEN()			/* execute an EN command */
 {
 	DEFAULT status;
+	BOOLEAN Preset;			/* is it the ENfilespec$ form? */
 
 	DBGFEN(1,"ExeEN",NULL);
 
@@ -975,7 +1009,9 @@ static DEFAULT ExeEN()			/* execute an EN command */
  * before returning it.
  *	Both forms take the same three-way answer,  so they share it.
  */
-	if (FBfPtr == FBfBeg) {		/* if it's EN$ or :EN$ */
+	Preset = (BOOLEAN)(FBfPtr != FBfBeg);	/* ENfilespec$ or EN$ ? */
+
+	if (!Preset) {			/* if it's EN$ or :EN$ */
 		status = ZSWild();	/* ...find the next match */
 	} else {			/* ...else preset the filespec */
 		size_t SpcLen;
@@ -991,6 +1027,24 @@ static DEFAULT ExeEN()			/* execute an EN command */
 
 	switch (status) {
 	case FILENF:
+/*
+ * "ENfilespec` ... is only a preset;  it does not open, close, or try to find
+ * any file" -- the manual puts the ?FNF on the FIND,  in the argument-less
+ * form,  and only there.  ZPWild does the lookup anyway,  so presetting a
+ * pattern that currently matches nothing reported ?FNF and threw the rest of
+ * the command string away:  the natural "@EN/<wild>.bak/$ <:EN$; ...>" loop was
+ * an error rather than a loop that runs zero times.  ZSWild answers FILENF of
+ * its own accord when the match list is empty,  so the preset can simply succeed
+ * and the error arrives where the manual says it should.
+ *	":ENfilespec$" still returns the 0,  which is a value rather than a
+ * report and is what a macro asks the colon form for.
+ */
+		if (Preset && !(CmdMod & COLON)) {
+			EStTop = EStBot;	/* clear expression stack */
+			CmdMod = '\0';		/* clear modifiers flags */
+			DBGFEX(1,DbgFNm,"SUCCESS, filespec preset");
+			return SUCCESS;
+		}
 		if (CmdMod & COLON) {		/* if it's :EN */
 			CmdMod = '\0';		/* clear modifiers flags */
 /*

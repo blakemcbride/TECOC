@@ -44,11 +44,13 @@ LONG HowFar;			/* positive or negative displacement */
 		}
 	}
 /*
- * The n has been taken off the expression stack,  so any "m," that came with it
- * has been consumed too.  Leaving MARGIS set made the NEXT command think it had
- * been handed an m,n pair with a stale MArgmt -- the same bug m,nUq had.
+ * ":C", ":J" and ":R" end in the PushEx below,  so they are VALUE PRODUCERS and
+ * have to leave MARGIS alone:  the "m," of "m,:C" belongs to the command that
+ * takes the result,  and clearing the flag here turned "0,:CT" into "-1T".
+ * The plain forms produce nothing,  so an "m," in front of one has nowhere to
+ * go and is dropped.  See the commentary on FSAray in skpcmd.c.
  */
-	CmdMod = '\0';				/* clear modifiers flags */
+	CmdMod = (ColonMod) ? (CmdMod & MARGIS) : '\0';	/* clear modifiers */
 	if (ColonMod) {				/* if colon modifier */
 		DBGFEX(2,DbgFNm,"PushEx");
 		return PushEx(InRange, OPERAND);

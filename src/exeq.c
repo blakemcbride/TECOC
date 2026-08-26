@@ -74,17 +74,21 @@ DEFAULT ExeQ()			/* execute a Q command */
 	} else {				/* else we have Qq or :Qa */
 		if (CmdMod & COLON) {		/* if it's :Qa */
 			TmpVal = QR->End_P1 - QR->Start;
-			CmdMod &= ~COLON;	/* clear colon flag */
 		} else {
 			TmpVal = QR->Number;
 		}
 	}
 /*
- * The n has been taken off the expression stack,  so any "m," that came with it
- * has been consumed too.  Leaving MARGIS set made the NEXT command think it had
- * been handed an m,n pair with a stale MArgmt -- the same bug m,nUq had.
+ * Every arm above ends in the PushEx below:  Q is a VALUE PRODUCER,  and a
+ * value producer must leave MARGIS alone.  It is one of the characters that
+ * can stand between a modifier and its command -- "0,QqT" is "0,<value>T",
+ * exactly as "0,ZT" is "0,26T" -- so clearing the flag here threw away an "m"
+ * that was never Q's to consume.  "m,QqK" deleted the whole buffer,  and the
+ * shipped lib/dir.tec stored an empty Q-register because of it.  See the
+ * commentary on FSAray in skpcmd.c,  which states the rule and lists the other
+ * value producers that obey it.
  */
-	CmdMod = '\0';				/* clear modifiers flags */
+	CmdMod &= MARGIS;			/* clear modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld,OPERAND)",TmpVal);
 	DbgFEx(1,DbgFNm,DbgSBf);

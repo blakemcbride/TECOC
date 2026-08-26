@@ -67,7 +67,7 @@ Video
 ET&1	image mode - doesn't really do much with curses version
 ET&2	use scope for delete and control-U
 ET&4	accept lowercase input
-ET&32	read with no wait on control-T (unimplemented - easy though)
+ET&32	read with no wait on control-T
 ET&2048	reverse roles of BS and DEL (good if you use stty erase ^H,
 	in particular the key placement of BS is sometimes much easier
 	to get at then DEL). Should I have it detect the kill character
@@ -81,10 +81,13 @@ EZ&8	if TRUE use LARROW (<) for CR, if false use `
 EZ&16	if set then prefer audio beep else visual flash
 EZ&32	winline divider for scope
 EZ&128	if set DO NOT stop read on FF otherwise make pages as usual
-EZ&256	UNIX NL-convert LF to <CR><LF> on input and invert on output
-ED&512	controls scope display. If set will use VT100 line drawing
+EZ&256	UNIX NL.  When this bit is CLEAR (the default) TECO converts LF to
+	<CR><LF> on input and strips the CR again on output;  setting the bit
+	turns that conversion off and leaves line endings exactly as they are.
+EZ&512	controls scope display. If set will use VT100 line drawing
 	characters for CR and LF (in non-scope mode). May degrade
-	performance.
+	performance.  (This is EZ_VT100GRAPHICS.  It was documented here as
+	ED&512;  nothing in the tree reads the ED bit of that value.)
 EZ&2048 if set use BTEE for end of buffer, else use DIAMOND
 	(desirable for pathological terminal types)
 EZ&8192	don't show CR in scope - closer to TECO-11,  but really

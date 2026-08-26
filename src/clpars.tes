@@ -576,7 +576,7 @@ J::STE"S-2D                          !+ if it's a TE command !
     '
 
     !NOTFND!
-    ?Can't find file ":G0"?1310
+    ?Can't find file ":G0"1310
     
 '
 

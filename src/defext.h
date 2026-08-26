@@ -45,7 +45,6 @@ EXTERN	charptr	GapEnd;		/* end of edit buffer gap */
 EXTERNV	BOOLEAN	GotCtC;		/* TRUE if the user just hit a control-C */
 EXTERNV	BOOLEAN	GotHUp;		/* TRUE if the terminal hung up */
 EXTERN	charptr	IBfEnd;		/* end of input buffer */
-EXTERN	charptr	IBfEnd;		/* input buffer end */
 EXTERN	int	IniSrM;		/* initial search mode */
 EXTERN	BOOLEAN	IsEofI[];	/* input file has reached end of file */
 EXTERN	BOOLEAN	IsOpnI[];	/* input file is opened indicators */

@@ -86,8 +86,6 @@ int dotx,doty;			/* position of cursor in scope */
 int dotx1, doty1;		/* pos. after printing character in scope */
 int skiprefresh = 0;
 int cmdx,cmdy;			/* position of cursor in command buffer */
-int scope_start, scope_end;
-unsigned char *pscope_start;
 #define CT ((EzFlag & EZ_VT100GRAPHICS) ? ACS_PLMINUS : '^')
 #define LB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LLCORNER : '[')
 #define RB ((EzFlag & EZ_VT100GRAPHICS) ? ACS_LRCORNER : ']')
@@ -183,6 +181,15 @@ FILE *IFiles[NIFDBS];
  * OFisCR below.  (Both flags are the ones zlinux.c and zosx.c carry.)
  */
 static int IFisCR[NIFDBS] = {0};
+/*
+ * IFhadCR is a tri-state:  -1 says "no line terminator has been seen on this
+ * stream yet",  0 says the file's line terminators are bare LFs and 1 says
+ * they are CR+LF.  Only the FIRST terminator sets it.  It used to be a sticky
+ * "the file contained at least one CR+LF anywhere",  so a Unix source file
+ * with a single DOS line in it -- a pasted block,  a patch applied on Windows
+ * -- had EVERY line rewritten as CR+LF by an EB/Y/EX that changed nothing.
+ * "The file's first line terminator" is the predicate every other editor uses.
+ */
 static int IFhadCR[NIFDBS] = {0};
 /*****************************************************************************
 	OFiles holds the file data blocks for the output files.  There are
@@ -208,8 +215,15 @@ static BOOLEAN OFisCR(OfIndx)
 DEFAULT OfIndx;			/* index into OFiles array */
 {
 	switch (OfIndx) {
-		case POUTFL:	return (BOOLEAN)(IFhadCR[PINPFL] != 0);
-		case SOUTFL:	return (BOOLEAN)(IFhadCR[SINPFL] != 0);
+		case POUTFL:	return (BOOLEAN)(IFhadCR[PINPFL] > 0);
+		case SOUTFL:	return (BOOLEAN)(IFhadCR[SINPFL] > 0);
+/*
+ * E%q writes a Q-register out,  and EQq is what normally put the text there,
+ * so those two are a pair in exactly the way EB pairs the primary streams.
+ * Without this case a Q-register round trip of a CR+LF file came back with
+ * Unix line endings -- "@EQa/dos.txt/$@E%a/out.txt/$" silently converted it.
+ */
+		case EPRCFL:	return (BOOLEAN)(IFhadCR[EQFL] > 0);
 		default:	return FALSE;
 	}
 }
@@ -336,8 +350,7 @@ BOOLEAN NoWait;				/* return immediately? */
 		if (!GotCtC) {
 			ZErMsg();
 			ErrMsg(ERR_URC);
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 	}
 	GotCtC = FALSE;
@@ -607,6 +620,19 @@ charptr GBfPtr;			/* one past its last character */
 	*GBfPtr = '\0';
 	buf[sizeof(buf)-1] = '\0';
 	(void)strncpy(buf, (char *)GBfBeg, sizeof(buf)-1);
+/*
+ * In a CURSES build ZClnUp() does nothing -- its whole body is inside
+ * "#if !CURSES" -- and endwin() is the only thing that takes the terminal back
+ * out of the raw, no-echo mode ZTrmnl() put it in.  EG *replaces* the TECO
+ * process,  so there is no "after" in which to do it:  without this the shell,
+ * and everything the user runs from it,  inherited a terminal in "-icanon
+ * -echo" mode with no TECO left to fix it.  zlinux.c and zosx.c have had this
+ * since round 5;  it never travelled here.
+ */
+#if CURSES
+	nodelay(stdscr,FALSE);		/* as in ZExit(), below */
+	endwin();
+#endif
 	ZClnUp();
 /*
  * "sh -c" takes the WHOLE command line as one argument;  whatever follows it
@@ -1147,6 +1173,21 @@ char *ToNam;				/* file to copy onto */
 }
 
 /*****************************************************************************
+	ZSvdIn()
+	Say where the edit ended up.  Once the new text has been written to a
+temporary file,  every arm of ZOClos that gives up has to name that file:
+otherwise the user is told the close failed and never learns that the work is
+sitting in a "tecocXXXXXX" nobody has mentioned.  Only the backup arm used to
+do it.
+*****************************************************************************/
+static VVOID ZSvdIn(OfIndx)		/* name the temporary file */
+DEFAULT OfIndx;				/* index into OFiles array */
+{
+	ZDspBf("Edit saved in ", 14);
+	ZDspBf(OFiles[OfIndx].OFNam, strlen(OFiles[OfIndx].OFNam));
+	ZDspBf("\r\n", 2);			/* ...and end the line */
+}
+/*****************************************************************************
 	ZOClos()
 	This function closes the current output stream.  It is only called
 when an output stream is defined.  It must
@@ -1233,8 +1274,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			if (remove(TmpFsp) != 0) {	/* delete it */
 				ZErMsg();
 				ErrMsg(ERR_UCO);
-				ZClnUp();
-				exit(EXIT_FAILURE);
+				ZExit(EXIT_FAILURE);
 			}
 		}
 	     } else {
@@ -1254,8 +1294,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 				if (remove(TmpFsp) != 0) {  /* delete it */
 					ZErMsg();
 					ErrMsg(ERR_UCO);
-					ZClnUp();
-					exit(EXIT_FAILURE);
+					ZExit(EXIT_FAILURE);
 					}
 				}
 		} else if (ver==(-2) || ver==0) {
@@ -1263,8 +1302,7 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 		} else if (ver==(-1)) {			/* can't read dir */
 			ZErMsg();
 			ErrMsg(ERR_UCO);		/* una to close o */
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		} else {				/* ver > 0 */
 			ver++;
 			strcat(TmpFsp, ";");
@@ -1291,13 +1329,9 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			} else {
 				ErrStr(ERR_SYS, move_err);
 			}
-			ZDspBf("Edit saved in ", 14);
-			ZDspBf(OFiles[OfIndx].OFNam,
-			       strlen(OFiles[OfIndx].OFNam));
-			ZDspBf("\r\n", 2);		/* ...and end the line */
+			ZSvdIn(OfIndx);		/* name the temporary file */
 			ErrMsg(ERR_UCO);
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 #if DEBUGGING
 		sprintf(DbgSBf,"renaming %s to %s\r\n",
@@ -1312,22 +1346,48 @@ DEFAULT	OfIndx;			/* index into OFiles array */
 			if (ZCopyF(OFiles[OfIndx].OFNam,
 				   OFiles[OfIndx].OTNam)) {
 				ZErMsg();
+				ZSvdIn(OfIndx);	/* ...say where the text is */
 				ErrMsg(ERR_UCO);
-				ZClnUp();
-				exit(EXIT_FAILURE);
+				ZExit(EXIT_FAILURE);
 			}
 			(void)remove(OFiles[OfIndx].OFNam);
 		} else if (movefile(OFiles[OfIndx].OFNam,
 			     OFiles[OfIndx].OTNam,
 			     move_err)) {
 			ErrStr(ERR_SYS, move_err);
+			ZSvdIn(OfIndx);		/* ...say where the text is */
 			ErrMsg(ERR_UCO);
-			ZClnUp();
-			exit(EXIT_FAILURE);
+			ZExit(EXIT_FAILURE);
 		}
 	}
 	IsOpnO[OfIndx] = FALSE;
 	DBGFEX(2,DbgFNm,NULL);
+}
+/*****************************************************************************
+	OpnRdF()
+	Open a file for reading,  refusing a directory.  fopen(dir,"r") succeeds
+on Linux and on the BSDs and nothing complains until the first read,  so a
+mistyped "teco <directory>" got all the way to "?URL unable to read line from
+input file" -- after EB had already created an output file to replace the
+directory with,  and every attempt left another unnamed "tecocXXXXXX" behind.
+A directory is never a TECO input file:  refuse it here,  where ZOpInp's caller
+still reports it as "unable to open file ... for input".
+*****************************************************************************/
+static FILE *OpnRdF(FilNam)		/* open a file for reading */
+char *FilNam;				/* name of the file to open */
+{
+	FILE		*Strem;
+	struct stat	StatBf;
+
+	if ((Strem = fopen(FilNam, "r")) == NULL) {
+		return NULL;
+	}
+	if ((fstat(fileno(Strem), &StatBf) == 0) && S_ISDIR(StatBf.st_mode)) {
+		(void)fclose(Strem);
+		errno = EISDIR;
+		return NULL;
+	}
+	return Strem;
 }
 /*****************************************************************************
 	ZOpInp()
@@ -1374,9 +1434,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
     DbgFEn(2,DbgFNm,DbgSBf);
 #endif
     *FBfPtr = '\0';			/* terminate the file name */
-    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+    if ((IFiles[IfIndx] = OpnRdF(FBfBeg)) != NULL) {
 	IFisCR[IfIndx] = 0;
-	IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
+	IFhadCR[IfIndx] = -1;	/* ...convention not yet seen */
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	return SUCCESS;
     }
@@ -1410,9 +1470,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
-	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+	    if ((IFiles[IfIndx] = OpnRdF(FBfBeg)) != NULL) {
 		IFisCR[IfIndx] = 0;
-		IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
+		IFhadCR[IfIndx] = -1;	/* ...convention not yet seen */
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;
 	      }
@@ -1429,9 +1489,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	MEMMOVE(FBfPtr, TmpBfr, TmpLen);	/* append name to dir spec */
 	FBfPtr += TmpLen;
 	*FBfPtr = '\0';				/* terminate file name */
-	if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+	if ((IFiles[IfIndx] = OpnRdF(FBfBeg)) != NULL) {
 	    IFisCR[IfIndx] = 0;
-	    IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
+	    IFhadCR[IfIndx] = -1;	/* ...convention not yet seen */
 	    DBGFEX(1,DbgFNm,"SUCCESS");
 	    return SUCCESS;
 	}
@@ -1442,9 +1502,9 @@ BOOLEAN RepFNF;			/* report "file not found" error? */
 	    }
 	    (void)strcat(FBfBeg,".tec");		/* append .tec */
 	    FBfPtr += 4;
-	    if ((IFiles[IfIndx] = fopen(FBfBeg, "r")) != NULL) {
+	    if ((IFiles[IfIndx] = OpnRdF(FBfBeg)) != NULL) {
 		IFisCR[IfIndx] = 0;
-		IFhadCR[IfIndx] = 0;	/* ...and not known to be a DOS file */
+		IFhadCR[IfIndx] = -1;	/* ...convention not yet seen */
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;
 	      }
@@ -1504,6 +1564,24 @@ BOOLEAN RepErr;				/* report errors? */
 			DBGFEX(2,DbgFNm,"FAILURE, stat() failed");
 			return FAILURE;
 		}
+/*
+ * ...and it has to be a REGULAR file.  Nothing here ever asked what the name
+ * referred to,  and ZOClos finishes the job with remove() -- which is not
+ * unlink():  C89 defines it as removing a file OR AN EMPTY DIRECTORY,  and
+ * glibc implements exactly that.  So "EW <empty directory>$" silently deleted
+ * the directory and left the edit in its place,  a non-empty one died at the
+ * rmdir and stranded the text in an unnamed "tecocXXXXXX",  and "EW /dev/null$"
+ * would have destroyed the device node.  A name that exists and is not a plain
+ * file is not something TECO can write:  say so here,  where the caller can
+ * still report ?UFO against it.
+ */
+		if (!S_ISREG(bufstat.st_mode)) {
+			errno = S_ISDIR(bufstat.st_mode) ? EISDIR : EINVAL;
+			if (RepErr)
+				ZErMsg();
+			DBGFEX(2,DbgFNm,"FAILURE, not a regular file");
+			return FAILURE;
+		}
 		tmpflag = 1;
 		n = FBfPtr - FBfBeg;		/* strlen(FBfBeg) */
 		dirname = (char *)malloc(n+4);
@@ -1561,8 +1639,18 @@ BOOLEAN RepErr;				/* report errors? */
 		return FAILURE;
 	}
 	if (tmpflag) {
+/*
+ * st_mode is not a permission word:  it carries the file-type bits and the
+ * set-user-ID, set-group-ID and sticky bits as well.  POSIX leaves the effect
+ * of handing fchmod anything outside the permission bits unspecified,  and
+ * Linux masks with 07777 -- which drops S_IFREG but KEEPS S_ISUID/S_ISGID,  so
+ * editing a set-user-ID file re-created it set-user-ID with a new inode and
+ * the editing user as its owner.  Copy the nine permission bits and nothing
+ * else.
+ */
 		fchmod(fileno(OFiles[OfIndx].OStrem),
-		       bufstat.st_mode | S_IRUSR | S_IWUSR);
+		       (bufstat.st_mode & (S_IRWXU|S_IRWXG|S_IRWXO))
+				| S_IRUSR | S_IWUSR);
 	}
 	DBGFEX(2,DbgFNm,"SUCCESS");
 	return SUCCESS;
@@ -1728,13 +1816,23 @@ DEFAULT *retlen;		/* returned length of string */
 					ibuf[(*retlen) -1] = CRETRN;
 					ibuf[(*retlen)] = LINEFD;
 					(*retlen)++;
+/*
+ * A bare LF.  If this is the file's FIRST line terminator,  it is a Unix file:
+ * see the comment on IFhadCR at the top of this file.
+ */
+					if (IFhadCR[IfIndx] < 0) {
+						IFhadCR[IfIndx] = 0;
+					}
 				} else {
 /*
  * The LF was already preceded by a CR,  so no CR is inserted and the buffer
- * holds one CR+LF.  Remember it:  ZWrBfr strips a CR from in front of every
- * LF,  so without this the file would be written back with Unix line endings.
+ * holds one CR+LF.  If this is the file's FIRST line terminator,  remember it:
+ * ZWrBfr strips a CR from in front of every LF,  so without this the file would
+ * be written back with Unix line endings.
  */
-					IFhadCR[IfIndx] = 1;
+					if (IFhadCR[IfIndx] < 0) {
+						IFhadCR[IfIndx] = 1;
+					}
 				}
 			}
 			IFisCR[IfIndx] = 0;
@@ -3097,6 +3195,27 @@ redraw()
 	if (ScroLn == 0)
 		return;
 	getyx(stdscr,cccmdy,cccmdx);
+/*
+ * p_scope_start is a raw pointer into the edit buffer,  and NOTHING in the
+ * tree adjusts it when that buffer moves:  expand_gap() in insstr.c and
+ * expand_ibf() in rdline.c both ZRaloc it and relocate GapBeg/GapEnd/EBfEnd/
+ * IBfEnd,  and neither has ever heard of this one.  Reading a file bigger than
+ * the initial buffer while split-screen scrolling is on therefore left it
+ * pointing into freed memory,  which the two loops below then read through.
+ *	scope_start is the same position expressed as a character offset,  and
+ * an offset survives the move.  Derive the pointer from it on every entry --
+ * the conversion is the one VSetW's "case 6" uses -- and clamp the offset
+ * first,  since a deletion can leave it past the end of the buffer.
+ */
+	if (scope_start < 0) {
+		scope_start = 0;
+	}
+	if ((LONG)scope_start > ((GapBeg-EBfBeg) + (EBfEnd-GapEnd))) {
+		scope_start = (int)((GapBeg-EBfBeg) + (EBfEnd-GapEnd));
+	}
+	p_scope_start = (scope_start > GapBeg - EBfBeg)
+			? (scope_start - (GapBeg - EBfBeg)) + GapEnd
+			: EBfBeg + scope_start;
 draw_all:
 	if (EBfBeg == GapBeg && EBfEnd==GapEnd) {
 		int i;
@@ -3148,6 +3267,15 @@ draw_all:
 	}
 	if (p_scope_start != EBfBeg || IsEOL(*p_scope_start))
 		++p_scope_start;
+/*
+ * The scan above moved the POINTER back to the start of the line and left the
+ * offset where it was,  so the two stopped describing the same position and
+ * the offset -- which is what the next entry to this function,  and 6:W,  and
+ * m,6:W all work from -- drifted a little further forward on every redraw.
+ * p_scope_start is at or before GapBeg here,  so the offset is just the
+ * distance from the start of the buffer.
+ */
+	scope_start = (int)(p_scope_start - EBfBeg);
 	}
 /*
  * note here p_scope_start may still be at GapBeg after all this number of
@@ -3320,13 +3448,39 @@ do_left()
 	refresh();
     }
 }
-void
-do_sf()
+/*
+ * PageDown/KEY_SF and PageUp/KEY_SR.  Both of these were EMPTY,  and
+ * FirstChar's keypad loop consumes the key and re-reads without echoing
+ * anything,  so the two keys did nothing at all -- not even the "?" the
+ * unknown-key arm gives.  A page is the text window less two lines of overlap,
+ * so the reader keeps their place;  Ln2Chr turns a line count into a character
+ * displacement and movedot clamps it to the buffer,  and centre() then puts
+ * dot in the middle of the window and redraws.
+ */
+static int
+ScrnLn()			/* lines in one page of the text window */
 {
+    int siz = VtSize - ScroLn - 1 - winline;
+
+    return (siz > 3) ? siz - 2 : 1;
 }
 void
-do_sr()
+do_sf()				/* scroll forward:  PageDown */
 {
+    colsave = (-1);
+    CmdMod &= ~COLON;
+    movedot(Ln2Chr((LONG)ScrnLn()));
+    centre();
+    refresh();
+}
+void
+do_sr()				/* scroll backward:  PageUp */
+{
+    colsave = (-1);
+    CmdMod &= ~COLON;
+    movedot(Ln2Chr(-(LONG)ScrnLn()));
+    centre();
+    refresh();
 }
 void
 do_up()

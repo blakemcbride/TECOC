@@ -53,11 +53,13 @@ DEFAULT ExeA()			/* execute an A command */
 	    return FAILURE;
 	}
 /*
- * The n has been taken off the expression stack,  so any "m," that came with it
- * has been consumed too.  Leaving MARGIS set made the NEXT command think it had
- * been handed an m,n pair with a stale MArgmt -- the same bug m,nUq had.
+ * Both arms below -- "nA" and "n:A" -- end in a PushEx,  so both are VALUE
+ * PRODUCERS and both have to leave MARGIS alone.  The "n" is A's own argument;
+ * the "m," of "m,nA" belongs to the command that takes the result,  so
+ * clearing the flag here turned "0,1AT" into "<value>T" and typed the whole
+ * buffer.  See the commentary on FSAray in skpcmd.c.
  */
-	CmdMod = '\0';				/* clear modifiers flags */
+	CmdMod &= MARGIS;			/* clear modifiers flags */
 	if (ColonMod) {				/* if it's n:A */
 /*
  * The manual says of n:A only that "the value of n must not be negative".
@@ -120,10 +122,12 @@ DEFAULT ExeA()			/* execute an A command */
  */
 /*
  * Only the COLON bit was cleared above,  so "@A" and "@:A" leaked their at-sign
- * into the next command -- the numeric path below has cleared the whole of
- * CmdMod since round 4,  and SkpCmd skips A with SkpSkp,  which clears it too.
+ * into the next command.  ":A" is a value producer -- both of its exits below
+ * are PushEx calls -- so it keeps MARGIS the way the numeric arm above does;
+ * a bare "A" produces nothing,  so an "m," left in front of it has nowhere to
+ * go and is dropped.
  */
-    CmdMod = '\0';				/* clear modifiers flags */
+    CmdMod = (ColonMod) ? (CmdMod & MARGIS) : '\0';	/* clear modifiers */
     if (IsEofI[CurInp]) {			/* if already at end-of-file */
         DBGFEX(1,DbgFNm,(ColonMod) ? "PushEx(0)" : "SUCCESS");
 	return ((ColonMod) ? PushEx(0L,OPERAND) : SUCCESS);

@@ -21,7 +21,9 @@ static DEFAULT SkpMac(void);	/* skip an Mq command */
 static DEFAULT SkpOne(void);	/* skip one command character */
 static DEFAULT SkpQRC(void);	/* skip a Q-register name, clear CmdMod */
 static DEFAULT SkpQRg(void);	/* skip a Q-register name */
+static DEFAULT SkpQRV(void);	/* skip a Q-register name, keep MARGIS */
 static DEFAULT SkpSkp(void);	/* */
+static DEFAULT SkpVal(void);	/* skip a value-producing command */
 #endif
 /*****************************************************************************
 	SkpArg()
@@ -108,6 +110,21 @@ static DEFAULT SkpMac()		/* skip an Mq command */
 	if (SkpQRg() == FAILURE)
 		return FAILURE;
 	CmdMod &= MARGIS;			/* clear modifiers flags */
+	return SUCCESS;
+}
+/*****************************************************************************
+	SkpQRV()
+	Skip a Q-register name for one of the VALUE-PRODUCING Q-register
+commands,  % and Q.  Every arm of ExePrc and of ExeQ ends in a PushEx,  so
+both leave MARGIS alone -- the "m," of "m,QqT" belongs to the T -- and the
+skipper has to leave the same bits behind.  SkpMac keeps MARGIS for a
+different reason:  "m,nMq" is how a macro is handed two arguments.
+*****************************************************************************/
+static DEFAULT SkpQRV()		/* skip a Q-register name, keep MARGIS */
+{
+	if (SkpQRg() == FAILURE)
+		return FAILURE;
+	CmdMod &= MARGIS;			/* keep MARGIS, clear the rest */
 	return SUCCESS;
 }
 /*****************************************************************************
@@ -241,6 +258,20 @@ static DEFAULT SkpExc()		/* skip command with text argument */
 static DEFAULT SkpSkp()		/* */
 {
 	CmdMod = '\0';				/* clear ATSIGN modifier */
+	return SUCCESS;
+}
+/*****************************************************************************
+	SkpVal()
+	SkpSkp for a command that has a VALUE-PRODUCING form:  A, C, J and R.
+":A", ":C", ":J" and ":R" all end in a PushEx and so leave MARGIS alone,  and
+a skipper cannot tell the colon form from the plain one -- the same problem
+^R and ^T have,  and the value-producing form is again the one that can stand
+between a modifier and its command.  The at-sign still goes,  as it does for
+every skipped command.
+*****************************************************************************/
+static DEFAULT SkpVal()		/* skip a value-producing command */
+{
+	CmdMod &= MARGIS;			/* keep MARGIS, clear the rest */
 	return SUCCESS;
 }
 /*****************************************************************************
@@ -410,9 +441,14 @@ are ExeNul here too;  as SkpSkp they threw away an at-sign the executor would
 have kept,  and "0<@.+1S/x/>" reported ?UTC while "1<@.+1S/x/>" ran.
 	The other direction is the six commands that take a Q-register name:
 ExePrc, ExeG, ExeM, ExeQ, ExeU and ExeX all END by clearing CmdMod,  while
-SkpQRg left it alone.  Those use SkpQRC (and SkpMac for M) below.  "[" and "]"
-keep the plain SkpQRg:  their executors leave CmdMod alone,  so it already
-agrees.
+SkpQRg left it alone.  Those use SkpQRC (SkpMac for M,  SkpQRV for % and Q)
+below.  "[" and "]" keep the plain SkpQRg:  their executors leave CmdMod
+alone,  so it already agrees.
+	% and Q are in that group only for the at-sign.  Both are value
+producers themselves,  so both KEEP MARGIS -- SkpQRV -- and so do A, C, J and
+R,  whose colon forms return a value:  those four are SkpVal.  Clearing MARGIS
+for them threw away an "m" they had never taken,  so "m,QqK" deleted the whole
+buffer and the shipped lib/dir.tec stored an empty Q-register.
 	^R,  ^T and "'" belong to the same first group and were missed by that
 pass.  ExeCtR and ExeCtT both have two paths:  the argument-less READ form is a
 pure value producer that returns PushEx() without touching CmdMod,  and only
@@ -435,26 +471,26 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* ^X*/ SkpSkp,   /* ^Y*/ ExeNul,   /* ^Z*/ ExeNul,   /*ESC*/ SkpSkp,
 /* ^\*/ SkpSkp,   /* ^]*/ SkpSkp,   /* ^^*/ SkpOne,   /* ^_*/ ExeNul,
 /* SP*/ ExeNul,   /* ! */ SkpExc,   /* " */ SkpDqu,   /* # */ ExeNul,
-/* $ */ SkpSkp,   /* % */ SkpQRC,   /* & */ ExeNul,   /* ' */ ExeNul,
+/* $ */ SkpSkp,   /* % */ SkpQRV,   /* & */ ExeNul,   /* ' */ ExeNul,
 /* ( */ ExeNul,   /* ) */ ExeNul,   /* * */ ExeNul,   /* + */ ExeNul,
 /* , */ ExeNul,   /* - */ ExeNul,   /* . */ ExeNul,   /* / */ ExeNul,
 /* 0 */ ExeNul,   /* 1 */ ExeNul,   /* 2 */ ExeNul,   /* 3 */ ExeNul,
 /* 4 */ ExeNul,   /* 5 */ ExeNul,   /* 6 */ ExeNul,   /* 7 */ ExeNul,
 /* 8 */ ExeNul,   /* 9 */ ExeNul,   /* : */ ExeCln,   /* ; */ SkpSkp,
 /* < */ SkpSkp,   /* = */ SkpSkp,   /* > */ SkpSkp,   /* ? */ SkpSkp,
-/* @ */ ExeAtS,   /* A */ SkpSkp,   /* B */ ExeNul,   /* C */ SkpSkp,
+/* @ */ ExeAtS,   /* A */ SkpVal,   /* B */ ExeNul,   /* C */ SkpVal,
 /* D */ SkpSkp,   /* E */ SkpE,     /* F */ SkpF,     /* G */ SkpQRC,
-/* H */ ExeNul,   /* I */ SkpArg,   /* J */ SkpSkp,   /* K */ SkpSkp,
+/* H */ ExeNul,   /* I */ SkpArg,   /* J */ SkpVal,   /* K */ SkpSkp,
 /* L */ SkpSkp,   /* M */ SkpMac,   /* N */ SkpArg,   /* O */ SkpArg,
-/* P */ SkpSkp,   /* Q */ SkpQRC,   /* R */ SkpSkp,   /* S */ SkpArg,
+/* P */ SkpSkp,   /* Q */ SkpQRV,   /* R */ SkpVal,   /* S */ SkpArg,
 /* T */ SkpSkp,   /* U */ SkpQRC,   /* V */ SkpSkp,   /* W */ SkpSkp,
 /* X */ SkpQRC,   /* Y */ SkpSkp,   /* Z */ ExeNul,   /* [ */ SkpQRg,
 /* \ */ SkpSkp,   /* ] */ SkpQRg,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
-/* ` */ SkpSkp,   /* a */ SkpSkp,   /* b */ ExeNul,   /* c */ SkpSkp,
+/* ` */ SkpSkp,   /* a */ SkpVal,   /* b */ ExeNul,   /* c */ SkpVal,
 /* d */ SkpSkp,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRC,
-/* h */ ExeNul,   /* i */ SkpArg,   /* j */ SkpSkp,   /* k */ SkpSkp,
+/* h */ ExeNul,   /* i */ SkpArg,   /* j */ SkpVal,   /* k */ SkpSkp,
 /* l */ SkpSkp,   /* m */ SkpMac,   /* n */ SkpArg,   /* o */ SkpArg,
-/* p */ SkpSkp,   /* q */ SkpQRC,   /* r */ SkpSkp,   /* s */ SkpArg,
+/* p */ SkpSkp,   /* q */ SkpQRV,   /* r */ SkpVal,   /* s */ SkpArg,
 /* t */ SkpSkp,   /* u */ SkpQRC,   /* v */ SkpSkp,   /* w */ SkpSkp,
 /* x */ SkpQRC,   /* y */ SkpSkp,   /* z */ ExeNul,   /* { */ SkpSkp,
 /* | */ SkpSkp,   /* } */ SkpSkp,   /* ~ */ SkpSkp,   /*DEL*/ SkpSkp,

@@ -29,11 +29,13 @@ DEFAULT ExePrc()		/* execute % (percent) command */
 	}
 	QR->Number += NArgmt;
 /*
- * The n has been taken off the expression stack,  so any "m," that came with it
- * has been consumed too.  Leaving MARGIS set made the NEXT command think it had
- * been handed an m,n pair with a stale MArgmt -- the same bug m,nUq had.
+ * % is a VALUE PRODUCER -- it ends in the PushEx below -- so it must leave
+ * MARGIS alone.  The "n" of "n%q" is %'s own argument;  the "m," of "m,n%q"
+ * belongs to the command that takes the result,  so clearing the flag here
+ * turned "0,2%9T" into "<result>T" and typed the whole buffer.  See the
+ * commentary on FSAray in skpcmd.c.
  */
-	CmdMod = '\0';				/* clear modifiers flags */
+	CmdMod &= MARGIS;			/* clear modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld,OPERAND)",QR->Number);
 	DbgFEx(1,DbgFNm,DbgSBf);
