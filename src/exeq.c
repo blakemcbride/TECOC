@@ -87,8 +87,12 @@ DEFAULT ExeQ()			/* execute a Q command */
  * shipped lib/dir.tec stored an empty Q-register because of it.  See the
  * commentary on FSAray in skpcmd.c,  which states the rule and lists the other
  * value producers that obey it.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@QaS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-	CmdMod &= MARGIS;			/* clear modifiers flags */
+	CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld,OPERAND)",TmpVal);
 	DbgFEx(1,DbgFNm,DbgSBf);

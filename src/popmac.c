@@ -13,6 +13,7 @@ DEFAULT PopMac()		/* restore environment after macro exit */
     MSptr	MSp;		/* pointer into the macro stack */
     QRptr	QRp;		/* pointer into local Q-register table */
     BOOLEAN	RetVal;		/* TRUE if macro is returning a value */
+    char	SvMArg;		/* the "m," of an "m,n" return value */
     DEFAULT	Status;		/* FAILURE if the returned value was bad */
     DBGFEN(1,"PopMac",NULL);
     Status = SUCCESS;
@@ -40,7 +41,18 @@ DEFAULT PopMac()		/* restore environment after macro exit */
  * but MARGIS,  and MARGIS is the M command's own,  which it has now finished
  * with -- so nothing set here belongs to anybody but the macro.  (The
  * expression stack is deliberately NOT cleared:  that is the return value.)
+ *	MARGIS is the exception,  and for the same reason.  "m,n$$  This
+ * command causes TECO to exit from the current macro level,  returning the
+ * PAIR of values m and n as arguments to the first command following the macro
+ * call."  The "n" is the value on the expression stack;  the "m" is MArgmt,
+ * flagged by MARGIS,  and MArgmt is not part of the environment PshMac saves,
+ * so it is still the macro's.  Clearing the bit here threw half of every pair
+ * away:  "m,nMq" handed a pair INTO a macro correctly and nothing carried one
+ * back out,  so a macro returning "2,5" ran as "5" in the caller.  Only when
+ * the macro really is returning something -- a bare MARGIS with no value
+ * behind it is not a return value,  it is a leftover.
  */
+    SvMArg = (RetVal) ? (CmdMod & MARGIS) : '\0';
     CmdMod = '\0';			/* clear modifiers flags */
 /*
  * restore old environment
@@ -70,5 +82,9 @@ DEFAULT PopMac()		/* restore environment after macro exit */
     if (Status == FAILURE) {
 	return FAILURE;
     }
-    return ((RetVal) ? PushEx(NArgmt, OPERAND) : SUCCESS);
+    if (RetVal) {
+	CmdMod |= SvMArg;		/* the "m," of "m,n$$", if there was one */
+	return PushEx(NArgmt, OPERAND);
+    }
+    return SUCCESS;
 }

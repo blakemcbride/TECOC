@@ -19,8 +19,12 @@ DEFAULT ExeEY()			/* execute an EY command */
  * takes the result.  A plain "EY" produces nothing,  so an "m," left in front
  * of it has nowhere to go and is dropped.  This is the ExeA / DoCJR pattern;
  * see the commentary on FSAray in skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@:EYS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-	CmdMod = (ColonMod) ? (CmdMod & MARGIS) : '\0';	/* clear modifiers */
+	CmdMod = (ColonMod) ? (CmdMod & (MARGIS | ATSIGN)) : '\0';  /* modifiers */
 	GapBeg = EBfBeg;			/* clear the...   */
 	GapEnd = EBfEnd;			/*   ...edit buffer */
 	if (IsEofI[CurInp]) {			/* if at end-of-file */

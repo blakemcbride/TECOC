@@ -30,15 +30,24 @@ DEFAULT ExeEsc()		/* execute an ESCAPE command */
 		}
 /*
  * NOT the expression stack:  leaving it alone is how a macro returns a value,
- * and PopMac picks it up.  CmdMod has no such role,  and neither ExeM nor
- * PopMac used to clear it,  so a macro whose text ended with a pending "@",
- * ":" or "::" handed the modifier to the CALLER's next command -- an "@" made
- * the caller's next text argument take its own first character as the
- * delimiter,  a ":" silently turned the next search into a 0/-1 test,  and a
- * "::" got the next command refused as illegal.  The same leak happened at
+ * and PopMac picks it up.  The "@", ":" and "::" bits have no such role,  and
+ * neither ExeM nor PopMac used to clear them,  so a macro whose text ended
+ * with one of them pending handed the modifier to the CALLER's next command --
+ * an "@" made the caller's next text argument take its own first character as
+ * the delimiter,  a ":" silently turned the next search into a 0/-1 test,  and
+ * a "::" got the next command refused as illegal.  The same leak happened at
  * top level,  from one command string to the next.
+ *	MARGIS is the exception,  for the same reason the expression stack is:
+ * "m,n$$" is documented to return the PAIR m and n to the first command after
+ * the macro call,  and the "m" travels in MARGIS and MArgmt exactly as the "n"
+ * travels on the stack.  Clearing it here made "@^UB/2,5/$ MB T" run as "5T"
+ * -- five LINES where the macro asked for characters 2 to 5.  PopMac decides
+ * whether the bit really is a return value and clears it if it is not.
+ *	Only inside a macro:  at top level there is nobody to return to,  and
+ * nothing between one command string and the next clears CmdMod,  so the bit
+ * would simply leak into whatever the user typed after this.
  */
-		CmdMod = '\0';			/* clear modifiers flags */
+		CmdMod = (MStTop < 0) ? '\0' : (CmdMod & MARGIS);
 		CBfPtr = CStEnd;		/* exit this macro level */
 	} else {
 		CmdMod = '\0';			/* clear modifiers flags */

@@ -62,8 +62,12 @@ DEFAULT ExeD()			/* execute a D command */
  * result.  The plain "nD" below produces nothing,  so an "m," left in front of
  * it has nowhere to go and is dropped.  See the commentary on FSAray in
  * skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@:DS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-		CmdMod &= MARGIS;		/* clear modifiers flags */
+		CmdMod &= (MARGIS | ATSIGN);	/* clear modifiers flags */
 		DBGFEX(1,DbgFNm,"PushEx()");
 		return PushEx(Status, OPERAND);
 	}

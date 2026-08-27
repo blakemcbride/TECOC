@@ -49,8 +49,12 @@ LONG HowFar;			/* positive or negative displacement */
  * takes the result,  and clearing the flag here turned "0,:CT" into "-1T".
  * The plain forms produce nothing,  so an "m," in front of one has nowhere to
  * go and is dropped.  See the commentary on FSAray in skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@:CS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-	CmdMod = (ColonMod) ? (CmdMod & MARGIS) : '\0';	/* clear modifiers */
+	CmdMod = (ColonMod) ? (CmdMod & (MARGIS | ATSIGN)) : '\0';  /* modifiers */
 	if (ColonMod) {				/* if colon modifier */
 		DBGFEX(2,DbgFNm,"PushEx");
 		return PushEx(InRange, OPERAND);

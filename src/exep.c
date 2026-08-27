@@ -63,8 +63,12 @@ DEFAULT ExeP()			/* execute a P or PW command */
  * PRODUCER and the "m," in front of it belongs to the command that takes the
  * result.  The plain "nP" below produces nothing and goes on clearing all of
  * CmdMod.  See the commentary on FSAray in skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@:PS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-		CmdMod &= MARGIS;		/* clear modifiers flags */
+		CmdMod &= (MARGIS | ATSIGN);	/* clear modifiers flags */
 		DBGFEX(1,DbgFNm,SavEof ? "PushEx(0)" : "PushEx(-1)");
 		return PushEx(SavEof ? 0L : -1L, OPERAND);
 	}

@@ -107,9 +107,30 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 	    (CBfPtr < CStEnd) && (*(CBfPtr+1) == ESCAPE)) { /* if it's s$, n$ */
 		++CBfPtr;			/* skip the escape */
 	} else {
+		charptr SavSPt;			/* end of the OLD search string */
+		SavSPt = SBfPtr;
 		if (BldStr(SBfBeg, SBfEnd, &SBfPtr) == FAILURE) {
 			DBGFEX(2,DbgFNm,"FAILURE, BldStr() failed");
 			return FAILURE;
+		}
+/*
+ * "@S//" is a search command with its text argument omitted and its terminator
+ * -- the closing delimiter -- present,  so the manual's rule applies to it as
+ * much as to "S$":  "If a search command is entered without a text argument,
+ * TECO will execute the search command as though it had been entered with the
+ * same character string argument as the last search command entered."  The
+ * at-sign test above cannot say that,  because an at-sign search always has a
+ * text argument even when it is empty;  the thing to look at is what the
+ * argument BUILT to.  Without this "@S//" searched for the empty string and
+ * always failed with '?SRH   Search failure ""',  and so did "@FS//new/" --
+ * replace what was just found,  which is what an empty first argument is FOR --
+ * while the identical "FS$new$" worked.
+ *	BldStr writes forward from SBfBeg and an empty argument writes nothing,
+ * so the old string is still sitting there;  only SBfPtr moved.  This catches
+ * a ^EQq naming an empty Q-register too,  which builds the same empty string.
+ */
+		if (SBfPtr == SBfBeg) {
+			SBfPtr = SavSPt;	/* use the last search string */
 		}
 	}
 /*
@@ -177,7 +198,7 @@ BOOLEAN	RepCmd;			/* TRUE if the command has two arguments */
 			}
 		}
 
-	if (SrcLop() == FAILURE) {
+	if (SrcLop(RepCmd) == FAILURE) {
 		DBGFEX(2,DbgFNm,"FAILURE, SrcLop failed");
 		return FAILURE;
 	}

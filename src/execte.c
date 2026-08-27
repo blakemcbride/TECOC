@@ -40,8 +40,12 @@ DEFAULT ExeCtE()		/* execute a ^E (control-E) command */
  * above consumes its own argument -- and with it any "m," that came with it --
  * so it goes on clearing the whole of CmdMod.  See the commentary on FSAray in
  * skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@^ES/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-    CmdMod &= MARGIS;				/* clear modifiers flags */
+    CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
     DBGFEX(1,DbgFNm,"PushEx(FFPage)");
     return PushEx(FFPage, OPERAND);
 }

@@ -29,7 +29,12 @@ TECO-11, and may be implemented in TECO-C someday.
  * compiles,  but setting one of them changes nothing -- use the EZ_ equivalent.
  *	ED_IMMED_OK stays commented out for a different reason:  section 4.4's
  * immediate ESCape-sequence commands are a feature TECOC has never had,  not
- * merely a bit nothing reads.
+ * merely a bit nothing reads.  ED_NO_EXP is commented out for the same reason:
+ * "TECO will expand memory only on the A command and not on the Y, P, or N
+ * commands" describes a discipline RdLine and InsStr have never had -- they
+ * grow the buffer whenever they need to -- so "4ED" is accepted and does
+ * nothing.  Implementing it means teaching expand_ibf and expand_gap to refuse,
+ * not defining the bit.
  */
 #if defined(unix) || defined(AMIGA)
 #define ED_UNIXNL	256	/* unused: see EZ_UNIXNL */
@@ -51,6 +56,12 @@ TECO-11, and may be implemented in TECO-C someday.
 are not used in TECO-C.  They are included here because they are used by
 TECO-11.  The 2048 bit is listed as "reserved for TECO-8" in the TECO-11
 source code.  I needed another bit, so I used it.
+	ET_CAN_CTRL_O (16) and ET_TRUNCATE (256) are documented in the Standard
+TECO manual and are NOT implemented here:  TECOC has no ^O type-out suppression
+to cancel and never truncates a line on output.  ET_DETACH (64) is a PDP-11
+notion with no Unix, Windows or VMS counterpart.  Setting any of the three
+through nET is accepted -- DoFlag stores whatever it is given -- and has no
+effect.
 *****************************************************************************/
 
 #define ET_IMAGE_MODE	1	/* output without doing conversions */
@@ -425,7 +436,8 @@ DEFAULT	Search(			/* top level search */
 	BOOLEAN	RepCmd);	/* TRUE if the command has two arguments */
 DEFAULT	SinglP(void);		/* execute a single P function */
 DEFAULT	SkpCmd(void);		/* skip a single command */
-DEFAULT	SrcLop(void);		/* search loop */
+DEFAULT	SrcLop(			/* search loop */
+	BOOLEAN	RepCmd);	/* TRUE if the caller is a replace command */
 DEFAULT	SSerch(void);		/* single search */
 VVOID	TAbort(			/* terminate TECO-C */
 	DEFAULT tstat);

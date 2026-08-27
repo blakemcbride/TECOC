@@ -216,7 +216,8 @@ actually doing the loop for n arguments.
 
 *****************************************************************************/
 
-DEFAULT SrcLop()		/* search loop */
+DEFAULT SrcLop(RepCmd)		/* search loop */
+BOOLEAN RepCmd;			/* TRUE if the caller is a replace command */
 {
     ptrdiff_t	HowFar;
 
@@ -359,13 +360,30 @@ DEFAULT SrcLop()		/* search loop */
 		    GapEnd = EBPtr2;
 	    }
 	} else {				/* else not FK */
-	    if ((SIncrm == 1) || (EBPtr2 > GapEnd)) {
-		HowFar = EBPtr2 - GapEnd;
+	    charptr EndMat;			/* where dot is to end up */
+/*
+ * "ED&64  Only move dot by one on multiple occurrence searches. ... If this bit
+ * is set,  TECO increments dot by one each search match.  In the above example
+ * [12 A's and "5SAA`"],  dot would become five (5)."  The loop above already
+ * advances the CANDIDATE by one per match when the bit is set -- it is the
+ * "EBPtr1 = EBPtr2" that it skips -- but dot still landed after the last
+ * character of the final match,  which is 6 for the manual's own example rather
+ * than the 5 it gives.  One past the FIRST character of the match is what "dot
+ * increments by one each match" comes to.
+ *	Not for the search-and-replace commands.  Replac deletes RefLen
+ * characters BACK from dot,  so it needs dot after the whole matched string;
+ * moving it would make "nFS" under ED&64 delete text the search never matched.
+ * The manual describes the bit for "nStext`" and says nothing about the pair.
+ */
+	    EndMat = ((EdFlag & ED_DOT_BY_ONE) && (SIncrm == 1) && !RepCmd)
+			? EBPtr1 : EBPtr2;
+	    if ((SIncrm == 1) || (EndMat > GapEnd)) {
+		HowFar = EndMat - GapEnd;
 		MEMMOVE(GapBeg, GapEnd+1, (SIZE_T)HowFar);
 		GapBeg += HowFar;
 		GapEnd += HowFar;
 	    } else {
-		HowFar = (GapBeg-1) - EBPtr2;
+		HowFar = (GapBeg-1) - EndMat;
 		GapBeg -= HowFar;
 		GapEnd -= HowFar;
 		MEMMOVE(GapEnd+1, GapBeg, (SIZE_T)HowFar);

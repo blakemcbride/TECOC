@@ -82,7 +82,17 @@ DEFAULT ExeBSl()		/* execute a \ (backslash) command */
  */
 	    StrVal = negative ? (LONG)(0 - Acc) : (LONG)Acc;
 	}
-	CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * This arm ends in the PushEx below,  so it is a VALUE PRODUCER:  its result
+ * becomes the "n" of the command that follows,  and any "m," or "@" written in
+ * front of it belongs to THAT command.  Clearing the whole of CmdMod threw both
+ * away.  "0,\T" -- read the count out of the buffer and type that many
+ * characters from the start,  which is what the digit string is there for --
+ * ran as "<count>T" and typed whole LINES instead.  The "n\" arm below consumes
+ * its argument and goes on clearing the lot.  See DoFlag and the commentary on
+ * FSAray in skpcmd.c.
+ */
+	CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld)", StrVal);
 	DbgFEx(1,DbgFNm,DbgSBf);

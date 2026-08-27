@@ -70,8 +70,12 @@ DEFAULT ExeA()			/* execute an A command */
  * the "m," of "m,nA" belongs to the command that takes the result,  so
  * clearing the flag here turned "0,1AT" into "<value>T" and typed the whole
  * buffer.  See the commentary on FSAray in skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@0AS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-	CmdMod &= MARGIS;			/* clear modifiers flags */
+	CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
 	if (ColonMod) {				/* if it's n:A */
 /*
  * The manual says of n:A only that "the value of n must not be negative".
@@ -139,7 +143,7 @@ DEFAULT ExeA()			/* execute an A command */
  * a bare "A" produces nothing,  so an "m," left in front of it has nowhere to
  * go and is dropped.
  */
-    CmdMod = (ColonMod) ? (CmdMod & MARGIS) : '\0';	/* clear modifiers */
+    CmdMod = (ColonMod) ? (CmdMod & (MARGIS | ATSIGN)) : '\0';	/* modifiers */
     if (IsEofI[CurInp]) {			/* if already at end-of-file */
         DBGFEX(1,DbgFNm,(ColonMod) ? "PushEx(0)" : "SUCCESS");
 	return ((ColonMod) ? PushEx(0L,OPERAND) : SUCCESS);

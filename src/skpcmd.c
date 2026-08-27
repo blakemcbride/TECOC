@@ -46,13 +46,15 @@ static DEFAULT SkpArg()		/* skip command with text argument */
 }
 /*****************************************************************************
 	SkpAgV()
-	SkpArg for a command that has a VALUE-PRODUCING form:  EB, EI, EN, ER
-and EW.  ":EBfile$", ":EIfile$", ":ENfile$", ":ERfile$" and ":EWfile$" all end
-in a PushEx and so leave MARGIS alone,  while the plain forms clear the lot.
-A skipper cannot tell the colon form from the plain one -- the same problem
-A, C, J and R have in SkpVal -- and the value-producing form is again the one
-that can stand between a modifier and its command.  FindES needs the at-sign
-while it scans,  so SkpArg does the work and the "m," is put back afterwards.
+	SkpArg for a command that has a VALUE-PRODUCING form:  EB, EG, EI, EN,
+ER and EW.  ":EBfile$", ":EGcmd$", ":EIfile$", ":ENfile$", ":ERfile$" and
+":EWfile$" all end in a PushEx and so leave MARGIS alone,  while the plain forms
+clear the lot.  A skipper cannot tell the colon form from the plain one -- the
+same problem A, C, J and R have in SkpVal -- and the value-producing form is
+again the one that can stand between a modifier and its command.  FindES needs
+the at-sign while it scans,  so SkpArg does the work and the "m," is put back
+afterwards.  The at-sign itself is NOT put back:  these commands have a text
+argument of their own and have just used it on that.
 *****************************************************************************/
 static DEFAULT SkpAgV()		/* skip a value-producing text-arg command */
 {
@@ -136,16 +138,17 @@ static DEFAULT SkpMac()		/* skip an Mq command */
 /*****************************************************************************
 	SkpQRV()
 	Skip a Q-register name for one of the VALUE-PRODUCING Q-register
-commands,  % and Q.  Every arm of ExePrc and of ExeQ ends in a PushEx,  so
-both leave MARGIS alone -- the "m," of "m,QqT" belongs to the T -- and the
-skipper has to leave the same bits behind.  SkpMac keeps MARGIS for a
-different reason:  "m,nMq" is how a macro is handed two arguments.
+commands,  % and Q.  Every arm of ExePrc and of ExeQ ends in a PushEx,  so both
+leave MARGIS and ATSIGN alone -- the "m," of "m,QqT" and the "@" of "@QqS/x/"
+belong to the command that takes the result -- and the skipper has to leave the
+same bits behind.  SkpMac keeps MARGIS for a different reason:  "m,nMq" is how
+a macro is handed two arguments.
 *****************************************************************************/
 static DEFAULT SkpQRV()		/* skip a Q-register name, keep MARGIS */
 {
 	if (SkpQRg() == FAILURE)
 		return FAILURE;
-	CmdMod &= MARGIS;			/* keep MARGIS, clear the rest */
+	CmdMod &= (MARGIS | ATSIGN);		/* keep those two, clear the rest */
 	return SUCCESS;
 }
 /*****************************************************************************
@@ -298,21 +301,27 @@ static DEFAULT SkpSkp()		/* */
 /*****************************************************************************
 	SkpVal()
 	SkpSkp for a command that has a VALUE-PRODUCING form:  A, C, J and R.
-":A", ":C", ":J" and ":R" all end in a PushEx and so leave MARGIS alone,  and
-a skipper cannot tell the colon form from the plain one -- the same problem
-^R and ^T have,  and the value-producing form is again the one that can stand
-between a modifier and its command.  The at-sign still goes,  as it does for
-every skipped command.
-	^E, ^Q, ^X, D, P, Y, ED, EH, ES, ET, EU, EV, EZ and EY are here too.
-^Q is a pure value producer;  the flags have a READ form that is one -- DoFlag's
-read path and ExeCtE's read arm both end in a PushEx now -- and a write form
-that consumes its argument;  ":D", ":P" and ":Y" are the value-producing forms
-of the other three.  As SkpSkp they cleared an "m," the executor keeps,  which
-is the divergence round 7 section 4 forbids.
+":A", ":C", ":J" and ":R" all end in a PushEx and so leave MARGIS and ATSIGN
+alone,  and a skipper cannot tell the colon form from the plain one -- the same
+problem ^R and ^T have,  and the value-producing form is again the one that can
+stand between a modifier and its command.
+	^E, ^Q, ^X, \, D, P, Y, ED, EH, ES, ET, EU, EV, EZ and EY are here too.
+^Q and the read form of \ are pure value producers;  the flags have a READ form
+that is one -- DoFlag's read path and ExeCtE's read arm both end in a PushEx
+now -- and a write form that consumes its argument;  ":D", ":P" and ":Y" are the
+value-producing forms of the other three.  As SkpSkp they cleared an "m," the
+executor keeps,  which is the divergence round 7 section 4 forbids.
+	The at-sign is kept for the same reason as the "m,":  none of these
+commands has a text argument for an "@" to modify,  so an at-sign written in
+front of one belongs to the command that takes the result.  Clearing it made
+"@EDS/x/" search for the three characters "/x/".  The colon still goes,  as it
+does for every skipped command:  a value producer either has a colon FORM,  in
+which case the bit is its own and it has just been used to pick this arm,  or it
+has none and the bit has nowhere to go.
 *****************************************************************************/
 static DEFAULT SkpVal()		/* skip a value-producing command */
 {
-	CmdMod &= MARGIS;			/* keep MARGIS, clear the rest */
+	CmdMod &= (MARGIS | ATSIGN);		/* keep those two, clear the rest */
 	return SUCCESS;
 }
 /*****************************************************************************
@@ -420,12 +429,15 @@ static DEFAULT SkpE()			/* skip one of the E commands */
  * took none,  which handed the filespec back to the scanning loop to be read
  * as commands.  A "<", ">", "!", '"', "'" or "|" in a wildcard filespec then
  * really did change where the skip stopped.
+ *	EJ and EO are SkpVal rather than SkpSkp:  both end in a PushEx,  so
+ * both are value producers that keep MARGIS and ATSIGN,  and the skipper has to
+ * leave the same bits behind as the executor.  See SkpVal.
  */
 	static DEFAULT (*FEAray[])(VVOID) = {
 /* A */ SkpSkp,    /* B */ SkpAgV,    /* C */ SkpSkp,    /* D */ SkpVal,
-/* E */ SkpSkp,    /* F */ SkpSkp,    /* G */ SkpArg,    /* H */ SkpVal,
-/* I */ SkpAgV,    /* J */ SkpSkp,    /* K */ SkpSkp,    /* L */ SkpArg,
-/* M */ SkpSkp,    /* N */ SkpAgV,    /* O */ SkpSkp,    /* P */ SkpSkp,
+/* E */ SkpSkp,    /* F */ SkpSkp,    /* G */ SkpAgV,    /* H */ SkpVal,
+/* I */ SkpAgV,    /* J */ SkpVal,    /* K */ SkpSkp,    /* L */ SkpArg,
+/* M */ SkpSkp,    /* N */ SkpAgV,    /* O */ SkpVal,    /* P */ SkpSkp,
 /* Q */ SkpCtU,    /* R */ SkpAgV,    /* S */ SkpVal,    /* T */ SkpVal,
 /* U */ SkpVal,    /* V */ SkpVal,    /* W */ SkpAgV,    /* X */ SkpSkp,
 /* Y */ SkpVal,    /* Z */ SkpVal
@@ -491,11 +503,17 @@ ExePrc, ExeG, ExeM, ExeQ, ExeU and ExeX all END by clearing CmdMod,  while
 SkpQRg left it alone.  Those use SkpQRC (SkpMac for M,  SkpQRV for % and Q)
 below.  "[" and "]" keep the plain SkpQRg:  their executors leave CmdMod
 alone,  so it already agrees.
-	% and Q are in that group only for the at-sign.  Both are value
-producers themselves,  so both KEEP MARGIS -- SkpQRV -- and so do A, C, J and
-R,  whose colon forms return a value:  those four are SkpVal.  Clearing MARGIS
-for them threw away an "m" they had never taken,  so "m,QqK" deleted the whole
-buffer and the shipped lib/dir.tec stored an empty Q-register.
+	% and Q are in that group only for the colon.  Both are value
+producers themselves,  so both KEEP MARGIS AND ATSIGN -- SkpQRV -- and so do
+A, C, J and R,  whose colon forms return a value:  those four are SkpVal.
+Clearing MARGIS for them threw away an "m" they had never taken,  so "m,QqK"
+deleted the whole buffer and the shipped lib/dir.tec stored an empty
+Q-register;  clearing ATSIGN threw away an at-sign they had never taken
+either,  so "1UA@QAS/b/" searched for the three characters "/b/".
+	"\" is in that group too -- the read form of the backslash command,
+"the number in its ASCII representation in the edit buffer",  ends in a PushEx
+like the rest of them,  and only the "n\" write form consumes anything.  As
+SkpSkp it cleared an "m," the executor keeps,  so it is SkpVal now.
 	^R,  ^T and "'" belong to the same first group and were missed by that
 pass.  ExeCtR and ExeCtT both have two paths:  the argument-less READ form is a
 pure value producer that returns PushEx() without touching CmdMod,  and only
@@ -532,7 +550,7 @@ DEFAULT SkpCmd()		/* skip a "command" */
 /* P */ SkpVal,   /* Q */ SkpQRV,   /* R */ SkpVal,   /* S */ SkpArg,
 /* T */ SkpSkp,   /* U */ SkpQRC,   /* V */ SkpSkp,   /* W */ SkpSkp,
 /* X */ SkpQRC,   /* Y */ SkpVal,   /* Z */ ExeNul,   /* [ */ SkpQRg,
-/* \ */ SkpSkp,   /* ] */ SkpQRg,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
+/* \ */ SkpVal,   /* ] */ SkpQRg,   /* ^ */ SkpCrt,   /* _ */ SkpArg,
 /* ` */ SkpSkp,   /* a */ SkpVal,   /* b */ ExeNul,   /* c */ SkpVal,
 /* d */ SkpVal,   /* e */ SkpE,     /* f */ SkpF,     /* g */ SkpQRC,
 /* h */ ExeNul,   /* i */ SkpArg,   /* j */ SkpVal,   /* k */ SkpSkp,

@@ -165,6 +165,18 @@ static DEFAULT VSetW()		/* execute an m,n:W command */
 	    SeeAll = (DEFAULT)MArgmt;
 	    break;
 	case 4:
+/*
+ * "Return or set 'mark' status of window support.  A value of n means that a
+ * mark has been set at buffer ('dot') position n-1.  This status is used by
+ * software that uses the window support and by the support itself in the case
+ * of scopes that support reverse video."
+ *	TECOC stores the value and hands it back through VGetW and there the
+ * matter ends:  redraw() does not look at MrkFlg,  so no mark is ever shown.
+ * lib/squ.tes:927's ".,4:W" sets one that is never drawn.  A macro can still
+ * use 4:W as a scratch cell -- which is all it has ever been here -- but do not
+ * expect the display to reflect it.  Implementing it means teaching redraw() to
+ * run standout() over the marked position,  not changing this line.
+ */
 	    MrkFlg = (DEFAULT)MArgmt;
 	    break;
 	case 5:
@@ -294,13 +306,28 @@ DEFAULT ExeW()			/* execute an W command */
  * FAILURE,  because that'll terminate the current macro.
  */
 	if (!(EtFlag & ET_WAT_SCOPE)) {		/* if scope not available */
+		BOOLEAN ColonMod;
 /*
  * The arguments were pushed for this command,  so this command has to take
  * them,  exactly as the VIDEO path below does with GetNmA().  Leaving them on
  * the expression stack made "5W" hand its 5 to whatever command came next.
+ *	But "n:W" and "m,n:W" RETURN a value -- "Sets the entity represented by
+ * n:W to m and returns a value ... Note that each m,n:W command returns a
+ * value,  even if your only intent is to set something." -- so consuming the
+ * arguments and pushing nothing left the next command with an empty stack:
+ * the documented "0:W" answered ?NAE instead of a terminal type.  That is
+ * every non-video build,  which is every Windows build.  Nothing was set and
+ * there is no scope to report on,  so the value is 0,  which is what VGetW
+ * below answers for any code it does not know.  A plain "W" or "nW" produces
+ * nothing and goes on producing nothing.
  */
+		ColonMod = (CmdMod & COLON) != 0;
 		EStTop = EStBot;		/* consume our arguments */
-		CmdMod = '\0';
+		CmdMod = ColonMod ? (CmdMod & ATSIGN) : '\0';
+		if (ColonMod) {
+			DBGFEX(1,DbgFNm,"PushEx(0)");
+			return PushEx(0L, OPERAND);
+		}
 		DBGFEX(1,DbgFNm,"SUCCESS");
 		return SUCCESS;
 	}
@@ -325,33 +352,35 @@ DEFAULT ExeW()			/* execute an W command */
 	}
 
 	if (CmdMod & COLON) {			/* if it's :W */
+		BOOLEAN SetForm;
 		if (NArgmt < 0) {		/* insert processing? */
 			CmdMod = '\0';
 			return ExeNYI();
-		} else {
-			if (CmdMod & MARGIS) {	/* if it's m,n:W */
-				CmdMod = '\0';
-				if (VSetW() == FAILURE) {
-					DBGFEX(1,DbgFNm,"FAILURE");
-					return FAILURE;
-				}
-			} else {		/* else (must be n:W) */
-				CmdMod = '\0';
-				if (VGetW() == FAILURE) {
-					DBGFEX(1,DbgFNm,"FAILURE");
-					return FAILURE;
-				}
-			}
 		}
-	} else {				/* else there's no colon */
-		CmdMod = '\0';
-		if (VDoW() == FAILURE) {
-			DBGFEX(1,DbgFNm,"FAILURE");
-			return FAILURE;
+		SetForm = (CmdMod & MARGIS) != 0;    /* m,n:W rather than n:W */
+/*
+ * Both arms end in a PushEx,  so both are VALUE PRODUCERS and have to leave
+ * ATSIGN alone:  ":W" has no text argument for an "@" to modify,  so an at-sign
+ * written in front of one belongs to the command that takes the result.  MARGIS
+ * is different here -- "m,n:W" is the SET form and has just consumed the pair
+ * itself -- and the colon is this command's own.  See DoFlag and the commentary
+ * on FSAray in skpcmd.c.
+ */
+		CmdMod &= ATSIGN;
+		if (SetForm) {			/* if it's m,n:W */
+			DBGFEX(1,DbgFNm,"VSetW()");
+			return VSetW();
 		}
-		EStTop = EStBot;		/* clear expression stack */
-		CmdMod &= ~COLON;		/* clear colon modifier */
+		DBGFEX(1,DbgFNm,"VGetW()");
+		return VGetW();			/* else (must be n:W) */
 	}
+
+	CmdMod = '\0';				/* else there's no colon */
+	if (VDoW() == FAILURE) {
+		DBGFEX(1,DbgFNm,"FAILURE");
+		return FAILURE;
+	}
+	EStTop = EStBot;			/* clear expression stack */
 
 	DBGFEX(1,DbgFNm,"SUCCESS");
 	CmdMod = '\0';

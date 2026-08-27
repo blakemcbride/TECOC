@@ -261,6 +261,8 @@ static DEFAULT ExeFR()			/* execute an FR command */
 *****************************************************************************/
 static DEFAULT ExeFS()			/* execute an FS command */
 {
+	WORD	SvEStB;			/* expression stack bottom, saved */
+	DEFAULT	status;
 	DBGFEN(1,"ExeFS",NULL);
 /*
  * The command m,nFS is illegal: the user should use m,nFC
@@ -282,7 +284,12 @@ static DEFAULT ExeFS()			/* execute an FS command */
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
 		}
-		if (EStTop > EStBot) {		/* if it's n::FS */
+/*
+ * An OPERAND on top of the stack,  not merely a non-empty stack:  "::FS" is a
+ * value producer and a pending "(" or "+" is not an "n".  See ExeS.
+ */
+		if ((EStTop > EStBot) &&	/* if it's n::FS */
+		    (EStack[EStTop].ElType == OPERAND)) {
 			ErrStr(ERR_ILL, "n::FS");
 			DBGFEX(1,DbgFNm,"FAILURE");
 			return FAILURE;
@@ -316,7 +323,15 @@ static DEFAULT ExeFS()			/* execute an FS command */
 		CmdMod |= COLON;		/* set colon bit */
 		CmdMod |= MARGIS;		/* set m defined bit */
 		MArgmt = GapBeg - EBfBeg;	/* set m */
-		if (PushEx((LONG)((GapBeg-EBfBeg)+1),OPERAND) == FAILURE) {
+/*
+ * Raise EStBot for the one push so that a pending operator of the user's does
+ * not reduce against a value that is ours,  not theirs.  See ExeS.
+ */
+		SvEStB = EStBot;
+		EStBot = EStTop;
+		status = PushEx((LONG)((GapBeg-EBfBeg)+1),OPERAND);
+		EStBot = SvEStB;
+		if (status == FAILURE) {
 			DBGFEX(1,DbgFNm,"FAILURE, PushEx() failed");
 			return FAILURE;
 		}

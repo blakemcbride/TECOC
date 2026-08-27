@@ -46,8 +46,12 @@ DEFAULT ExePrc()		/* execute % (percent) command */
  * belongs to the command that takes the result,  so clearing the flag here
  * turned "0,2%9T" into "<result>T" and typed the whole buffer.  See the
  * commentary on FSAray in skpcmd.c.
+ *	ATSIGN goes with it,  and for the same reason:  this command has no
+ * text argument for an "@" to modify,  so an at-sign written in front of it
+ * belongs to the command that takes the result -- "@0%aS/x/" searched for the
+ * three characters "/x/".  See DoFlag.
  */
-	CmdMod &= MARGIS;			/* clear modifiers flags */
+	CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
 #if DEBUGGING
 	sprintf(DbgSBf,"PushEx(%ld,OPERAND)",QR->Number);
 	DbgFEx(1,DbgFNm,DbgSBf);

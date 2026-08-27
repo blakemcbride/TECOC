@@ -514,7 +514,16 @@ static DEFAULT ExeEG()		/* perform operating system function */
     if (CmdMod & COLON) {			/* if it's :EG */
         DEFAULT EGOper = GET_VAL;		/* get, set or clear */
 	charptr TmpPtr;
-	CmdMod &= ~COLON;			/* clear colon flag */
+/*
+ * Only the colon bit used to be cleared here,  so "@:EGINI$" handed its
+ * at-sign to the NEXT command:  the at-sign belongs to this command,  which has
+ * a text argument of its own,  and BldStr above has just used it.  Every other
+ * text-argument command in the tree consumes it.  MARGIS stays,  because every
+ * arm below ends in a PushEx and so this is a VALUE PRODUCER -- the "m," in
+ * front of it belongs to the command that takes the result.  SkpE skips EG with
+ * SkpAgV,  which leaves the same bit behind.
+ */
+	CmdMod &= MARGIS;			/* clear the modifiers we used */
 	EGWhat = GetWha(GBfBeg,GBfLen);
 	TmpPtr = (charptr)GBfBeg;
 	if (EGWhat != EG_OTHER) {
@@ -810,6 +819,17 @@ DEFAULT	IfIndx;			/* index into IFiles array */
 	    return FAILURE;
 	}
 /*
+ * Each $$-delimited chunk of an EI file is a command string in its own right,
+ * and DoEI runs each of them through PshMac/PopMac -- so PopMac sees a macro
+ * level here and hands back the "m," of an "m,n$$" the way it does for a real
+ * macro call.  There is nobody here to hand it to:  the next chunk is the next
+ * command string,  not the caller of a macro.  ReadCS starts each console
+ * command string with CmdMod clear for the same reason;  do the same between
+ * chunks.  (The value itself is left on the expression stack,  which is where
+ * PopMac has always put it.)
+ */
+	CmdMod = '\0';			/* one chunk cannot modify the next */
+/*
  * if we ran into an $$ that was in the middle of a line,  then we want to
  * move it to the beginning of ZBf and append the rest of the EI file to
  * it; otherwise, we'll just start reading into the beginning of ZBf.
@@ -1020,7 +1040,15 @@ static DEFAULT ExeEJ()			/* execute an EJ command */
 	DEFAULT status;
 
 	status = ZExeEJ();
-	CmdMod = '\0';				/* clear modifiers flags */
+/*
+ * Every arm of ZExeEJ ends in a PushEx,  so EJ is a VALUE PRODUCER and leaves
+ * MARGIS and ATSIGN for the command that takes the result:  "nEJ" has no text
+ * argument for an "@" to modify.  Clearing them made "@EJS/x/" search for the
+ * three characters "/x/".  ("m,nEJ" is a documented TECO-11 SET command that
+ * TECOC does not implement;  ZExeEJ reads only the n,  so the "m," was never
+ * this command's to consume either.)  See DoFlag.
+ */
+	CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
 	return status;
 }
 
@@ -1162,10 +1190,14 @@ static DEFAULT ExeEO()			/* execute an EO command */
 /*
  * The modifiers were written for the EO command,  and it never cleared them,
  * so "@EO" leaked its at-sign into the next command.  SkpCmd skips EO with
- * SkpSkp,  which clears CmdMod,  so clearing here is also what makes the
- * skipper and the executor stop in the same place.
+ * SkpVal,  which keeps MARGIS and ATSIGN,  so keeping them here is also what
+ * makes the skipper and the executor stop in the same place.
+ *	The read arm above ends in a PushEx,  so it is a VALUE PRODUCER:  "EO"
+ * has no text argument for an "@" to modify and takes no "m,",  so both belong
+ * to the command that takes the version number.  Clearing them made "@EOS/x/"
+ * search for the three characters "/x/".  See DoFlag.
  */
-	CmdMod = '\0';				/* clear modifiers flags */
+	CmdMod &= (MARGIS | ATSIGN);		/* clear modifiers flags */
 	return status;
 }
 
